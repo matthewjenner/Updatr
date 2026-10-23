@@ -1,0 +1,39 @@
+<Project>
+  <!--
+    Single source of truth for the app version. Inherited by every csproj in the repo.
+    Bump with Scripts/bump-version.sh. CI reads this value, tags v$(VersionPrefix),
+    and publishes the release zips. 0.0.0 is "nothing shippable yet": CI builds and tests it
+    but never releases it.
+  -->
+  <PropertyGroup>
+    <VersionPrefix>0.0.0</VersionPrefix>
+    <!--
+      Stops the .NET SDK appending "+<git-commit-hash>" to AssemblyInformationalVersion, so
+      the splash screen, About box, and self-update comparison see a clean "1.2.3".
+    -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Authors>Matt Jenner</Authors>
+    <Product>Updatr</Product>
+  </PropertyGroup>
+
+  <!--
+    Shared values for the Windows-specific projects (Platform, App, Cli, Platform.Tests). Each of
+    those projects references these properties; Core and Core.Tests ignore them.
+  -->
+  <PropertyGroup>
+    <!-- 26100 matches the WinGet COM interop projection's own target. -->
+    <UpdatrWindowsTfm>net10.0-windows10.0.26100.0</UpdatrWindowsTfm>
+    <!-- Windows 10 2004. Anything older is out of support and lacks the WinGet COM server. -->
+    <UpdatrMinWindows>10.0.19041.0</UpdatrMinWindows>
+    <!-- Host architecture, so a plain `dotnet build` / `dotnet run` works on x64 and ARM64 dev boxes. -->
+    <UpdatrHostRid Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">win-arm64</UpdatrHostRid>
+    <UpdatrHostRid Condition="'$(UpdatrHostRid)' == ''">win-x64</UpdatrHostRid>
+  </PropertyGroup>
+</Project>

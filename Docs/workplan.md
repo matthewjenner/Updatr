@@ -8,14 +8,17 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Current state
 
-- **Phase:** planning - design docs drafted, awaiting review.
+- **Phase:** 0 - scaffold done; two spikes need a manual run (elevated WinGet COM, FAT32/exFAT
+  self-update swap).
 - **Last updated:** 2026-10-23
-- **Build status:** no code yet.
-- **Next:** review DESIGN / TECHARCH, then Phase 0.
+- **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (3/3, convention tests);
+  `Scripts/publish.sh` produces win-x64 + win-arm64 zips. Version 0.0.0 (never released).
+- **Next:** manual spike runs, then Phase 1 (Core models and catalog).
 
 ## Versioning
 
-- `0.0.x` preview releases as phases ship usable pieces.
+- `0.0.0` until something is shippable - CI builds and tests it but never releases it.
+- `0.0.x` preview releases as phases ship usable pieces (first one at the end of Phase 3).
 - **`0.1.0`** = Phases 0-7: updates, install/carts, defluff, uninstall (uninstaller only),
   self-update, CLI parity.
 - **`0.2.0`** = Phase 8: leftover cleanup + install footprints.
@@ -24,18 +27,21 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Phase 0 - Scaffold and spikes
 
-- [ ] Solution `Updatr.slnx`: Core, Platform, App, Cli, Core.Tests, Platform.Tests
-- [ ] `Directory.Build.props` (version 0.0.1, nullable, implicit usings, warnings as errors)
-- [ ] `.gitignore`, `README.md`, `CLAUDE.md`
-- [ ] `Scripts/bump-version.sh`, `Scripts/run.sh`
-- [ ] `release.yml` with win-x64 + win-arm64 matrix, current action majors (verified)
-- [ ] Convention tests: US English (ported list), ASCII-only, no PowerShell in `Src/`
-- [ ] Spike 1: WinGet COM from .NET 10 (unelevated + elevated)
-- [ ] Spike 2: Avalonia single-file publish, x64 + arm64, startup from USB
-- [ ] Spike 3: CLI trim / AOT with WinGet interop
-- [ ] Spike 4: rename running exe on FAT32/exFAT
-- [ ] Spike 5: App Installer bootstrap via `PackageManager` on a clean VM
-- [ ] Record spike outcomes in the decisions log
+- [x] Solution `Updatr.slnx`: Core, Platform, App, Cli, Core.Tests (Platform.Tests arrives with
+      the first Platform code - an empty MTP test project fails `dotnet test`)
+- [x] `Directory.Build.props` (version, nullable, implicit usings, warnings as errors, shared
+      Windows TFM / RID), `Directory.Packages.props`, `Directory.Build.targets`, `global.json`
+- [x] `.gitignore`, `README.md`, `CLAUDE.md`
+- [x] `Scripts/bump-version.sh`, `Scripts/run.sh`, `Scripts/publish.sh`
+- [x] `release.yml`: win-x64 + win-arm64 via `publish.sh`, Node 24 action majors (verified)
+- [x] Convention tests: US English (ported list), ASCII-only, no PowerShell in `Src/`
+- [x] Placeholder icon + window showing the version (replaced by the splash in Phase 2)
+- [ ] Spike 1: WinGet COM from .NET 10 - unelevated done; **elevated needs a manual run**
+- [x] Spike 2: single-file publish, x64 + arm64 (sizes and startup in TECHARCH)
+- [x] Spike 3: CLI trim / AOT - trimming works but is not trim-safe; not trimming
+- [ ] Spike 4: rename running exe - NTFS passes; **FAT32/exFAT needs a run from a thumb drive**
+- [ ] Spike 5: App Installer bootstrap on a clean VM - moved to Phase 3 (needs the bootstrap code)
+- [x] Record spike outcomes in the decisions log
 
 ## Phase 1 - Core models and catalog
 
@@ -59,8 +65,10 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Phase 3 - winget + Updates screen
 
-- [ ] winget source via COM, text fallback
-- [ ] winget bootstrap (incl. LTSC path)
+- [ ] winget source via COM: parallel name-prefix partitions, bad-partition split, residue
+      reported as "could not check"; text fallback
+- [ ] Embedded `.winmd` self-heal (write beside exe if missing; else fall back + warn)
+- [ ] winget bootstrap (incl. LTSC path) + clean-VM test (spike 5)
 - [ ] Updates grid: incremental load, filters, multi-select
 - [ ] Upgrade / reinstall / hold / unhold, batch + single
 - [ ] Collision waits (MSI mutex, winget running)
@@ -121,6 +129,8 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 - Code signing.
 - ARM64 hardware validation.
 - Linux / Raspberry Pi host (separate product idea).
+- Revisit trimming (GUI 57 -> ~22 MB, CLI 45 -> ~11 MB) once WinRT.Runtime / the SDK projection
+  are trim-safe, or with targeted trimmer roots and runtime tests.
 
 ## Known edges
 
@@ -132,6 +142,19 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 ## Decisions log
 
 - **2026-10-23** - `Get-WingetUpdates.ps1` documented in `legacy-script.md` and deleted.
+- **2026-10-23** - Phase 0 spike: WinGet COM works from .NET 10 via
+  `Microsoft.WindowsPackageManager.ComInterop` 1.29.380. Requires a RID and the `.winmd` beside the
+  exe (single-file bundling it fails with `0x80073D54`); no custom activation code needed.
+- **2026-10-23** - Phase 0 spike: on the dev machine `winget upgrade` itself fails with
+  `0x80070057` - one community manifest's overlapping version ranges throw during correlation and
+  sink the whole list. Updatr lists in parallel name-prefix partitions (primary path, not a
+  fallback) so one bad entry costs a handful of packages, not the screen.
+- **2026-10-23** - Publish single-file + compressed, not trimmed (WinRT projections not trim-safe).
+- **2026-10-23** - Release = zip of 3 files per arch (`Updatr.exe`, `updatr-cli.exe`, `.winmd`) +
+  `SHA256SUMS.txt`, built by `Scripts/publish.sh` locally and in CI.
+- **2026-10-23** - xUnit v3 on Microsoft.Testing.Platform + AwesomeAssertions; central package
+  management; SDK pinned to 10.0.402 in `global.json`.
+- **2026-10-23** - Version 0.0.0 = never released; first release on first bump.
 - **2026-10-23** - .NET 10 + Avalonia + CommunityToolkit.Mvvm, matching Klakr.
 - **2026-10-23** - Self-contained single-file binaries; no Velopack (portable, not installed).
 - **2026-10-23** - Two binaries (`Updatr.exe` GUI, `updatr-cli.exe` CLI) over one shared Core +

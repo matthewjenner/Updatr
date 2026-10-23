@@ -13,8 +13,8 @@
 - **Signature checks:** `WinVerifyTrust` P/Invoke + signer subject inspection
 - **Serialization:** System.Text.Json (source-generated contexts, stable lowercase `$type`
   discriminators for polymorphic rules)
-- **Tests:** xUnit + a free-license assertion library (AwesomeAssertions or Shouldly; chosen
-  at scaffold time - FluentAssertions 8 is commercially licensed)
+- **Tests:** xUnit v3 on Microsoft.Testing.Platform + AwesomeAssertions (Apache-2.0 fork of
+  FluentAssertions 7; FluentAssertions 8 is commercially licensed)
 
 All package versions are verified against their registries when added (see the global rules);
 the default is the latest stable.
@@ -60,10 +60,13 @@ Updatr/
 |   +-- Updatr.Cli/               Console (updatr-cli.exe), no UI deps
 +-- Tests/
 |   +-- Updatr.Core.Tests/        Unit tests, fakes for every abstraction
-|   +-- Updatr.Platform.Tests/    Integration tests, [Trait("Category","Integration")], opt-in
-+-- catalog/                      apps.json, templates.json, holds.json, defluff.json, schema/
+|   +-- Updatr.Platform.Tests/    Integration tests, opt-in (added with the first Platform code)
++-- catalog/                      apps.json, templates.json, holds.json, defluff.json, schema/ (Phase 1)
 +-- Docs/  Scripts/  .github/workflows/
-+-- Directory.Build.props         Version source of truth (starts at 0.0.1)
++-- Directory.Build.props         Version source of truth + shared Windows TFM / RID properties
++-- Directory.Build.targets       Keeps the WinGet .winmd beside the exe on publish
++-- Directory.Packages.props      Central package versions
++-- global.json                   SDK pin + test runner
 ```
 
 The split from Klakr's two-project layout exists because the CLI and the GUI both need the
@@ -260,20 +263,50 @@ also writes its log to `Updatr.data\logs\`. The GUI log viewer subscribes and ma
 
 ## Build and release
 
-- Publish: self-contained, single-file, `win-x64` and `win-arm64`.
-  `IncludeNativeLibrariesForSelfExtract` for Avalonia's native libs. The CLI is trimmed (Native
-  AOT if the WinRT/COM interop allows - spike item).
-- `.github/workflows/release.yml`: same idempotent pattern as Klakr (read version, skip if the
-  release exists, test, publish both archs, zip, SHA256, `gh release create`). Action majors are
-  verified current at scaffold time (Klakr's `@v4` pins are retired).
-- `Scripts/bump-version.sh`, `Scripts/run.sh` as in Klakr.
+- Publish: self-contained, single-file, compressed, **not trimmed**, `win-x64` and `win-arm64`.
+  `IncludeNativeLibrariesForSelfExtract` bundles native libs (Skia, HarfBuzz, the WinGet factory),
+  which extract to the host's temp folder on first run.
+- **Release folder = three files:** `Updatr.exe` (~57 MB), `updatr-cli.exe` (~45 MB), and
+  `Microsoft.Management.Deployment.winmd` (64 KB). The `.winmd` must sit beside the exes - see
+  "WinGet COM activation" below. `Directory.Build.targets` keeps it out of the bundle.
+- `Scripts/publish.sh` produces `dist/Updatr-<version>-<rid>.zip` plus `SHA256SUMS.txt`.
+  `.github/workflows/release.yml` calls the same script, so local and CI output match.
+- Release workflow: same idempotent pattern as Klakr (read version, skip if the release exists,
+  test, publish, `gh release create`), plus: pull requests and version `0.0.0` build and test
+  but never release. Actions pinned to Node 24 majors (`checkout@v7`, `setup-dotnet@v6`).
+- SDK pinned in `global.json` (`latestFeature` roll-forward); tests run on Microsoft.Testing.Platform.
+- Package versions are centrally managed in `Directory.Packages.props`.
 
-## Spikes (Phase 0 - answer before building on them)
+## WinGet COM activation (Phase 0 findings)
 
-1. WinGet COM API from .NET 10, unelevated and elevated: activation, interop package, list /
-   upgrade / install round trip.
-2. Avalonia single-file self-contained publish on x64 and arm64: size, startup time from a USB
-   drive.
-3. CLI trimming / AOT with the WinGet interop.
-4. Renaming a running exe on FAT32/exFAT.
-5. `PackageManager` App Installer bootstrap on a clean VM (and LTSC if available).
+- The projection is `Microsoft.WindowsPackageManager.ComInterop` (targets
+  `net8.0-windows10.0.26100.0`, works from net10). It needs a RuntimeIdentifier: App and Cli
+  reference it directly so the per-architecture native factory is copied next to them.
+- **`.winmd` beside the exe is required.** The server is out of process; an unpackaged caller
+  resolves the interface metadata for marshaling from `.winmd` files in the exe's directory.
+  Bundled, the first call fails with `0x80073D54`. With the file beside the exe, plain `new
+  PackageManager()` works in a compressed single-file build - no custom activation handler.
+  (`WinRT.ActivationFactory.ActivationHandler` exists in CsWinRT 2.2 if it is ever needed.)
+- **Self-heal:** the `.winmd` is also embedded as a resource. If it is missing beside the exe and
+  the folder is writable, Updatr writes it back on startup; if it cannot, winget falls back to
+  CLI text parsing and the splash shows a warning.
+- **Searching:** `FindPackagesOptions` with no selector/filter is invalid on a composite catalog.
+  Skip catalogs with `Info.Explicit` (e.g. `winget-font`).
+- **Partitioned listing is the primary path.** A single bad manifest in the community index makes
+  the whole composite "list everything" query fail (`0x80070057`, `VersionRange::operator<` on
+  overlapping ranges - reproduced on the dev machine with the CLI too). Updatr queries in
+  parallel partitions (installed-name prefix, built from the local catalog's actual first
+  characters), streams each partition's results into the grid as it lands, splits a failing
+  partition one level deeper, and reports the residue as "could not check (winget index error)".
+  Measured: ~23 s for ~400 installed packages at 8-way parallelism; correlation cost scales with
+  package count, so results arriving incrementally matters more than total time.
+
+## Spikes (Phase 0)
+
+1. **WinGet COM from .NET 10** - done unelevated (see above). Elevated activation pending a
+   manual run.
+2. **Single-file publish, x64 + arm64** - done. Sizes above; CLI starts in ~90 ms warm.
+3. **CLI trimming / AOT** - done: trimming works at runtime but WinRT.Runtime and the SDK
+   projection raise trim warnings (IL2104), so neither binary is trimmed. Revisit later.
+4. **Rename a running exe** - passes on NTFS. FAT32/exFAT pending a run from a thumb drive.
+5. **App Installer bootstrap on a clean VM** - deferred to Phase 3, where the bootstrap code lives.

@@ -1,0 +1,91 @@
+name: Release
+
+# Publish a portable release on every push to main. Idempotent: if the GitHub release for the
+# current VersionPrefix already exists, the job exits clean without doing anything.
+# So: bump the version locally with Scripts/bump-version.sh -> commit -> push -> release.
+# A plain "fix a typo" commit without a bump just runs the no-op path.
+#
+# Packaging lives in Scripts/publish.sh so a local build and the release are byte-for-byte the
+# same shape: one zip per architecture (Updatr.exe, updatr-cli.exe, the WinGet .winmd) plus
+# SHA256SUMS.txt, which self-update uses to verify downloads.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Read version from Directory.Build.props
+        id: version
+        run: |
+          v=$(grep -oE '<VersionPrefix>[^<]+</VersionPrefix>' Directory.Build.props \
+              | sed -E 's|</?VersionPrefix>||g' \
+              | tr -d '[:space:]')
+          if [[ -z "$v" ]]; then
+              echo "Could not read VersionPrefix from Directory.Build.props" >&2
+              exit 1
+          fi
+          echo "VERSION=$v"  >> "$GITHUB_OUTPUT"
+          echo "TAG=v$v"     >> "$GITHUB_OUTPUT"
+          echo "Version: $v"
+
+      - name: Check whether this release already exists
+        id: tag-check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ steps.version.outputs.TAG }}"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+              echo "Pull request - build and test only, never release."
+              echo "SKIP=false"   >> "$GITHUB_OUTPUT"
+              echo "PUBLISH=false" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ steps.version.outputs.VERSION }}" == "0.0.0" ]]; then
+              # 0.0.0 means "nothing shippable yet": build, test, and package, but never release.
+              echo "Version 0.0.0 - build and test only, never release."
+              echo "SKIP=false"   >> "$GITHUB_OUTPUT"
+              echo "PUBLISH=false" >> "$GITHUB_OUTPUT"
+          elif gh release view "$tag" --json tagName >/dev/null 2>&1; then
+              echo "Release $tag already exists - nothing to do."
+              echo "SKIP=true"    >> "$GITHUB_OUTPUT"
+              echo "PUBLISH=false" >> "$GITHUB_OUTPUT"
+          else
+              echo "SKIP=false"   >> "$GITHUB_OUTPUT"
+              echo "PUBLISH=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Restore
+        if: steps.tag-check.outputs.SKIP == 'false'
+        run: dotnet restore
+
+      - name: Test
+        if: steps.tag-check.outputs.SKIP == 'false'
+        run: dotnet test --no-restore --configuration Release
+
+      - name: Publish (win-x64, win-arm64)
+        if: steps.tag-check.outputs.SKIP == 'false'
+        run: ./Scripts/publish.sh win-x64 win-arm64
+
+      - name: Create GitHub Release
+        if: steps.tag-check.outputs.PUBLISH == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ steps.version.outputs.TAG }}"
+          gh release create "$tag" dist/*.zip dist/SHA256SUMS.txt --title "$tag" --notes ""

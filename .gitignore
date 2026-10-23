@@ -1,0 +1,33 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+artifacts/
+publish/
+dist/
+
+# .NET / VS / Rider
+*.user
+*.suo
+.vs/
+.vscode/
+.idea/
+*.DotSettings.user
+
+# Test / coverage
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+coverage*.json
+coverage*.xml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# NuGet
+*.nupkg
+.nuget/
+
+# Portable data folder, if a dev run creates one in the repo
+Updatr.data/

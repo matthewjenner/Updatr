@@ -1,0 +1,20 @@
+<Project>
+  <!--
+    Keep WinRT metadata (.winmd) out of the single-file bundle, beside the exe.
+
+    The WinGet COM API runs out of process. For an unpackaged app, Windows resolves the metadata
+    it needs to marshal those interfaces from .winmd files in the exe's own directory. Bundled
+    inside the exe (or extracted to temp) it is invisible, and the first call fails with
+    0x80073D54 "Interface not registered". Measured in the Phase 0 spike: the 64 KB
+    Microsoft.Management.Deployment.winmd beside the exe is the entire fix.
+  -->
+  <Target Name="UpdatrKeepWinmdBesideExe"
+          AfterTargets="ComputeResolvedFilesToPublishList"
+          Condition="'$(PublishSingleFile)' == 'true'">
+    <ItemGroup>
+      <ResolvedFileToPublish Update="@(ResolvedFileToPublish)"
+                             Condition="'%(Extension)' == '.winmd'"
+                             ExcludeFromSingleFile="true" />
+    </ItemGroup>
+  </Target>
+</Project>

@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>$(UpdatrWindowsTfm)</TargetFramework>
+    <SupportedOSPlatformVersion>$(UpdatrMinWindows)</SupportedOSPlatformVersion>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">$(UpdatrHostRid)</RuntimeIdentifier>
+    <!-- Lowercase so it cannot collide with Updatr.exe on a case-insensitive file system. -->
+    <AssemblyName>updatr-cli</AssemblyName>
+    <RootNamespace>Updatr.Cli</RootNamespace>
+  </PropertyGroup>
+
+  <!-- Same portable shape as the GUI. See Updatr.App.csproj. -->
+  <PropertyGroup Condition="'$(_IsPublishing)' == 'true'">
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+    <!-- Direct reference so the per-architecture native activation factory is copied here. -->
+    <PackageReference Include="Microsoft.WindowsPackageManager.ComInterop" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Updatr.Core\Updatr.Core.csproj" />
+    <ProjectReference Include="..\Updatr.Platform\Updatr.Platform.csproj" />
+  </ItemGroup>
+</Project>

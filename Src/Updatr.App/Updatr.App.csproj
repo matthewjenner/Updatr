@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>$(UpdatrWindowsTfm)</TargetFramework>
+    <SupportedOSPlatformVersion>$(UpdatrMinWindows)</SupportedOSPlatformVersion>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">$(UpdatrHostRid)</RuntimeIdentifier>
+    <AssemblyName>Updatr</AssemblyName>
+    <RootNamespace>Updatr.App</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Embeds the icon into the .exe (Explorer / taskbar). -->
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <!--
+    Portable release shape: one self-contained exe, no .NET install needed on the host.
+    Native libraries (Skia, HarfBuzz, the WinGet activation factory) are bundled and extracted
+    to the host's temp folder on first run, not next to the exe on the thumb drive. The one
+    exception is the WinGet .winmd, which must sit beside the exe (Directory.Build.targets).
+    Compressed: about half the size for ~30 ms of startup, and less to read off a slow drive.
+    Not trimmed: WinRT.Runtime and the Windows SDK projection are not trim-safe (Phase 0 spike).
+  -->
+  <PropertyGroup Condition="'$(_IsPublishing)' == 'true'">
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Bundles the icon files so windows can reference them via avares:// paths. -->
+    <AvaloniaResource Include="Assets/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+    <PackageReference Include="AvaloniaUI.DiagnosticsSupport">
+      <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+      <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <!-- Direct reference so the per-architecture native activation factory is copied here. -->
+    <PackageReference Include="Microsoft.WindowsPackageManager.ComInterop" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Updatr.Core\Updatr.Core.csproj" />
+    <ProjectReference Include="..\Updatr.Platform\Updatr.Platform.csproj" />
+  </ItemGroup>
+</Project>

@@ -37,7 +37,8 @@ See `TECHARCH.md` for how it is built and `workplan.md` for build state.
 ## Distribution
 
 - GitHub Releases, one zip per architecture (`win-x64`, `win-arm64`), each containing
-  `Updatr.exe` (GUI) and `updatr-cli.exe` (CLI), plus a SHA256 file.
+  `Updatr.exe` (GUI), `updatr-cli.exe` (CLI), and `Microsoft.Management.Deployment.winmd` (a 64 KB
+  file WinGet's API needs beside the exes), plus a SHA256 file.
 - Unsigned to start. SmartScreen / Defender may warn; the README documents unblocking.
 - **Self-update:** checks GitHub Releases on launch (silent on network failure), offers the new
   version, downloads and verifies it, swaps the binaries on the drive, and relaunches.

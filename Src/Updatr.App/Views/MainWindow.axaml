@@ -1,0 +1,12 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Updatr.App.Views.MainWindow"
+        Icon="avares://Updatr/Assets/icon.ico"
+        Width="960" Height="640"
+        WindowStartupLocation="CenterScreen">
+    <!-- Phase 0 placeholder: proves the single-file publish starts. Replaced by the shell in Phase 2. -->
+    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+        <Image Source="avares://Updatr/Assets/icon.png" Width="96" Height="96" />
+        <TextBlock x:Name="TitleText" FontSize="28" HorizontalAlignment="Center" />
+    </StackPanel>
+</Window>

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Windows implementations of the Core abstractions, shared by the GUI and the CLI. -->
+  <PropertyGroup>
+    <TargetFramework>$(UpdatrWindowsTfm)</TargetFramework>
+    <SupportedOSPlatformVersion>$(UpdatrMinWindows)</SupportedOSPlatformVersion>
+    <!-- Required by the [LibraryImport] source generator. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!--
+      The interop package copies its native activation factory per architecture and errors on
+      AnyCPU. A library has no architecture; the App and Cli executables reference the package
+      directly so the right native DLL lands next to them.
+    -->
+    <MicrosoftManagementDeployment-ErrorNoPlatform>false</MicrosoftManagementDeployment-ErrorNoPlatform>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsPackageManager.ComInterop" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Updatr.Core\Updatr.Core.csproj" />
+  </ItemGroup>
+</Project>

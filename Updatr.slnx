@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/Src/">
+    <Project Path="Src/Updatr.Core/Updatr.Core.csproj" />
+    <Project Path="Src/Updatr.Platform/Updatr.Platform.csproj" />
+    <Project Path="Src/Updatr.App/Updatr.App.csproj" />
+    <Project Path="Src/Updatr.Cli/Updatr.Cli.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/Updatr.Core.Tests/Updatr.Core.Tests.csproj" />
+  </Folder>
+</Solution>

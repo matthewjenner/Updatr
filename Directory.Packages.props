@@ -1,0 +1,30 @@
+<Project>
+  <!--
+    Central package versions. Every PackageReference in the repo omits Version and picks it up
+    from here, so one bump updates every project. Versions were checked against nuget.org when
+    added; default to the latest stable.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- UI -->
+    <PackageVersion Include="Avalonia" Version="12.1.4" />
+    <PackageVersion Include="Avalonia.Desktop" Version="12.1.4" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.4" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.4" />
+    <PackageVersion Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+
+    <!-- CLI -->
+    <PackageVersion Include="System.CommandLine" Version="2.0.13" />
+
+    <!-- Windows -->
+    <PackageVersion Include="Microsoft.WindowsPackageManager.ComInterop" Version="1.29.380" />
+
+    <!-- Tests -->
+    <PackageVersion Include="xunit.v3" Version="4.0.2" />
+    <PackageVersion Include="AwesomeAssertions" Version="9.6.0" />
+  </ItemGroup>
+</Project>
