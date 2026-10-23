@@ -42,4 +42,4 @@ dotnet test
 
 ## License
 
-TBD.
+MIT - see `LICENSE`.

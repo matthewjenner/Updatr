@@ -258,8 +258,8 @@ also writes its log to `Updatr.data\logs\`. The GUI log viewer subscribes and ma
 2. Download the zip for the running architecture to host temp; verify SHA256 from the release.
 3. Rename running `Updatr.exe` / `updatr-cli.exe` to `*.old`, extract the new ones in place,
    relaunch. `*.old` is deleted on next start.
-4. Renaming a running exe on FAT32/exFAT is a spike item; fallback is a tiny relaunch step that
-   waits for the old process to exit before swapping.
+4. Renaming a running exe works on NTFS and FAT32 (Phase 0 spike), so the swap happens in
+   place while the app runs.
 
 ## Build and release
 
@@ -284,9 +284,13 @@ also writes its log to `Updatr.data\logs\`. The GUI log viewer subscribes and ma
   reference it directly so the per-architecture native factory is copied next to them.
 - **`.winmd` beside the exe is required.** The server is out of process; an unpackaged caller
   resolves the interface metadata for marshaling from `.winmd` files in the exe's directory.
-  Bundled, the first call fails with `0x80073D54`. With the file beside the exe, plain `new
-  PackageManager()` works in a compressed single-file build - no custom activation handler.
-  (`WinRT.ActivationFactory.ActivationHandler` exists in CsWinRT 2.2 if it is ever needed.)
+  Bundled, the first call fails with `0x80073D54`.
+- **Explicit activation handler.** Updatr sets CsWinRT's `WinRT.ActivationFactory.ActivationHandler`
+  for the `Microsoft.Management.Deployment.*` types: it loads the native factory with
+  `NativeLibrary.Load` (which finds it in the single-file extraction folder) and calls its
+  `DllGetActivationFactory` export. CsWinRT's own probing cannot see bundled native DLLs. Measured
+  working unelevated and elevated in a compressed single-file build; plain `new PackageManager()`
+  was only measured unelevated, so the handler is the supported path.
 - **Self-heal:** the `.winmd` is also embedded as a resource. If it is missing beside the exe and
   the folder is writable, Updatr writes it back on startup; if it cannot, winget falls back to
   CLI text parsing and the splash shows a warning.
@@ -303,10 +307,10 @@ also writes its log to `Updatr.data\logs\`. The GUI log viewer subscribes and ma
 
 ## Spikes (Phase 0)
 
-1. **WinGet COM from .NET 10** - done unelevated (see above). Elevated activation pending a
-   manual run.
+1. **WinGet COM from .NET 10** - done, unelevated and elevated (see above).
 2. **Single-file publish, x64 + arm64** - done. Sizes above; CLI starts in ~90 ms warm.
 3. **CLI trimming / AOT** - done: trimming works at runtime but WinRT.Runtime and the SDK
    projection raise trim warnings (IL2104), so neither binary is trimmed. Revisit later.
-4. **Rename a running exe** - passes on NTFS. FAT32/exFAT pending a run from a thumb drive.
+4. **Rename a running exe** - passes on NTFS and on a FAT32 removable drive. Self-update uses the
+   simple rename-and-replace swap; no relaunch helper needed.
 5. **App Installer bootstrap on a clean VM** - deferred to Phase 3, where the bootstrap code lives.

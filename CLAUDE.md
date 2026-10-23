@@ -74,7 +74,11 @@ dotnet test                         # MTP runner (global.json)
   unpackaged app resolves the metadata to marshal its interfaces from `.winmd` files in the exe's
   own directory. Inside a single-file bundle it is invisible and the first call fails with
   `0x80073D54` "Interface not registered". `Directory.Build.targets` excludes it from the bundle;
-  `Scripts/publish.sh` ships it in the zip. No custom activation code is needed once it is there.
+  `Scripts/publish.sh` ships it in the zip.
+- **Activate WinGet through the explicit handler,** not CsWinRT's default probing (which cannot see
+  native DLLs inside a single-file bundle). The handler on `WinRT.ActivationFactory` loads the
+  native factory via `NativeLibrary.Load` and calls `DllGetActivationFactory`; it is the path
+  measured working both unelevated and elevated. See `Docs/TECHARCH.md`.
 - **WinGet COM needs a RuntimeIdentifier.** The interop package copies a per-architecture native
   factory and errors on AnyCPU. App and Cli set a RID (host arch by default) and reference the
   package directly; Platform opts out of the error because a library has no architecture.

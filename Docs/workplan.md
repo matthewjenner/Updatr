@@ -8,12 +8,11 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Current state
 
-- **Phase:** 0 - scaffold done; two spikes need a manual run (elevated WinGet COM, FAT32/exFAT
-  self-update swap).
+- **Phase:** 0 complete. All spikes answered except the clean-VM bootstrap, which moved to Phase 3.
 - **Last updated:** 2026-10-23
 - **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (3/3, convention tests);
   `Scripts/publish.sh` produces win-x64 + win-arm64 zips. Version 0.0.0 (never released).
-- **Next:** manual spike runs, then Phase 1 (Core models and catalog).
+- **Next:** Phase 1 (Core models and catalog).
 
 ## Versioning
 
@@ -36,10 +35,11 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 - [x] `release.yml`: win-x64 + win-arm64 via `publish.sh`, Node 24 action majors (verified)
 - [x] Convention tests: US English (ported list), ASCII-only, no PowerShell in `Src/`
 - [x] Placeholder icon + window showing the version (replaced by the splash in Phase 2)
-- [ ] Spike 1: WinGet COM from .NET 10 - unelevated done; **elevated needs a manual run**
+- [x] Spike 1: WinGet COM from .NET 10 - unelevated and elevated, via the explicit activation handler
 - [x] Spike 2: single-file publish, x64 + arm64 (sizes and startup in TECHARCH)
 - [x] Spike 3: CLI trim / AOT - trimming works but is not trim-safe; not trimming
-- [ ] Spike 4: rename running exe - NTFS passes; **FAT32/exFAT needs a run from a thumb drive**
+- [x] Spike 4: rename running exe - passes on NTFS and a FAT32 removable drive
+- [x] MIT `LICENSE`
 - [ ] Spike 5: App Installer bootstrap on a clean VM - moved to Phase 3 (needs the bootstrap code)
 - [x] Record spike outcomes in the decisions log
 
@@ -144,7 +144,7 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 - **2026-10-23** - `Get-WingetUpdates.ps1` documented in `legacy-script.md` and deleted.
 - **2026-10-23** - Phase 0 spike: WinGet COM works from .NET 10 via
   `Microsoft.WindowsPackageManager.ComInterop` 1.29.380. Requires a RID and the `.winmd` beside the
-  exe (single-file bundling it fails with `0x80073D54`); no custom activation code needed.
+  exe (single-file bundling it fails with `0x80073D54`).
 - **2026-10-23** - Phase 0 spike: on the dev machine `winget upgrade` itself fails with
   `0x80070057` - one community manifest's overlapping version ranges throw during correlation and
   sink the whole list. Updatr lists in parallel name-prefix partitions (primary path, not a
@@ -155,6 +155,9 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 - **2026-10-23** - xUnit v3 on Microsoft.Testing.Platform + AwesomeAssertions; central package
   management; SDK pinned to 10.0.402 in `global.json`.
 - **2026-10-23** - Version 0.0.0 = never released; first release on first bump.
+- **2026-10-23** - Manual spike runs: WinGet COM works elevated (through the explicit activation
+  handler, which becomes the production path); rename-and-replace of a running exe works on a
+  FAT32 thumb drive, so self-update swaps in place. License: MIT.
 - **2026-10-23** - .NET 10 + Avalonia + CommunityToolkit.Mvvm, matching Klakr.
 - **2026-10-23** - Self-contained single-file binaries; no Velopack (portable, not installed).
 - **2026-10-23** - Two binaries (`Updatr.exe` GUI, `updatr-cli.exe` CLI) over one shared Core +
