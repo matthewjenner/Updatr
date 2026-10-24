@@ -16,4 +16,6 @@ public partial class MainWindow : Window, IDialogService
         => await new ConfirmDialog(confirmation.Title, confirmation.Detail).ShowDialog<bool?>(this) == true;
 
     public Task ShowSummaryAsync(RunSummary summary) => new RunSummaryWindow(summary).ShowDialog(this);
+
+    public Task<string?> PromptAsync(string title, string label, string initial) => new PromptDialog(title, label, initial).ShowDialog<string?>(this);
 }

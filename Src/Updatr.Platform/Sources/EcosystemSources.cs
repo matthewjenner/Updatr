@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 using Updatr.Core.Abstractions;
+using Updatr.Core.Catalog;
 using Updatr.Core.Operations;
 using Updatr.Core.Sources;
 
@@ -25,6 +26,10 @@ public sealed class NpmSource(IProcessRunner processes) : ToolSource(processes, 
         return [.. EcosystemParsers.NpmList(list.StandardOutput).Select(p => Package(p.Name, p.Version, latest.GetValueOrDefault(p.Name)))];
     }
 
+    protected override string? PackageNameOf(PackageSourceRef source) => (source as NpmSourceRef)?.Package;
+
+    protected override IReadOnlyList<string> InstallArguments(string name) => ["install", "-g", name];
+
     protected override IReadOnlyList<string> UpgradeArguments(InstalledPackage package) => ["install", "-g", $"{package.Id}@latest"];
 
     protected override IReadOnlyList<string> ReinstallArguments(InstalledPackage package) => ["install", "-g", $"{package.Id}@{package.InstalledVersion}", "--force"];
@@ -47,6 +52,10 @@ public sealed class PipxSource(IProcessRunner processes, HttpClient http) : Tool
 
         return [.. installed.Select(p => Package(p.Name, p.Version, latest.GetValueOrDefault(p.Name)))];
     }
+
+    protected override string? PackageNameOf(PackageSourceRef source) => (source as PipxSourceRef)?.Package;
+
+    protected override IReadOnlyList<string> InstallArguments(string name) => ["install", name];
 
     protected override IReadOnlyList<string> UpgradeArguments(InstalledPackage package) => ["upgrade", package.Id];
 
@@ -79,6 +88,10 @@ public sealed class DotnetToolSource(IProcessRunner processes, HttpClient http) 
             ? Package(p.Name, p.Version, null) with { IsManaged = false, Catalog = "dotnet tool (not on nuget.org)" }
             : Package(p.Name, p.Version, latest[p.Name]))];
     }
+
+    protected override string? PackageNameOf(PackageSourceRef source) => (source as DotnetToolSourceRef)?.Package;
+
+    protected override IReadOnlyList<string> InstallArguments(string name) => ["tool", "install", "-g", name];
 
     protected override IReadOnlyList<string> UpgradeArguments(InstalledPackage package) => ["tool", "update", "-g", package.Id];
 
@@ -158,6 +171,10 @@ public sealed class VsCodeExtensionSource(IProcessRunner processes, HttpClient h
         response.EnsureSuccessStatusCode();
         return EcosystemParsers.VsCodeMarketplace(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false), platform);
     }
+
+    protected override string? PackageNameOf(PackageSourceRef source) => (source as VsCodeExtensionSourceRef)?.Extension;
+
+    protected override IReadOnlyList<string> InstallArguments(string name) => ["--install-extension", name];
 
     protected override IReadOnlyList<string> UpgradeArguments(InstalledPackage package) => ["--install-extension", package.Id, "--force"];
 

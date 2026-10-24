@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Updatr.Core;
 using Updatr.Core.Abstractions;
+using Updatr.Core.Carts;
 using Updatr.Core.Catalog;
 using Updatr.Core.Packages;
 using Updatr.Core.Sources;
@@ -8,6 +9,7 @@ using Updatr.Core.Diagnostics;
 using Updatr.Core.Preflight;
 using Updatr.Platform.Catalog;
 using Updatr.Platform.Data;
+using Updatr.Platform.DirectUrl;
 using Updatr.Platform.Elevation;
 using Updatr.Platform.Net;
 using Updatr.Platform.Preflight;
@@ -50,15 +52,12 @@ public sealed class UpdatrHost : IAsyncDisposable
 
         Holds = new HoldStore(Data);
         WinGet = new WinGetSource(Elevation, Processes);
-        Sources =
-        [
-            WinGet,
-            new NpmSource(Processes),
-            new PipxSource(Processes, Http),
-            new DotnetToolSource(Processes, Http),
-            new PsGallerySource(Http, Elevation),
-            new VsCodeExtensionSource(Processes, Http),
-        ];
+        NpmSource npm = new(Processes);
+        PipxSource pipx = new(Processes, Http);
+        DotnetToolSource dotnetTools = new(Processes, Http);
+        PsGallerySource gallery = new(Http, Elevation);
+        VsCodeExtensionSource vscode = new(Processes, Http);
+        Sources = [WinGet, npm, pipx, dotnetTools, gallery, vscode];
         List = new ListPackages(Sources, HoldPolicyAsync);
         PackageBatch batch = new(Sources, List, new InstallerGate(), HoldPolicyAsync);
         Upgrade = new UpgradePackages(batch);
@@ -66,7 +65,84 @@ public sealed class UpdatrHost : IAsyncDisposable
         Hold = new HoldPackages(Holds);
         Unhold = new UnholdPackages(Holds, async ct => (await GetCatalogAsync(ct).ConfigureAwait(false)).Catalog.Holds);
         RepairWinGet = new RepairWinGet(Http, WinGet);
+
+        // Phase 5: carts, templates, installs.
+        Func<CancellationToken, Task<AppCatalog>> catalog = async ct => (await GetCatalogAsync(ct).ConfigureAwait(false)).Catalog;
+        Carts = new CartStore(Data);
+        Templates = new TemplateCatalog(catalog, Carts);
+        Tools = new ToolEnvironment(Processes);
+        IReadOnlyList<IAppInstaller> installers = Installers =
+        [
+            new WinGetAppInstaller(WinGet, Processes),
+            npm,
+            pipx,
+            dotnetTools,
+            vscode,
+            new PsGalleryAppInstaller(Http, gallery),
+            new DirectUrlAppInstaller(new DirectUrlInstaller(Http, Processes, Elevation)),
+        ];
+        Install = new InstallApps(catalog, Templates, Carts, installers, new InstallerGate(), Tools);
+        CatalogList = new ListCatalog(catalog);
+        CartList = new ListCarts(Carts);
+        CartShow = new ShowCart(Carts);
+        CartSave = new SaveCart(Templates, Carts);
+        CartRemove = new RemoveFromCart(Carts);
+        CartDelete = new DeleteCart(Carts);
+        TemplateList = new ListTemplates(Templates);
+        TemplateShow = new ShowTemplate(Templates);
+        TemplateSave = new SaveTemplate(catalog, Carts);
+        TemplateCopy = new CopyTemplate(Templates, Carts);
+        TemplateDelete = new DeleteTemplate(catalog, Carts);
     }
+
+    public CartStore Carts { get; }
+
+    public IReadOnlyList<IAppInstaller> Installers { get; }
+
+    /// <summary>Whether a catalog app is installed, per its first source the installers handle. False when unknown.</summary>
+    public async Task<bool> IsInstalledAsync(CatalogApp app, CancellationToken cancellationToken)
+    {
+        PackageSourceRef source = app.Sources[0];
+        IAppInstaller? installer = Installers.FirstOrDefault(i => i.Handles(source));
+
+        try
+        {
+            return installer is not null && await installer.IsInstalledAsync(source, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return false;
+        }
+    }
+
+    public TemplateCatalog Templates { get; }
+
+    public ToolEnvironment Tools { get; }
+
+    public InstallApps Install { get; }
+
+    public ListCatalog CatalogList { get; }
+
+    public ListCarts CartList { get; }
+
+    public ShowCart CartShow { get; }
+
+    public SaveCart CartSave { get; }
+
+    public RemoveFromCart CartRemove { get; }
+
+    public DeleteCart CartDelete { get; }
+
+    public ListTemplates TemplateList { get; }
+
+    public ShowTemplate TemplateShow { get; }
+
+    public SaveTemplate TemplateSave { get; }
+
+    public CopyTemplate TemplateCopy { get; }
+
+    public DeleteTemplate TemplateDelete { get; }
+
 
     public HoldStore Holds { get; }
 
@@ -101,7 +177,15 @@ public sealed class UpdatrHost : IAsyncDisposable
         if (_catalog is not null)
             return _catalog;
 
-        CatalogLoader loader = new([new RemoteCatalogOrigin(Http), CatalogCache, new EmbeddedCatalogOrigin()], CatalogCache);
+        List<ICatalogOrigin> origins = [new RemoteCatalogOrigin(Http), CatalogCache, new EmbeddedCatalogOrigin()];
+
+        if (FolderCatalogOrigin.FromEnvironment() is { } folder)
+        {
+            DiagLog.CatalogOverride(folder.Folder);
+            origins.Insert(0, folder);
+        }
+
+        CatalogLoader loader = new(origins, CatalogCache);
         return _catalog = await loader.LoadAsync(cancellationToken).ConfigureAwait(false);
     }
 

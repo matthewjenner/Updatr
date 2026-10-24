@@ -1,5 +1,11 @@
 {
   "$schema": "./schema/templates.schema.json",
   "schemaVersion": 1,
-  "templates": []
+  "templates": [
+    {"id": "base", "name": "Base", "description": "The essentials for any Windows machine.", "items": ["7zip", "windows-terminal", "powershell", "notepad-plus-plus", "everything", "powertoys", "sharex", "firefox"]},
+    {"id": "dev", "name": "Dev", "description": "A development machine: Git, editors, runtimes, and the usual extensions.", "items": ["git", "github-cli", "vscode", "dotnet-sdk-10", "nodejs-lts", "python-3-14", "jetbrains-toolbox", "docker-desktop", "wsl", "bruno", "typescript", "pnpm", "vscode-csharp", "vscode-csdevkit", "vscode-eslint", "vscode-prettier", "vscode-gitlens", "vscode-editorconfig"]},
+    {"id": "gaming", "name": "Gaming", "description": "Launchers, chat, and mod managers.", "items": ["steam", "battle-net", "epic-games", "gog-galaxy", "discord", "curseforge"]},
+    {"id": "media", "name": "Media", "description": "Playing, recording, and editing audio, video, and images.", "items": ["vlc", "spotify", "obs-studio", "handbrake", "audacity", "gimp", "krita", "imageglass"]},
+    {"id": "productivity", "name": "Productivity", "description": "Documents, notes, and meetings.", "items": ["obsidian", "libreoffice", "acrobat-reader", "zoom", "slack"]}
+  ]
 }

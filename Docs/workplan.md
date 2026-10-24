@@ -8,12 +8,12 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Current state
 
-- **Phase:** 4 complete - other sources. 0.0.2 ships on push. Still open (not blocking): winget
-  repair on a clean / LTSC VM.
+- **Phase:** 5 code complete - Install screen, carts, templates. Waiting on a manual install test,
+  then 0.0.3. Still open (not blocking): winget repair on a clean / LTSC VM.
 - **Last updated:** 2026-10-23
 - **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (174/174).
-  Version 0.0.2 (0.0.1 released 2026-10-24).
-- **Next:** Phase 5 (Install: catalog browser, carts, templates, queue).
+  Version 0.0.2 (released 2026-10-24); 0.0.3 after the manual install test.
+- **Next:** Phase 6 (Debloat).
 
 ## Versioning
 
@@ -149,13 +149,28 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Phase 5 - Install, carts, templates
 
-- [ ] Catalog browser: categories, search, installed markers
-- [ ] Cart: add / remove / change source, save, load, merge
-- [ ] Templates: apply multiple, built-in read-only, copy-to-mine, editor
-- [ ] Dependency resolver with "Required by" lines
-- [ ] Queue runner: parallel downloads, serial installs, per-item progress, cancel
-- [ ] Author starter catalog + templates (Base, Dev, Gaming, Media, Productivity)
-- [ ] CLI: `install`, `cart *`, `template *`
+- [x] Starter catalog: 46 apps in 7 categories, every winget id checked with `winget show`
+      (NVIDIA App is not in winget - backlog as a direct-URL candidate); npm and VS Code entries
+      checked against their registries
+- [x] Templates: Base, Dev, Gaming, Media, Productivity (built in, read-only); copy to yours, edit
+      (the cart becomes the template, Save / Cancel), save-as-template, delete yours
+- [x] Cart: check apps in the catalog list, add templates, merge (no duplicates), remove, choose
+      source per app, save / load / merge / delete saved carts (`Updatr.data\carts\`)
+- [x] Dependency resolver: a source's required tool (npm, code, dotnet, pipx) is satisfied by the
+      machine, another cart item, or the catalog app that provides it - added as "Required by
+      ..."; explicit `requires` too; prerequisites ordered first; automatic items drop when nothing
+      needs them
+- [x] Install run: skip already-installed, prerequisites first, one installer at a time behind the
+      installer gate, a failed prerequisite skips its dependents with that reason, PATH re-read
+      from the registry after a provider installs, cancel between items, summary dialog
+- [x] Installers per source: winget (named source, broker for elevated installers, CLI fallback),
+      npm, pipx, dotnet tool, VS Code, PSGallery (user scope), direct URL
+- [x] Catalog browser: categories, search, installed markers (checked in the background)
+- [x] CLI: `install`, `catalog list`, `cart list|show|save|remove|delete`,
+      `template list|show|save|copy|delete`; `--json` confirmation now carries the plan
+- [x] `UPDATR_CATALOG_DIR` developer override: test catalog edits locally before pushing them
+- [ ] **Manual:** a real install from the GUI (a small app not yet installed, e.g. Everything or
+      ShareX) and one template-edit round trip; then bump to 0.0.3
 
 ## Phase 6 - Debloat
 
@@ -188,6 +203,11 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 ---
 
 ## Backlog
+
+- NVIDIA App in the catalog - not in winget and no stable "latest" download link; needs a
+  direct-URL resolver for NVIDIA's versioned URLs.
+- VS Code extensions show their id as the name on the Updates screen; use the Marketplace display
+  name.
 
 - Update launcher-managed games through their launcher (e.g. open Steam's update / validate for
   a game, Battle.net's update) instead of only labeling them "Managed by ...".
@@ -247,6 +267,16 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
   the source-generated deserializer assigns omitted init properties null, wiping defaults.
 - **2026-10-23** - Computed members on polymorphic source refs live in the base as a switch:
   `[JsonIgnore]` on an abstract member does not apply to its overrides, which leaked into JSON.
+- **2026-10-24** - Carts store only real picks; prerequisites are recomputed at install time from
+  what is on the machine then, so a cart saved on a dev box still pulls in Node on a fresh one.
+- **2026-10-24** - Template editing reuses the cart (load template -> edit cart -> Save template)
+  instead of a separate editor; built-ins are read-only and edited via "Copy".
+- **2026-10-24** - The remote catalog always wins over the embedded one, so catalog edits cannot be
+  tried locally before pushing; added `UPDATR_CATALOG_DIR` (local folder ahead of GitHub, never
+  cached, flagged by a preflight warning).
+- **2026-10-24** - After installing a tool provider (Node, VS Code, .NET SDK), PATH is re-read from
+  the registry: this process keeps its start-up PATH, so without it the npm / code / dotnet items
+  right after would fail.
 - **2026-10-24** - VS Code Marketplace traps (both seen live): "latest only" queries return one
   latest build per platform plus sometimes a stale universal one (Claude Code: universal 2.1.89,
   win32-x64 2.1.310), and the latest may be a pre-release (GitLens 2026.10.x pre-release vs stable

@@ -76,6 +76,9 @@ public static class DiagLog
             $"Catalog loaded from {origin}: {apps} apps, {templates} templates, {holds} hold rules"
             + (timestamp is { } t ? string.Create(CultureInfo.InvariantCulture, $" (fetched {t:yyyy-MM-dd HH:mm})") : string.Empty));
 
+    public static void CatalogOverride(string folder)
+        => Emit(LogCategory.Catalog, LogLevel.Warning, $"UPDATR_CATALOG_DIR is set: using the catalog in {folder}, not GitHub's");
+
     public static void CatalogOriginSkipped(string diagnostic)
         => Emit(LogCategory.Catalog, LogLevel.Warning, $"Catalog origin skipped - {diagnostic}");
 

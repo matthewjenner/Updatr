@@ -17,7 +17,9 @@ public sealed class WinGetBrokerHandler : IBrokerHandler
         bool reinstall = payload?["reinstall"]?.GetValue<bool>() == true;
         bool unknownVersion = payload?["unknownVersion"]?.GetValue<bool>() == true;
 
-        PackageOutcome outcome = await WinGetComSource.RunLocalAsync(id, reinstall, unknownVersion, id, new EmittingSink(emit)).ConfigureAwait(false);
+        PackageOutcome outcome = payload?["mode"]?.GetValue<string>() == "install"
+            ? await WinGetComSource.RunInstallLocalAsync(id, payload?["catalog"]?.GetValue<string>() ?? "winget", id, new EmittingSink(emit)).ConfigureAwait(false)
+            : await WinGetComSource.RunLocalAsync(id, reinstall, unknownVersion, id, new EmittingSink(emit)).ConfigureAwait(false);
         return BrokerOutcome.ToJson(outcome);
     }
 

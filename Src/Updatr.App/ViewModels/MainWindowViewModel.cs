@@ -45,6 +45,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         Host = host;
         host.UseCatalog(report.Context.Catalog);
         Updates = new UpdatesPageViewModel(host, dialogs);
+        Install = new InstallPageViewModel(host, dialogs);
 
         Settings = new SettingsPageViewModel(host, preflight);
         Settings.ChecksRerun += ApplyReport;
@@ -52,7 +53,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         Navigation =
         [
             new NavItem("Updates", Updates),
-            new NavItem("Install", new PlaceholderPageViewModel("Install", "Pick apps and templates into a cart, merge and save carts, and install them in one run.", "Phase 5")),
+            new NavItem("Install", Install),
             new NavItem("Debloat", new PlaceholderPageViewModel("Debloat", "Remove ads and junk from Windows, safely re-runnable after feature updates.", "Phase 6")),
             new NavItem("Uninstall", new PlaceholderPageViewModel("Uninstall", "Remove apps through their own uninstallers, with leftover cleanup to follow.", "Phase 7")),
             new NavItem("Log", new LogPageViewModel()),
@@ -75,6 +76,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     public UpdatesPageViewModel Updates { get; }
 
+    public InstallPageViewModel Install { get; }
+
     public ObservableCollection<BannerViewModel> Banners { get; } = [];
 
     [ObservableProperty]
@@ -87,6 +90,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
     {
         if (value?.Page is UpdatesPageViewModel updates)
             updates.EnsureLoaded();
+        else if (value?.Page is InstallPageViewModel install)
+            install.EnsureLoaded();
     }
 
     private BannerViewModel? _dataBanner;

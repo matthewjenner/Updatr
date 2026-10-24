@@ -1,0 +1,131 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Updatr.App.ViewModels"
+             xmlns:conv="using:Updatr.App.Converters"
+             x:Class="Updatr.App.Views.InstallView"
+             x:DataType="vm:InstallPageViewModel">
+    <Grid ColumnDefinitions="130,*,350" Margin="20,16">
+        <!-- Categories. -->
+        <DockPanel Grid.Column="0" Margin="0,0,12,0">
+            <TextBlock DockPanel.Dock="Top" Text="Install" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,12" />
+            <ListBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" Background="Transparent" />
+        </DockPanel>
+
+        <!-- The catalog: check apps into the cart. -->
+        <DockPanel Grid.Column="1" Margin="0,0,16,0">
+            <TextBox DockPanel.Dock="Top" PlaceholderText="Search apps" Text="{Binding SearchText}" Margin="0,44,0,8" />
+            <DataGrid ItemsSource="{Binding AppsView}" IsReadOnly="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" CanUserSortColumns="True">
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Width="40" CanUserSort="False">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate x:DataType="vm:CatalogRowViewModel">
+                                <CheckBox IsChecked="{Binding InCart}" HorizontalAlignment="Center" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn x:DataType="vm:CatalogRowViewModel" Header="App" Binding="{Binding Name}" Width="1.5*" MinWidth="140" IsReadOnly="True" />
+                    <DataGridTemplateColumn Header="What it is" Width="2*" SortMemberPath="Description">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate x:DataType="vm:CatalogRowViewModel">
+                                <TextBlock Text="{Binding Description}" ToolTip.Tip="{Binding Description}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="8,0" Opacity="0.8" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn x:DataType="vm:CatalogRowViewModel" Header="Source" Binding="{Binding Sources}" Width="80" IsReadOnly="True" />
+                    <DataGridTextColumn x:DataType="vm:CatalogRowViewModel" Header="Status" Binding="{Binding Installed}" Width="90" IsReadOnly="True" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </DockPanel>
+
+        <!-- Templates and the cart. -->
+        <Border Grid.Column="2" BorderThickness="1,0,0,0" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" Padding="16,0,0,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Spacing="8">
+                    <Border IsVisible="{Binding IsEditingTemplate}" Padding="10" CornerRadius="6" Background="#33D49A1A">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="{Binding EditingBanner}" TextWrapping="Wrap" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Content="Save template" Command="{Binding SaveTemplateCommand}" Classes="accent" />
+                                <Button Content="Cancel" Command="{Binding CancelTemplateEditCommand}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="Templates" FontWeight="SemiBold" />
+                    <ItemsControl ItemsSource="{Binding Templates}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:TemplateRowViewModel">
+                                <DockPanel Margin="0,2">
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4">
+                                        <Button Content="Add" Command="{Binding AddCommand}" Padding="8,2" ToolTip.Tip="Add this template's apps to the cart" />
+                                        <Button Content="Copy" Command="{Binding CopyCommand}" Padding="8,2" ToolTip.Tip="Make an editable copy of your own" />
+                                        <Button Content="Edit" Command="{Binding EditCommand}" Padding="8,2" IsVisible="{Binding IsMine}" />
+                                        <Button Content="Delete" Command="{Binding DeleteCommand}" Padding="8,2" IsVisible="{Binding IsMine}" />
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <DockPanel Margin="0,10,0,0">
+                        <Button DockPanel.Dock="Right" Content="Clear" Command="{Binding ClearCartCommand}" Padding="8,2" />
+                        <StackPanel>
+                            <TextBlock Text="Cart" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding CartSummary}" FontSize="12" Opacity="0.65" />
+                        </StackPanel>
+                    </DockPanel>
+                    <TextBlock Text="{Binding Problems}" IsVisible="{Binding Problems, Converter={x:Static ObjectConverters.IsNotNull}}"
+                               Foreground="#D49A1A" TextWrapping="Wrap" FontSize="12" />
+                </StackPanel>
+
+                <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="0,10,0,0">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4" Margin="6,0,0,0">
+                            <Button Content="Load" Command="{Binding LoadCartCommand}" Padding="8,2" ToolTip.Tip="Replace the cart with the saved one" />
+                            <Button Content="Merge" Command="{Binding MergeCartCommand}" Padding="8,2" ToolTip.Tip="Add the saved cart's apps to this one" />
+                            <Button Content="Delete" Command="{Binding DeleteCartCommand}" Padding="8,2" />
+                        </StackPanel>
+                        <ComboBox ItemsSource="{Binding SavedCarts}" SelectedItem="{Binding SelectedSavedCart}" PlaceholderText="Saved carts" HorizontalAlignment="Stretch" />
+                    </DockPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Save cart" Command="{Binding SaveCartCommand}" />
+                        <Button Content="Save as template" Command="{Binding SaveTemplateCommand}" IsVisible="{Binding !IsEditingTemplate}" />
+                    </StackPanel>
+                    <StackPanel IsVisible="{Binding IsBusy}" Spacing="4">
+                        <TextBlock Text="{Binding BusyText}" TextWrapping="Wrap" FontSize="12" />
+                        <ProgressBar IsIndeterminate="True" Height="4" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Install cart" Command="{Binding InstallCommand}" Classes="accent" />
+                        <Button Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <ScrollViewer Margin="0,6,0,0">
+                    <ItemsControl ItemsSource="{Binding CartRows}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:CartRowViewModel">
+                                <Border Padding="0,4" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Content="x" Command="{Binding RemoveCommand}" Padding="8,0" VerticalAlignment="Top"
+                                                ToolTip.Tip="Remove from the cart" IsVisible="{Binding !IsAutomatic}" />
+                                        <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding SourceChoices}" SelectedItem="{Binding Source}"
+                                                  IsVisible="{Binding HasSourceChoice}" Margin="4,0" VerticalAlignment="Top" />
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}" />
+                                            <TextBlock Text="{Binding Why}" FontSize="11" Opacity="0.6" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding Activity}" FontSize="11" TextWrapping="Wrap"
+                                                       IsVisible="{Binding Activity, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                                       Foreground="{Binding Outcome, Converter={x:Static conv:OutcomeBrushConverter.Instance}}" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>

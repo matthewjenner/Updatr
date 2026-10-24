@@ -179,6 +179,9 @@ public sealed class PsGallerySource(HttpClient http, ElevationService? elevation
         }
     }
 
+    /// <summary>The gallery's latest version of a module, or null if it has none (or did not answer).</summary>
+    public Task<string?> LatestVersionAsync(string name, CancellationToken cancellationToken) => LatestAsync(name, cancellationToken);
+
     private async Task<string?> LatestAsync(string name, CancellationToken cancellationToken)
     {
         try

@@ -1,5 +1,7 @@
 using System.Runtime.CompilerServices;
 using Updatr.Core.Abstractions;
+using Updatr.Core.Carts;
+using Updatr.Core.Catalog;
 using Updatr.Core.Operations;
 using Updatr.Core.Sources;
 
@@ -9,16 +11,13 @@ namespace Updatr.Platform.Sources;
 /// Base for sources driven by an ecosystem's own CLI (npm, pipx, dotnet, code). When the tool is
 /// not installed the source simply lists nothing - its packages appear once a cart installs it.
 /// </summary>
-public abstract class ToolSource(IProcessRunner processes, string program) : IPackageSource
+public abstract class ToolSource(IProcessRunner processes, string program) : IPackageSource, IAppInstaller
 {
     protected static readonly TimeSpan ListTimeout = TimeSpan.FromMinutes(2);
     protected static readonly TimeSpan InstallTimeout = TimeSpan.FromMinutes(20);
 
     /// <summary>Bounded parallelism for registry lookups ("what is the latest version").</summary>
     protected const int LookupParallelism = 8;
-
-    private string? _path;
-    private bool _looked;
 
     protected IProcessRunner Processes { get; } = processes;
 
@@ -27,20 +26,11 @@ public abstract class ToolSource(IProcessRunner processes, string program) : IPa
     /// <summary>What the Updates screen shows in its Source column.</summary>
     protected abstract string DisplayName { get; }
 
-    /// <summary>The tool's full path, or null when it is not installed. Looked up once.</summary>
-    protected string? ToolPath
-    {
-        get
-        {
-            if (!_looked)
-            {
-                _path = Processes.FindOnPath(program);
-                _looked = true;
-            }
-
-            return _path;
-        }
-    }
+    /// <summary>
+    /// The tool's full path, or null when it is not installed. Looked up every time (a PATH scan
+    /// is cheap): a cart may install the tool mid-run and refresh PATH.
+    /// </summary>
+    protected string? ToolPath => Processes.FindOnPath(program);
 
     public async IAsyncEnumerable<InstalledPackage> ListInstalledAsync(IOperationSink sink, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -74,10 +64,10 @@ public abstract class ToolSource(IProcessRunner processes, string program) : IPa
     }
 
     public Task<PackageOutcome> UpgradeAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
-        => RunActionAsync(package, UpgradeArguments(package), sink);
+        => RunActionAsync(package, UpgradeArguments(package), sink, package.Key.ToString());
 
     public Task<PackageOutcome> ReinstallAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
-        => RunActionAsync(package, ReinstallArguments(package), sink);
+        => RunActionAsync(package, ReinstallArguments(package), sink, package.Key.ToString());
 
     /// <summary>Lists installed packages with their available updates.</summary>
     protected abstract Task<IReadOnlyList<InstalledPackage>> ListAsync(IOperationSink sink, CancellationToken cancellationToken);
@@ -85,6 +75,24 @@ public abstract class ToolSource(IProcessRunner processes, string program) : IPa
     protected abstract IReadOnlyList<string> UpgradeArguments(InstalledPackage package);
 
     protected abstract IReadOnlyList<string> ReinstallArguments(InstalledPackage package);
+
+    /// <summary>The package name a catalog source names, when the source is this ecosystem's; else null.</summary>
+    protected abstract string? PackageNameOf(PackageSourceRef source);
+
+    /// <summary>Arguments that install <paramref name="name"/> fresh.</summary>
+    protected abstract IReadOnlyList<string> InstallArguments(string name);
+
+    public bool Handles(PackageSourceRef source) => PackageNameOf(source) is not null;
+
+    public async Task<bool> IsInstalledAsync(PackageSourceRef source, CancellationToken cancellationToken)
+        => PackageNameOf(source) is { } name && await FindInstalledAsync(name, cancellationToken).ConfigureAwait(false) is not null;
+
+    public Task<PackageOutcome> InstallAsync(PackageSourceRef source, string itemId, IOperationSink sink, CancellationToken cancellationToken)
+    {
+        string name = PackageNameOf(source) ?? throw new ArgumentException($"{program} does not install {source.SourceId} packages.");
+        InstalledPackage target = new() { Source = Id, Id = name, Name = name, InstalledVersion = string.Empty };
+        return RunActionAsync(target, InstallArguments(name), sink, itemId);
+    }
 
     /// <summary>Runs the tool for listing; returns stdout. Exit codes are the caller's business.</summary>
     protected async Task<ProcessResult> RunToolAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
@@ -103,7 +111,7 @@ public abstract class ToolSource(IProcessRunner processes, string program) : IPa
         CheckProblem = problem,
     };
 
-    private async Task<PackageOutcome> RunActionAsync(InstalledPackage package, IReadOnlyList<string> arguments, IOperationSink sink)
+    private async Task<PackageOutcome> RunActionAsync(InstalledPackage package, IReadOnlyList<string> arguments, IOperationSink sink, string itemId)
     {
         if (ToolPath is null)
             return PackageOutcome.Failed($"{program} is not installed");
@@ -113,7 +121,7 @@ public abstract class ToolSource(IProcessRunner processes, string program) : IPa
         if (!EcosystemParsers.IsSafePackageName(package.Id) || (package.InstalledVersion.Length > 0 && !EcosystemParsers.IsSafeVersion(package.InstalledVersion)))
             return PackageOutcome.Failed($"Refusing to pass '{package.Id}' to {program}: unexpected characters in the name or version");
 
-        sink.Report(new ProgressReported(package.Key.ToString(), null, Message: $"Running {program}"));
+        sink.Report(new ProgressReported(itemId, null, Message: $"Running {program}"));
 
         try
         {

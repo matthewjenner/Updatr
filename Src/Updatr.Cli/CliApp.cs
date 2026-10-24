@@ -56,6 +56,10 @@ public static class CliApp
         root.Subcommands.Add(HoldCommand("hold", "Hold packages: upgrade --all leaves them alone."));
         root.Subcommands.Add(HoldCommand("unhold", "Release holds - yours, and the catalog's on the named packages."));
         root.Subcommands.Add(WinGetCommand());
+
+        foreach (Command command in CartCommands.All())
+            root.Subcommands.Add(command);
+
         root.Subcommands.Add(AdminCommand());
         return root;
     }
@@ -235,7 +239,7 @@ public static class CliApp
         return command;
     }
 
-    private static async Task<int> RunAsync(ParseResult parse, CancellationToken cancellationToken, Func<UpdatrHost, ConsoleSink, Task<int>> body)
+    internal static async Task<int> RunAsync(ParseResult parse, CancellationToken cancellationToken, Func<UpdatrHost, ConsoleSink, Task<int>> body)
     {
         ConsoleSink sink = parse.GetValue(JsonOption) ? new JsonLinesSink(parse.GetValue(YesOption)) : new ConsoleSink(parse.GetValue(YesOption));
 
@@ -249,6 +253,12 @@ public static class CliApp
         {
             sink.Error("Canceled.");
             return ExitCodes.Canceled;
+        }
+        catch (ArgumentException ex)
+        {
+            // Unknown cart / template / app, editing a built-in: a usage problem, not a crash.
+            sink.Error(ex.Message);
+            return ExitCodes.Usage;
         }
     }
 }

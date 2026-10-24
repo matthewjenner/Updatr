@@ -26,6 +26,13 @@ public sealed class CatalogCheck(ICatalogOrigin remote, ICatalogCache cache) : I
         List<ICatalogOrigin> origins = context.IsOnline == true ? [remote, cache] : [cache];
         origins.Add(new EmbeddedCatalogOrigin());
 
+        // Developer override: a local catalog folder ahead of everything (UPDATR_CATALOG_DIR).
+        if (Catalog.FolderCatalogOrigin.FromEnvironment() is { } folder)
+        {
+            DiagLog.CatalogOverride(folder.Folder);
+            origins.Insert(0, folder);
+        }
+
         CatalogLoadResult result;
 
         try
@@ -49,6 +56,9 @@ public sealed class CatalogCheck(ICatalogOrigin remote, ICatalogCache cache) : I
 
         if (result.NewerSchemaAvailable)
             detail = (detail is null ? "" : detail + "\n") + "A newer catalog exists that this version cannot read - update Updatr.";
+
+        if (Catalog.FolderCatalogOrigin.FromEnvironment() is { } overridden && result.Origin == CatalogOriginKind.Embedded)
+            return PreflightResult.Warn($"Local catalog folder ({counts})", $"UPDATR_CATALOG_DIR is set to {overridden.Folder} - for testing catalog edits. Unset it to use GitHub's catalog.");
 
         return result.Origin switch
         {

@@ -7,13 +7,16 @@
         x:DataType="vm:MainWindowViewModel"
         Title="{Binding Title}"
         Icon="avares://Updatr/Assets/icon.ico"
-        Width="1100" Height="720" MinWidth="760" MinHeight="480"
+        Width="1320" Height="800" MinWidth="900" MinHeight="520"
         WindowStartupLocation="CenterScreen">
 
     <Window.DataTemplates>
         <!-- One template per page ViewModel. -->
         <DataTemplate DataType="vm:UpdatesPageViewModel">
             <views:UpdatesView />
+        </DataTemplate>
+        <DataTemplate DataType="vm:InstallPageViewModel">
+            <views:InstallView />
         </DataTemplate>
 
         <DataTemplate DataType="vm:PlaceholderPageViewModel">

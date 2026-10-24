@@ -308,6 +308,23 @@ with precedence user hold > user release > catalog rule.
 Template entry: `{ "id": "dev", "name": "Dev", "items": ["git", "vscode", "nodejs-lts"] }`.
 User templates and carts use the same shape and live in `Updatr.data\`.
 
+## Carts, templates, installs (Phase 5)
+
+- `Core/Carts`: `Cart` (named list of `CartItem`: app id, chosen source, added by, automatic +
+  required by), `CartBuilder` (add / template / merge / remove / choose source / **Resolve**),
+  `CartStore` (carts and user templates as JSON in `Updatr.data\carts\` and `templates\`),
+  `TemplateCatalog` (built-in + user templates; a user template with a built-in's id shadows it).
+- `CartBuilder.Resolve` is pure: given the catalog and the tools present, it adds missing
+  prerequisites (a source's `RequiredTool` -> the catalog app that `provides` it; plus explicit
+  `requires`), orders prerequisites first, and drops automatic items nothing needs. Saved carts
+  keep only real picks.
+- `InstallApps` (`install`) runs a resolved cart through `IAppInstaller`s - one per source type,
+  in Platform: `WinGetAppInstaller` (install from the package's named source; elevated installers
+  through the broker's `winget-run` in `install` mode), the ecosystem `ToolSource`s, PSGallery,
+  and `DirectUrlAppInstaller`. After a provider installs, `IToolEnvironment.Refresh` rebuilds PATH
+  from the registry.
+- `UPDATR_CATALOG_DIR` points the catalog loader at a local folder ahead of GitHub (development).
+
 ## Portable data folder
 
 ```

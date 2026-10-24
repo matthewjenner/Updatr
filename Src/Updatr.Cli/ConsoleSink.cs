@@ -121,6 +121,16 @@ public class ConsoleSink(bool assumeYes) : IOperationSink
 
     public virtual void Error(string message) => Line(ConsoleColor.Red, message);
 
+    /// <summary>Command output: <paramref name="text"/> for people, <paramref name="json"/> under --json.</summary>
+    public virtual void Output(string text, JsonNode json)
+    {
+        lock (_gate)
+        {
+            ClearProgress();
+            Console.WriteLine(text);
+        }
+    }
+
     /// <summary>The one-line outcome of a command that is not a list of items.</summary>
     public virtual void Result(bool succeeded, string summary) => Line(succeeded ? ConsoleColor.Green : ConsoleColor.Red, summary);
 
@@ -311,7 +321,7 @@ public sealed class JsonLinesSink(bool assumeYes) : ConsoleSink(assumeYes)
     {
         // A script cannot answer a prompt; it says --yes up front or gets the safe default.
         bool answer = AssumeYes || confirmation.DefaultAnswer;
-        Emit(new JsonObject { ["event"] = "confirmation", ["title"] = confirmation.Title, ["answer"] = answer });
+        Emit(new JsonObject { ["event"] = "confirmation", ["title"] = confirmation.Title, ["detail"] = confirmation.Detail, ["answer"] = answer });
         return Task.FromResult(answer);
     }
 
@@ -341,6 +351,8 @@ public sealed class JsonLinesSink(bool assumeYes) : ConsoleSink(assumeYes)
         => Emit(new JsonObject { ["event"] = "result", ["packages"] = packages.Count, ["updates"] = packages.Count(p => p.Package.HasUpdate) });
 
     public override void Error(string message) => Emit(new JsonObject { ["event"] = "error", ["message"] = message });
+
+    public override void Output(string text, JsonNode json) => Emit(new JsonObject { ["event"] = "data", ["data"] = json.DeepClone() });
 
     public override void Result(bool succeeded, string summary)
         => Emit(new JsonObject { ["event"] = "result", ["succeeded"] = succeeded, ["summary"] = summary });

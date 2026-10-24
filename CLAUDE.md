@@ -126,6 +126,10 @@ dotnet test                         # MTP runner (global.json)
   name/version with `EcosystemParsers.IsSafePackageName` / `IsSafeVersion` before passing it.
 - **Signer names are the exact certificate CN.** Microsoft signs `dotnet.exe` as ".NET", not
   "Microsoft Corporation". Check a new direct-URL entry's signer with `Authenticode.Check`.
+- **The live catalog comes from GitHub, so unpushed catalog edits are invisible** to a normal run.
+  Set `UPDATR_CATALOG_DIR=<repo>/catalog` to test them (the splash says "Local catalog folder").
+- **A process keeps its start-up PATH.** After installing something that adds a tool (Node, VS
+  Code, .NET SDK), call `IToolEnvironment.Refresh()` before running that tool.
 - **Do not trim.** WinRT.Runtime and the Windows SDK projection are not trim-safe (IL2104). Publish
   is single-file + compressed, untrimmed.
 - **Version 0.0.0 never releases.** CI builds, tests, and packages it, but the release step is
@@ -163,6 +167,11 @@ dotnet test                         # MTP runner (global.json)
 - **Add an ecosystem source:** derive `ToolSource` (or implement `IPackageSource` if it is native),
   put its output parsers in `EcosystemParsers` with tests on real captured output, add it to
   `UpdatrHost.Sources`, and its display name to the GUI's `SourceChoices`.
+- **Add an app or template to the catalog:** edit `catalog/apps.json` / `templates.json`, verify
+  ids (`winget show --id <id> --exact`, `npm view`, Marketplace), set `provides` on apps that put a
+  tool on PATH, run `dotnet test`, and try it with `UPDATR_CATALOG_DIR` before pushing.
+- **Install a new kind of source:** implement `IAppInstaller` (Handles / IsInstalled / Install) and
+  add it to `UpdatrHost`'s installer list; `InstallApps` picks it up.
 - **Recognize another launcher's games:** add its uninstall-command / install-folder markers to
   `LauncherDetector.Launchers`, its own entries to `LauncherSelf` / `LauncherIds`, a test with a
   real uninstall string, and an `explicit` hold for the launcher's winget id in `holds.json`.

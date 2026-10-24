@@ -153,5 +153,14 @@ internal sealed class RecordingSink(bool answer = true) : IOperationSink
             _events.Add(operationEvent);
     }
 
-    public Task<bool> ConfirmAsync(Confirmation confirmation, CancellationToken cancellationToken) => Task.FromResult(answer);
+    /// <summary>Every confirmation asked, in order.</summary>
+    public List<Confirmation> Confirmations { get; } = [];
+
+    public Task<bool> ConfirmAsync(Confirmation confirmation, CancellationToken cancellationToken)
+    {
+        lock (_gate)
+            Confirmations.Add(confirmation);
+
+        return Task.FromResult(answer);
+    }
 }

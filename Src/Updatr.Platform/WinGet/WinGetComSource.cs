@@ -92,6 +92,90 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
     }
 
     /// <summary>
+    /// Installs a package that is not installed yet, from the named catalog (winget, msstore).
+    /// Machine-wide or elevation-needing installers go through the broker, like upgrades.
+    /// </summary>
+    public async Task<PackageOutcome> InstallNewAsync(string id, string catalogName, string itemId, IOperationSink sink)
+    {
+        if (elevation is not null && await Task.Run(() => NewInstallNeedsElevation(id, catalogName)).ConfigureAwait(false))
+        {
+            BrokerClient? broker = await elevation.GetBrokerAsync(CancellationToken.None).ConfigureAwait(false);
+
+            if (broker is not null)
+            {
+                JsonObject request = new() { ["id"] = id, ["mode"] = "install", ["catalog"] = catalogName };
+
+                try
+                {
+                    PackageOutcome elevated = BrokerOutcome.FromJson(await broker.SendAsync(BrokerRunType, request, e => sink.Report(BrokerProgress.FromJson(e, itemId)), CancellationToken.None).ConfigureAwait(false));
+
+                    if (elevated.Code?.Code != ProhibitsElevation)
+                        return elevated;
+                }
+                catch (BrokerException ex)
+                {
+                    return PackageOutcome.Failed($"The elevated helper failed: {ex.Message}");
+                }
+            }
+        }
+
+        return await Task.Run(() => RunInstallLocalAsync(id, catalogName, itemId, sink)).ConfigureAwait(false);
+    }
+
+    /// <summary>Installs from a named catalog in this process. Also what the broker runs for "install".</summary>
+    public static async Task<PackageOutcome> RunInstallLocalAsync(string id, string catalogName, string itemId, IOperationSink sink)
+    {
+        PackageManager manager;
+
+        try
+        {
+            manager = WinGetRuntime.CreatePackageManager();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.Runtime.InteropServices.COMException)
+        {
+            return PackageOutcome.Failed($"winget is not available: {ex.Message}");
+        }
+
+        CatalogPackage? package = FindInCatalog(manager, id, catalogName);
+
+        if (package is null)
+            return PackageOutcome.Failed($"winget's {catalogName} source has no package '{id}'");
+
+        InstallOptions options = new() { PackageInstallMode = PackageInstallMode.Silent, AcceptPackageAgreements = true };
+        var operation = manager.InstallPackageAsync(package, options);
+        operation.Progress = (_, progress) => sink.Report(ToProgress(progress, itemId));
+
+        return Map(await operation.AsTask().ConfigureAwait(false));
+    }
+
+    private static CatalogPackage? FindInCatalog(PackageManager manager, string id, string catalogName)
+    {
+        ConnectResult connect = manager.GetPackageCatalogByName(catalogName).Connect();
+
+        if (connect.Status != ConnectResultStatus.Ok)
+            throw new PackageSourceException($"winget could not open its {catalogName} source ({connect.Status})");
+
+        FindPackagesOptions options = new();
+        options.Filters.Add(new PackageMatchFilter { Field = PackageMatchField.Id, Option = PackageFieldMatchOption.EqualsCaseInsensitive, Value = id });
+        FindPackagesResult result = connect.PackageCatalog.FindPackages(options);
+
+        return result.Status == FindPackagesResultStatus.Ok && result.Matches.Count > 0 ? result.Matches[0].CatalogPackage : null;
+    }
+
+    private static bool NewInstallNeedsElevation(string id, string catalogName)
+    {
+        try
+        {
+            CatalogPackage? package = FindInCatalog(WinGetRuntime.CreatePackageManager(), id, catalogName);
+            return package is not null && NeedsElevation(string.Empty, package.DefaultInstallVersion);
+        }
+        catch (Exception ex) when (ex is PackageSourceException or System.Runtime.InteropServices.COMException or InvalidOperationException)
+        {
+            return false; // The install itself will report the real problem.
+        }
+    }
+
+    /// <summary>
     /// Upgrades or reinstalls in this process. Also what the broker runs, elevated. Waits for the
     /// installer to finish; never interrupts it.
     /// </summary>

@@ -46,6 +46,33 @@ public sealed class WinGetSource(ElevationService? elevation, IProcessRunner pro
     public Task<PackageOutcome> ReinstallAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
         => _unavailable is { } reason ? Task.FromResult(PackageOutcome.Failed(reason)) : Chosen().ReinstallAsync(package, sink, cancellationToken);
 
+    /// <summary>Installs a package that is not installed yet - COM when available, else winget.exe.</summary>
+    public async Task<PackageOutcome> InstallNewAsync(Core.Catalog.WingetSourceRef source, string itemId, Core.Operations.IOperationSink sink, IProcessRunner runner)
+    {
+        IPackageSource chosen;
+
+        try
+        {
+            chosen = Chosen();
+        }
+        catch (PackageSourceException ex)
+        {
+            return PackageOutcome.Failed(ex.Message);
+        }
+
+        if (chosen is WinGetComSource com)
+            return await com.InstallNewAsync(source.Id, source.Source, itemId, sink).ConfigureAwait(false);
+
+        if (runner.FindOnPath("winget") is not { } winget)
+            return PackageOutcome.Failed("winget is not available");
+
+        sink.Report(new Core.Operations.ProgressReported(itemId, null, Message: "Running winget"));
+        ProcessResult result = await runner.RunAsync(winget,
+            ["install", "--id", source.Id, "--exact", "--source", source.Source, "--silent", "--accept-package-agreements", "--accept-source-agreements", "--disable-interactivity"],
+            TimeSpan.FromMinutes(60), CancellationToken.None).ConfigureAwait(false);
+        return PackageOutcome.FromCode(result.ExitCode);
+    }
+
     private IPackageSource Chosen()
     {
         lock (_gate)

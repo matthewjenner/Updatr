@@ -1,0 +1,17 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Updatr.App.Views.PromptDialog"
+        Title="Updatr"
+        Icon="avares://Updatr/Assets/icon.ico"
+        Width="440" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner">
+    <StackPanel Margin="20" Spacing="10">
+        <TextBlock x:Name="TitleText" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+        <TextBlock x:Name="LabelText" Opacity="0.75" TextWrapping="Wrap" />
+        <TextBox x:Name="Input" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,6,0,0">
+            <Button Content="Cancel" Click="OnCancel" IsCancel="True" />
+            <Button Content="OK" Click="OnOk" Classes="accent" IsDefault="True" />
+        </StackPanel>
+    </StackPanel>
+</Window>
