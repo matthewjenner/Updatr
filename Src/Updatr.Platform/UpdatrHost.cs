@@ -3,12 +3,14 @@ using Updatr.Core;
 using Updatr.Core.Abstractions;
 using Updatr.Core.Carts;
 using Updatr.Core.Catalog;
+using Updatr.Core.Debloat;
 using Updatr.Core.Packages;
 using Updatr.Core.Sources;
 using Updatr.Core.Diagnostics;
 using Updatr.Core.Preflight;
 using Updatr.Platform.Catalog;
 using Updatr.Platform.Data;
+using Updatr.Platform.Debloat;
 using Updatr.Platform.DirectUrl;
 using Updatr.Platform.Elevation;
 using Updatr.Platform.Net;
@@ -93,7 +95,31 @@ public sealed class UpdatrHost : IAsyncDisposable
         TemplateSave = new SaveTemplate(catalog, Carts);
         TemplateCopy = new CopyTemplate(Templates, Carts);
         TemplateDelete = new DeleteTemplate(catalog, Carts);
+
+        // Phase 6: debloat.
+        AppxTarget appx = new(Elevation, WinGet, Processes);
+        IDebloatTarget[] targets = [new RegistryTarget(Elevation), appx, new ServiceTarget(Elevation), new ScheduledTaskTarget(Elevation)];
+        DebloatStore debloatStore = new(Data);
+        DebloatEngine debloat = new(catalog, targets, appx, new RestorePoint(Elevation), debloatStore, WindowsInfo.Os().Build);
+        DebloatStatus = new DebloatStatus(debloat);
+        DebloatApply = new ApplyDebloat(debloat);
+        DebloatRevert = new RevertDebloat(debloat);
+        DebloatHistory = new DebloatHistory(debloatStore);
+        DebloatKeep = new KeepApps(debloatStore);
+        DebloatUnkeep = new UnkeepApps(debloatStore);
     }
+
+    public DebloatStatus DebloatStatus { get; }
+
+    public ApplyDebloat DebloatApply { get; }
+
+    public RevertDebloat DebloatRevert { get; }
+
+    public DebloatHistory DebloatHistory { get; }
+
+    public KeepApps DebloatKeep { get; }
+
+    public UnkeepApps DebloatUnkeep { get; }
 
     public CartStore Carts { get; }
 
@@ -142,7 +168,6 @@ public sealed class UpdatrHost : IAsyncDisposable
     public CopyTemplate TemplateCopy { get; }
 
     public DeleteTemplate TemplateDelete { get; }
-
 
     public HoldStore Holds { get; }
 

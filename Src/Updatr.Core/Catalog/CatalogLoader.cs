@@ -132,16 +132,18 @@ public sealed class CatalogLoader(IReadOnlyList<ICatalogOrigin> origins, ICatalo
         AppsFile? apps = Read<AppsFile>(CatalogFiles.Apps);
         TemplatesFile? templates = Read<TemplatesFile>(CatalogFiles.Templates);
         HoldsFile? holds = Read<HoldsFile>(CatalogFiles.Holds);
+        DebloatFile? debloat = Read<DebloatFile>(CatalogFiles.Debloat);
 
-        if (apps is null || templates is null || holds is null)
+        if (apps is null || templates is null || holds is null || debloat is null)
             return new CatalogParseResult(null, issues, newerSchema);
 
         issues.AddRange(CatalogValidator.Validate(apps, templates, holds));
+        issues.AddRange(CatalogValidator.Validate(debloat));
 
         if (issues.Count > 0)
             return new CatalogParseResult(null, issues, newerSchema);
 
-        return new CatalogParseResult(new AppCatalog(apps.Apps, templates.Templates, holds.Holds), issues, newerSchema);
+        return new CatalogParseResult(new AppCatalog(apps.Apps, templates.Templates, holds.Holds, debloat), issues, newerSchema);
     }
 
     private async Task TryWriteCacheAsync(CatalogFileSet set, List<string> diagnostics, CancellationToken cancellationToken)

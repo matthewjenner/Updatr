@@ -176,7 +176,8 @@ updatr-cli hold <id> | unhold <id>
 updatr-cli install <id>... [--template <name>...] [--cart <name>...]
 updatr-cli cart list | show <name> | save <name> | merge <name>...
 updatr-cli template list | show <name>
-updatr-cli debloat status | apply [--recommended] [--item <id>...] | revert <id>...
+updatr-cli debloat status [--changed] | apply [--recommended] [--item <id>...] [--app <name>...]
+updatr-cli debloat revert <id>... | history | keep <name>... | unkeep <name>...
 updatr-cli uninstall <id>...
 updatr-cli self-update
 ```
@@ -203,8 +204,8 @@ Exact package ids are verified when the catalog is authored.
   is installed (backlog).
 - **Restore points** are throttled by Windows (one per 24 h by default) and disabled on many
   machines; Updatr's own backup is the primary undo.
-- **Edge removal** is restricted by Microsoft outside the EEA; the optional item may be limited
-  to disabling nags and background behavior. Investigated in the debloat phase.
+- **Edge is not removed.** Microsoft allows it only in the EEA, and removal breaks WebView2 apps;
+  the optional item turns off Edge's nags and background running by policy instead.
 - **Store app removal is not perfectly reversible:** revert reinstalls from the Store.
 
 ## Roadmap / backlog

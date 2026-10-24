@@ -60,6 +60,7 @@ public static class CliApp
         foreach (Command command in CartCommands.All())
             root.Subcommands.Add(command);
 
+        root.Subcommands.Add(DebloatCommands.Command());
         root.Subcommands.Add(AdminCommand());
         return root;
     }

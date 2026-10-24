@@ -78,6 +78,9 @@ internal sealed class MemoryDataStore : IDataStore
 {
     public Dictionary<string, string> Files { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Makes writes fail like a write-protected drive.</summary>
+    public bool ReadOnly { get; set; }
+
     public string DisplayRoot => "memory";
 
     public string? LastFailure => null;
@@ -89,6 +92,9 @@ internal sealed class MemoryDataStore : IDataStore
 
     public Task WriteTextAsync(string relativePath, string content, CancellationToken cancellationToken)
     {
+        if (ReadOnly)
+            throw new DataStoreException("The drive is write-protected.");
+
         Files[relativePath] = content;
         return Task.CompletedTask;
     }

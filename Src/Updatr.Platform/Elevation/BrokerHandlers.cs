@@ -28,6 +28,8 @@ public static class BrokerHandlers
         new WinGet.WinGetBrokerHandler(),
         new Sources.PsGalleryBrokerHandler(),
         new DirectUrl.DirectUrlBrokerHandler(),
+        new Debloat.DebloatBrokerHandler(),
+        new Debloat.RestorePointBrokerHandler(),
     ];
 }
 

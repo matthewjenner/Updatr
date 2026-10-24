@@ -25,6 +25,7 @@ public sealed class CatalogSchemaTests
         { "apps.schema.json", typeof(AppsFile) },
         { "templates.schema.json", typeof(TemplatesFile) },
         { "holds.schema.json", typeof(HoldsFile) },
+        { "debloat.schema.json", typeof(DebloatFile) },
     };
 
     [Theory]

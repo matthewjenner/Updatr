@@ -222,26 +222,39 @@ No PowerShell module (`Repair-WinGetPackageManager`) involved.
 ## Debloat engine
 
 ```csharp
-public interface IDebloatTarget   // one per kind: registry value, appx, provisioned appx, service, task, ...
+public interface IDebloatTarget   // registry, appx, service, scheduled task
 {
-    Task<TargetState> DetectAsync(DebloatItem item, CancellationToken ct);
-    Task<ApplyResult> ApplyAsync(DebloatItem item, IBackupWriter backup, CancellationToken ct);
-    Task<ApplyResult> RevertAsync(DebloatItem item, BackupEntry entry, CancellationToken ct);
+    bool NeedsAdmin(DebloatAction action);
+    Task<ActionStatus> DetectAsync(DebloatAction action, CancellationToken ct);
+    Task<ActionBackup> CaptureAsync(DebloatAction action, CancellationToken ct);   // saved before Apply
+    Task<PackageOutcome> ApplyAsync(DebloatAction action, string itemId, IOperationSink sink, CancellationToken ct);
+    Task<PackageOutcome> RevertAsync(ActionBackup backup, string itemId, IOperationSink sink, CancellationToken ct);
 }
 ```
 
-- **Rules are data** (`catalog/debloat.json`): id, group (`recommended`, `optional`,
-  `privacy`), title, description, and a list of typed actions (`registryValue`,
-  `appxRemove`, `appxDeprovision`, `serviceStartType`, `scheduledTaskDisable`, ...).
+- **Rules are data** (`catalog/debloat.json`): items with id, group (`recommended`,
+  `optional`), category, title, description, optional warning and `minBuild`, and typed actions
+  (`registry`, `appx`, `service`, `scheduledTask`); plus `keep`, Store apps never flagged.
+- `DebloatEngine` (Core) does detection roll-up, selection, confirmation, restore point, backup,
+  apply, revert, history, and the last-run snapshot; the targets (Platform) do the machine work.
+  Store apps use `Windows.Management.Deployment.PackageManager`; services the SCM API; tasks the
+  Task Scheduler COM API (late-bound); restore points `SRSetRestorePointW`.
+- **Elevation:** each target sends its admin half to the broker (`debloat-run`, `restore-point`).
+  The broker accepts only well-formed actions inside debloat's scope: HKLM under `SOFTWARE\`,
+  HKCU under `Software\Policies\`, tasks under `\Microsoft\`, validated service names, and
+  revert start types 2-4 only.
 - **Detect before apply, every time.** Status is computed from live machine state, so re-runs
   touch only what drifted (idempotent by construction).
 - **Catching new junk:** (1) policy keys stop sponsored auto-installs at the source; (2) known
   junk patterns are maintained in the catalog; (3) any removable Appx not in the keep list,
   not protected (frameworks, Store, system), and not a known rule is listed as Unrecognized
   for review. Never auto-removed.
-- **Backups:** every registry change records the prior value (or absence) to
-  `Updatr.data\debloat\backups\<timestamp>.json` plus a `.reg` export. History records what was
-  applied and when, which drives the "new since last run" view.
+- **Backups:** each item's prior state (registry value and kind or absence, service start type,
+  task enabled, removed package names) and a copy of the action go to
+  `Updatr.data\debloat\backups\<timestamp>.json` plus a `.reg` export *before* the change; if the
+  save fails, nothing is changed. `history.json` records applies and reverts (revert uses the
+  item's latest apply); `last-run.json` drives "changed since last run"; `keep-list.json` is the
+  user's keep list.
 - **Restore point:** attempted before apply; failure (throttled, disabled) is a warning, not a
   blocker.
 

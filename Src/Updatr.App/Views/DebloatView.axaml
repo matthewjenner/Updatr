@@ -1,0 +1,116 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Updatr.App.ViewModels"
+             xmlns:conv="using:Updatr.App.Converters"
+             x:Class="Updatr.App.Views.DebloatView"
+             x:DataType="vm:DebloatPageViewModel">
+    <Grid ColumnDefinitions="*,340" Margin="20,16">
+        <!-- Items: picked ones are applied; state comes from the live machine. -->
+        <DockPanel Grid.Column="0" Margin="0,0,16,0">
+            <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,10">
+                <TextBlock Text="Debloat" FontSize="24" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" Opacity="0.75" />
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                    <Button Content="Apply selected" Command="{Binding ApplyCommand}" Classes="accent" />
+                    <Button Content="Select recommended" Command="{Binding SelectRecommendedCommand}" />
+                    <Button Content="Clear" Command="{Binding ClearSelectionCommand}" />
+                    <Button Content="Check again" Command="{Binding RefreshCommand}" />
+                    <CheckBox Content="Only what changed since the last run" IsChecked="{Binding ShowOnlyChanged}" Margin="8,0,0,0" />
+                </StackPanel>
+                <StackPanel Spacing="4" IsVisible="{Binding BusyText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{Binding BusyText}" TextWrapping="Wrap" FontSize="12" VerticalAlignment="Center" />
+                        <Button Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}" Padding="8,2" />
+                    </StackPanel>
+                    <ProgressBar IsIndeterminate="True" Height="4" IsVisible="{Binding IsBusy}" />
+                </StackPanel>
+            </StackPanel>
+
+            <ScrollViewer>
+                <ItemsControl ItemsSource="{Binding Rows}">
+                    <ItemsControl.DataTemplates>
+                        <DataTemplate DataType="vm:DebloatHeaderViewModel">
+                            <StackPanel Margin="0,14,0,4">
+                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="15" />
+                                <TextBlock Text="{Binding Subtitle}" FontSize="11" Opacity="0.55" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </DataTemplate>
+
+                        <DataTemplate DataType="vm:DebloatItemRowViewModel">
+                            <Border Padding="0,6" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                                    ToolTip.Tip="{Binding Details}">
+                                <Grid ColumnDefinitions="36,*,170">
+                                    <CheckBox IsChecked="{Binding IsSelected}" IsEnabled="{Binding CanSelect}" VerticalAlignment="Top" />
+                                    <StackPanel Grid.Column="1" Spacing="2">
+                                        <TextBlock Text="{Binding Title}" />
+                                        <TextBlock Text="{Binding Description}" FontSize="12" Opacity="0.65" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Warning}" FontSize="12" Foreground="#D49A1A" TextWrapping="Wrap"
+                                                   IsVisible="{Binding Warning, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                        <TextBlock Text="{Binding Activity}" FontSize="11" TextWrapping="Wrap"
+                                                   IsVisible="{Binding Activity, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                                   Foreground="{Binding Outcome, Converter={x:Static conv:OutcomeBrushConverter.Instance}}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Top">
+                                        <Ellipse Width="9" Height="9" VerticalAlignment="Center"
+                                                 Fill="{Binding Tone, Converter={x:Static conv:CheckStateBrushConverter.Instance}}" />
+                                        <TextBlock Text="{Binding StateText}" FontSize="12" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+
+                        <DataTemplate DataType="vm:UnrecognizedRowViewModel">
+                            <Border Padding="0,6" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+                                <Grid ColumnDefinitions="36,*,170">
+                                    <CheckBox IsChecked="{Binding IsSelected}" IsEnabled="{Binding !IsKept}" VerticalAlignment="Top"
+                                              ToolTip.Tip="Remove this app" />
+                                    <StackPanel Grid.Column="1" Spacing="2">
+                                        <TextBlock Text="{Binding Name}" />
+                                        <TextBlock Text="{Binding Detail}" FontSize="12" Opacity="0.65" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                                        <Button Content="Keep" Command="{Binding KeepCommand}" Padding="8,2" IsVisible="{Binding !IsKept}"
+                                                ToolTip.Tip="Stop flagging this app" />
+                                        <Button Content="Kept - undo" Command="{Binding KeepCommand}" Padding="8,2" IsVisible="{Binding IsKept}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.DataTemplates>
+                </ItemsControl>
+            </ScrollViewer>
+        </DockPanel>
+
+        <!-- History: what was applied here (and on other PCs this drive visited), with revert. -->
+        <Border Grid.Column="1" BorderThickness="1,0,0,0" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" Padding="16,0,0,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,8,0,8">
+                    <TextBlock Text="History" FontWeight="SemiBold" />
+                    <TextBlock Text="Every change is backed up first. Revert puts an item back the way it was; removed apps are reinstalled from the Store."
+                               FontSize="11" Opacity="0.6" TextWrapping="Wrap" />
+                </StackPanel>
+                <ScrollViewer>
+                    <ItemsControl ItemsSource="{Binding History}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:DebloatHistoryRowViewModel">
+                                <Border Padding="0,5" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Content="Revert" Command="{Binding RevertCommand}" IsVisible="{Binding CanRevert}"
+                                                Padding="8,2" VerticalAlignment="Top" />
+                                        <StackPanel Spacing="1">
+                                            <TextBlock Text="{Binding Text}" TextWrapping="Wrap"
+                                                       Foreground="{Binding Outcome, Converter={x:Static conv:OutcomeBrushConverter.Instance}}" />
+                                            <TextBlock Text="{Binding When}" FontSize="11" Opacity="0.55" />
+                                            <TextBlock Text="{Binding Detail}" FontSize="11" Opacity="0.7" TextWrapping="Wrap"
+                                                       IsVisible="{Binding Detail, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>

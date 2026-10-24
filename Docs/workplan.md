@@ -8,12 +8,12 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Current state
 
-- **Phase:** 5 complete - Install screen, carts, templates. 0.0.3 ships on push. Still open (not
-  blocking): winget repair on a clean / LTSC VM.
+- **Phase:** 6 code complete - Debloat. Waiting on a manual GUI + admin-item test, then 0.0.4.
+  Still open (not blocking): winget repair on a clean / LTSC VM.
 - **Last updated:** 2026-10-24
-- **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (253/253).
-  Version 0.0.3 (0.0.2 released 2026-10-24).
-- **Next:** Phase 6 (Debloat).
+- **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (291/291).
+  Version 0.0.3 (released 2026-10-24); 0.0.4 after the manual debloat test.
+- **Next:** Phase 7 (Uninstall basic + self-update -> 0.1.0).
 
 ## Versioning
 
@@ -174,15 +174,36 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Phase 6 - Debloat
 
-- [ ] Debloat rule model in the catalog (`debloat.json` + schema), designed with the targets
-- [ ] Targets: registry value, appx, provisioned appx, service, scheduled task
-- [ ] Detect / apply / revert, backups, history, restore point
-- [ ] Recommended rule set (ads + junk + baseline privacy)
-- [ ] Optional rule set (Edge, OneDrive, Copilot, Recall, Widgets, Xbox, Game Bar, ...)
-- [ ] Unrecognized Appx detection + keep list
-- [ ] "New since last run" view
-- [ ] Investigate Edge removal constraints
-- [ ] CLI: `debloat status | apply | revert`
+- [x] Rule model in the catalog (`debloat.json` + generated schema): items (recommended /
+      optional, category, warning, minBuild) of typed actions; plus a keep list of Store apps
+- [x] Targets: registry value (set / remove), Store app (remove for the user + deprovision from
+      the image), service start type (SCM API), scheduled task (Task Scheduler COM)
+- [x] Detect / apply / revert: status from the live machine, only drifted actions applied; every
+      change captured and the backup saved (JSON + `.reg`) before it is made - no backup, no
+      change; history; revert from the latest backup; restore point (best effort) before
+      machine-wide changes
+- [x] Admin half through the broker (`debloat-run`, `restore-point`) with an allow-list: HKLM
+      only under SOFTWARE, HKCU only under Software\Policies, tasks only under \Microsoft\,
+      service names validated, revert never restores boot/system start types
+- [x] Recommended set (13): Start / Settings / lock screen / Explorer / search ads and
+      suggestions, sponsored auto-installs, tips and nags, junk Microsoft apps, sponsored games,
+      advertising id, tailored experiences, required-only diagnostics, activity history
+- [x] Optional set (14): Copilot, Recall, Widgets, Bing in search, Edge nags, OneDrive, Xbox app,
+      Game Bar, Teams (personal), new Outlook, Phone Link, Feedback Hub, Weather, stricter
+      telemetry (services + tasks)
+- [x] Unrecognized Store apps (not a rule target, not kept by the catalog or the user) for
+      review: remove one-off (revertible) or keep
+- [x] "Changed since last run": items applied at the last run that are not applied now, and
+      Store apps not seen then
+- [x] Edge removal investigated: not offered (see decisions); nags and background running are
+- [x] CLI: `debloat status [--all] [--changed] | apply [--recommended] [--item] [--app] |
+      revert <id> | history | keep | unkeep`
+- [x] GUI: Debloat screen (grouped items with live state, recommended pre-picked, unrecognized
+      apps with Keep, history with Revert)
+- [x] Real round trip verified (CLI, current-user item): apply, re-run is "already applied",
+      drift detected after Windows-style reset, revert restores the original state
+- [ ] **Manual:** the GUI screen, and one admin item (e.g. `diagnostic-data`) apply + revert
+      through the UAC prompt (proves the broker path and the restore point); then bump to 0.0.4
 
 ## Phase 7 - Uninstall (basic) and self-update -> 0.1.0
 
@@ -267,6 +288,21 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
   the source-generated deserializer assigns omitted init properties null, wiping defaults.
 - **2026-10-23** - Computed members on polymorphic source refs live in the base as a switch:
   `[JsonIgnore]` on an abstract member does not apply to its overrides, which leaked into JSON.
+- **2026-10-24** - Edge is not removed. Microsoft supports uninstalling it only in the EEA (via
+  Settings); elsewhere removal needs unsupported setup.exe flags, breaks WebView2-based apps and
+  Windows features, and Windows Update reinstalls it. Debloat offers Edge policies instead (no
+  first-run, startup boost, background mode, shopping, sidebar, default-browser prompts).
+- **2026-10-24** - Debloat backups are saved before each item's change, and a failed save stops the
+  run: an unrevertable debloat is worse than none (a read-only drive debloats nothing).
+- **2026-10-24** - Store apps: removed for the current user unelevated; deprovisioned (new users)
+  through the broker. Provisioned packages cannot be listed unelevated, so an app already gone
+  for the user counts as applied. Revert reinstalls from the Store when the rule has a
+  `storeId` (verified with `winget show --source msstore`); otherwise it says to.
+- **2026-10-24** - Dev Home's package (`Microsoft.Windows.DevHome`) now ships "Windows Advanced
+  Settings" on 25H2: kept, not junk. The compatibility appraiser task is "... Appraiser Exp" on
+  build 26200; both names are listed (the missing one is not applicable).
+- **2026-10-24** - HKCU\Software\Policies is writable only by administrators, so those values go
+  through the broker too (into the same user's hive in the normal UAC case).
 - **2026-10-24** - Carts store only real picks; prerequisites are recomputed at install time from
   what is on the machine then, so a cart saved on a dev box still pulls in Node on a fresh one.
 - **2026-10-24** - Template editing reuses the cart (load template -> edit cart -> Save template)

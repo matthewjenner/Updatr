@@ -18,6 +18,9 @@
         <DataTemplate DataType="vm:InstallPageViewModel">
             <views:InstallView />
         </DataTemplate>
+        <DataTemplate DataType="vm:DebloatPageViewModel">
+            <views:DebloatView />
+        </DataTemplate>
 
         <DataTemplate DataType="vm:PlaceholderPageViewModel">
             <StackPanel Margin="32" Spacing="10" MaxWidth="640" HorizontalAlignment="Left">

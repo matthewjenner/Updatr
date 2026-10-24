@@ -39,4 +39,5 @@ public static class CatalogJson
 [JsonSerializable(typeof(AppsFile))]
 [JsonSerializable(typeof(TemplatesFile))]
 [JsonSerializable(typeof(HoldsFile))]
+[JsonSerializable(typeof(DebloatFile))]
 internal sealed partial class CatalogJsonContext : JsonSerializerContext;

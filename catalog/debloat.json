@@ -1,0 +1,814 @@
+{
+  "$schema": "./schema/debloat.schema.json",
+  "schemaVersion": 1,
+  "items": [
+    {
+      "id": "start-suggestions",
+      "group": "recommended",
+      "category": "Ads and suggestions",
+      "title": "Start menu suggestions and ads",
+      "description": "Stops app suggestions, promoted apps, and account nags in Start.",
+      "actions": [
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SystemPaneSuggestionsEnabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SubscribedContent-338388Enabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "Start_IrisRecommendations",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "Start_AccountNotifications",
+          "dword": 0
+        }
+      ]
+    },
+    {
+      "id": "sponsored-installs",
+      "group": "recommended",
+      "category": "Ads and suggestions",
+      "title": "Automatic installs of sponsored apps",
+      "description": "Stops Windows silently installing promoted Store apps and games (Candy Crush and friends) for you and for new users.",
+      "actions": [
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SilentInstalledAppsEnabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "PreInstalledAppsEnabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "PreInstalledAppsEverEnabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "OemPreInstalledAppsEnabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "FeatureManagementEnabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hklm",
+          "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent",
+          "name": "DisableWindowsConsumerFeatures",
+          "dword": 1
+        }
+      ]
+    },
+    {
+      "id": "tips-and-nags",
+      "group": "recommended",
+      "category": "Ads and suggestions",
+      "title": "Tips, welcome pages, and \"finish setting up\" nags",
+      "description": "Stops the tips notifications, the post-update welcome page, and the full-screen prompts to finish setting up the device.",
+      "actions": [
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SubscribedContent-338389Enabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SoftLandingEnabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SubscribedContent-310093Enabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\UserProfileEngagement",
+          "name": "ScoobeSystemSettingEnabled",
+          "dword": 0
+        }
+      ]
+    },
+    {
+      "id": "settings-suggestions",
+      "group": "recommended",
+      "category": "Ads and suggestions",
+      "title": "Suggested content in Settings",
+      "description": "Removes the promoted content cards in the Settings app.",
+      "actions": [
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SubscribedContent-338393Enabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SubscribedContent-353694Enabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SubscribedContent-353696Enabled",
+          "dword": 0
+        }
+      ]
+    },
+    {
+      "id": "lock-screen-tips",
+      "group": "recommended",
+      "category": "Ads and suggestions",
+      "title": "Lock screen fun facts and tips",
+      "description": "Keeps your lock screen picture but removes the tips and promotions drawn over it.",
+      "actions": [
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "RotatingLockScreenOverlayEnabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SubscribedContent-338387Enabled",
+          "dword": 0
+        }
+      ]
+    },
+    {
+      "id": "explorer-ads",
+      "group": "recommended",
+      "category": "Ads and suggestions",
+      "title": "File Explorer ads",
+      "description": "Stops the OneDrive and Microsoft 365 promotions in File Explorer.",
+      "actions": [
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "ShowSyncProviderNotifications",
+          "dword": 0
+        }
+      ]
+    },
+    {
+      "id": "search-highlights",
+      "group": "recommended",
+      "category": "Ads and suggestions",
+      "title": "Search highlights",
+      "description": "Removes the doodles, trending searches, and promotions from taskbar search.",
+      "actions": [
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\SearchSettings",
+          "name": "IsDynamicSearchBoxEnabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Feeds\\DSB",
+          "name": "ShowDynamicContent",
+          "dword": 0
+        }
+      ]
+    },
+    {
+      "id": "junk-microsoft-apps",
+      "group": "recommended",
+      "category": "Junk apps",
+      "title": "Preinstalled Microsoft junk",
+      "description": "Removes Microsoft News, Tips, Solitaire, the Microsoft 365 / Office hub, Movies & TV, Clipchamp, Power Automate, the Bing app, Get Help, and retired apps (Cortana, Skype, People, Maps, Mixed Reality Portal).",
+      "warning": "Microsoft 365 subscribers who start Office from the \"Microsoft 365 Copilot\" app can reinstall it from the Store (revert does this).",
+      "actions": [
+        {
+          "$type": "appx",
+          "name": "Microsoft.BingNews",
+          "storeId": "9WZDNCRFHVFW"
+        },
+        {
+          "$type": "appx",
+          "name": "Microsoft.Getstarted"
+        },
+        {
+          "$type": "appx",
+          "name": "Microsoft.MicrosoftSolitaireCollection"
+        },
+        {
+          "$type": "appx",
+          "name": "Microsoft.MicrosoftOfficeHub",
+          "storeId": "9WZDNCRD29V9"
+        },
+        {
+          "$type": "appx",
+          "name": "Microsoft.ZuneVideo",
+          "storeId": "9WZDNCRFJ3P2"
+        },
+        {
+          "$type": "appx",
+          "name": "Clipchamp.Clipchamp",
+          "storeId": "9P1J8S7CCWWT"
+        },
+        {
+          "$type": "appx",
+          "name": "Microsoft.PowerAutomateDesktop",
+          "storeId": "9NFTCH6J7FHV"
+        },
+        {
+          "$type": "appx",
+          "name": "Microsoft.BingSearch",
+          "storeId": "9NZBF4GT040C"
+        },
+        {
+          "$type": "appx",
+          "name": "Microsoft.GetHelp",
+          "storeId": "9PKDZBMV1H3T"
+        },
+        {
+          "$type": "appx",
+          "name": "Microsoft.549981C3F5F10"
+        },
+        {
+          "$type": "appx",
+          "name": "Microsoft.SkypeApp"
+        },
+        {
+          "$type": "appx",
+          "name": "Microsoft.People"
+        },
+        {
+          "$type": "appx",
+          "name": "Microsoft.Messaging"
+        },
+        {
+          "$type": "appx",
+          "name": "Microsoft.WindowsMaps"
+        },
+        {
+          "$type": "appx",
+          "name": "Microsoft.MixedReality.Portal"
+        }
+      ]
+    },
+    {
+      "id": "sponsored-games",
+      "group": "recommended",
+      "category": "Junk apps",
+      "title": "Sponsored games",
+      "description": "Removes the games Windows installs as promotions (King's Candy Crush titles, Gameloft titles).",
+      "actions": [
+        {
+          "$type": "appx",
+          "name": "king.com.*"
+        },
+        {
+          "$type": "appx",
+          "name": "A278AB0D.*"
+        }
+      ]
+    },
+    {
+      "id": "advertising-id",
+      "group": "recommended",
+      "category": "Privacy",
+      "title": "Advertising ID",
+      "description": "Stops apps using a per-user advertising id to show targeted ads.",
+      "actions": [
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\AdvertisingInfo",
+          "name": "Enabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hklm",
+          "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\AdvertisingInfo",
+          "name": "DisabledByGroupPolicy",
+          "dword": 1
+        }
+      ]
+    },
+    {
+      "id": "tailored-experiences",
+      "group": "recommended",
+      "category": "Privacy",
+      "title": "Tailored experiences",
+      "description": "Stops Microsoft using your diagnostic data for personalized tips, ads, and recommendations.",
+      "actions": [
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Privacy",
+          "name": "TailoredExperiencesWithDiagnosticDataEnabled",
+          "dword": 0
+        }
+      ]
+    },
+    {
+      "id": "diagnostic-data",
+      "group": "recommended",
+      "category": "Privacy",
+      "title": "Diagnostic data: required only",
+      "description": "Limits telemetry to the required level and turns off feedback prompts. Settings will say some options are managed by your organization.",
+      "actions": [
+        {
+          "$type": "registry",
+          "hive": "hklm",
+          "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection",
+          "name": "AllowTelemetry",
+          "dword": 1
+        },
+        {
+          "$type": "registry",
+          "hive": "hklm",
+          "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection",
+          "name": "DoNotShowFeedbackNotifications",
+          "dword": 1
+        },
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Siuf\\Rules",
+          "name": "NumberOfSIUFInPeriod",
+          "dword": 0
+        }
+      ]
+    },
+    {
+      "id": "activity-history",
+      "group": "recommended",
+      "category": "Privacy",
+      "title": "Activity history",
+      "description": "Stops Windows collecting and uploading the apps and files you used.",
+      "actions": [
+        {
+          "$type": "registry",
+          "hive": "hklm",
+          "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\System",
+          "name": "PublishUserActivities",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hklm",
+          "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\System",
+          "name": "UploadUserActivities",
+          "dword": 0
+        }
+      ]
+    },
+    {
+      "id": "copilot",
+      "group": "optional",
+      "category": "Windows features",
+      "title": "Copilot",
+      "description": "Removes the Copilot app and its taskbar button, and turns Windows Copilot off by policy.",
+      "minBuild": 22000,
+      "actions": [
+        {
+          "$type": "appx",
+          "name": "Microsoft.Copilot",
+          "storeId": "9NHT9RB2F4HD"
+        },
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "ShowCopilotButton",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hklm",
+          "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsCopilot",
+          "name": "TurnOffWindowsCopilot",
+          "dword": 1
+        }
+      ]
+    },
+    {
+      "id": "recall",
+      "group": "optional",
+      "category": "Windows features",
+      "title": "Recall",
+      "description": "Turns off Recall's screenshots and lets the feature be removed (Copilot+ PCs).",
+      "minBuild": 26100,
+      "actions": [
+        {
+          "$type": "registry",
+          "hive": "hklm",
+          "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsAI",
+          "name": "DisableAIDataAnalysis",
+          "dword": 1
+        },
+        {
+          "$type": "registry",
+          "hive": "hklm",
+          "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsAI",
+          "name": "AllowRecallEnablement",
+          "dword": 0
+        }
+      ]
+    },
+    {
+      "id": "widgets",
+      "group": "optional",
+      "category": "Windows features",
+      "title": "Widgets and news feed",
+      "description": "Turns off the Widgets board and its taskbar weather / news button.",
+      "minBuild": 22000,
+      "actions": [
+        {
+          "$type": "registry",
+          "hive": "hklm",
+          "key": "SOFTWARE\\Policies\\Microsoft\\Dsh",
+          "name": "AllowNewsAndInterests",
+          "dword": 0
+        }
+      ]
+    },
+    {
+      "id": "bing-in-search",
+      "group": "optional",
+      "category": "Windows features",
+      "title": "Bing web results in Start search",
+      "description": "Start search finds only what is on this PC.",
+      "actions": [
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Search",
+          "name": "BingSearchEnabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Policies\\Microsoft\\Windows\\Explorer",
+          "name": "DisableSearchBoxSuggestions",
+          "dword": 1
+        }
+      ]
+    },
+    {
+      "id": "edge-nags",
+      "group": "optional",
+      "category": "Windows features",
+      "title": "Edge nags and background running",
+      "description": "Turns off Edge's first-run pages, startup boost, running in the background, shopping and recommendation pop-ups, the sidebar, and its prompts to become the default browser. Edge itself stays: Microsoft allows removing it only in the EEA.",
+      "warning": "Edge will say it is managed by your organization.",
+      "actions": [
+        {
+          "$type": "registry",
+          "hive": "hklm",
+          "key": "SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "HideFirstRunExperience",
+          "dword": 1
+        },
+        {
+          "$type": "registry",
+          "hive": "hklm",
+          "key": "SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "StartupBoostEnabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hklm",
+          "key": "SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "BackgroundModeEnabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hklm",
+          "key": "SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "EdgeShoppingAssistantEnabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hklm",
+          "key": "SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "ShowRecommendationsEnabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hklm",
+          "key": "SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "PersonalizationReportingEnabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hklm",
+          "key": "SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "HubsSidebarEnabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hklm",
+          "key": "SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "DefaultBrowserSettingEnabled",
+          "dword": 0
+        }
+      ]
+    },
+    {
+      "id": "onedrive",
+      "group": "optional",
+      "category": "Windows features",
+      "title": "OneDrive",
+      "description": "Stops OneDrive starting with Windows and turns off OneDrive file sync by policy. Your files stay where they are.",
+      "warning": "Files that are only in the cloud (Files On-Demand) stop syncing. Make sure what you need is downloaded first.",
+      "actions": [
+        {
+          "$type": "registry",
+          "hive": "hklm",
+          "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\OneDrive",
+          "name": "DisableFileSyncNGSC",
+          "dword": 1
+        },
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+          "name": "OneDrive",
+          "delete": true
+        }
+      ]
+    },
+    {
+      "id": "xbox-app",
+      "group": "optional",
+      "category": "Microsoft apps",
+      "title": "Xbox app",
+      "description": "Removes the Xbox app. Steam, Epic, and Battle.net games do not need it.",
+      "warning": "PC Game Pass and Microsoft Store games need the Xbox app.",
+      "actions": [
+        {
+          "$type": "appx",
+          "name": "Microsoft.GamingApp",
+          "storeId": "9MV0B5HZVK9Z"
+        },
+        {
+          "$type": "appx",
+          "name": "Microsoft.XboxApp"
+        }
+      ]
+    },
+    {
+      "id": "game-bar",
+      "group": "optional",
+      "category": "Microsoft apps",
+      "title": "Game Bar and background recording",
+      "description": "Removes Game Bar and turns off background game recording, which costs some performance.",
+      "warning": "Win+G and the Xbox controller's guide button stop opening Game Bar.",
+      "actions": [
+        {
+          "$type": "appx",
+          "name": "Microsoft.XboxGamingOverlay",
+          "storeId": "9NZKPSTSNW4P"
+        },
+        {
+          "$type": "appx",
+          "name": "Microsoft.XboxGameOverlay"
+        },
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "System\\GameConfigStore",
+          "name": "GameDVR_Enabled",
+          "dword": 0
+        },
+        {
+          "$type": "registry",
+          "hive": "hkcu",
+          "key": "Software\\Microsoft\\Windows\\CurrentVersion\\GameDVR",
+          "name": "AppCaptureEnabled",
+          "dword": 0
+        }
+      ]
+    },
+    {
+      "id": "teams-personal",
+      "group": "optional",
+      "category": "Microsoft apps",
+      "title": "Teams (personal) and taskbar Chat",
+      "description": "Removes the consumer Teams app and the taskbar Chat button. Teams for work or school is not touched.",
+      "minBuild": 22000,
+      "actions": [
+        {
+          "$type": "appx",
+          "name": "MicrosoftTeams"
+        },
+        {
+          "$type": "registry",
+          "hive": "hklm",
+          "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Chat",
+          "name": "ChatIcon",
+          "dword": 3
+        }
+      ]
+    },
+    {
+      "id": "new-outlook",
+      "group": "optional",
+      "category": "Microsoft apps",
+      "title": "New Outlook",
+      "description": "Removes the new Outlook for Windows app. Classic Outlook from Microsoft 365 is not affected.",
+      "actions": [
+        {
+          "$type": "appx",
+          "name": "Microsoft.OutlookForWindows",
+          "storeId": "9NRX63209R7B"
+        }
+      ]
+    },
+    {
+      "id": "phone-link",
+      "group": "optional",
+      "category": "Microsoft apps",
+      "title": "Phone Link",
+      "description": "Removes the Phone Link app.",
+      "actions": [
+        {
+          "$type": "appx",
+          "name": "Microsoft.YourPhone",
+          "storeId": "9NMPJ99VJBWV"
+        }
+      ]
+    },
+    {
+      "id": "feedback-hub",
+      "group": "optional",
+      "category": "Microsoft apps",
+      "title": "Feedback Hub",
+      "description": "Removes Feedback Hub. Insiders need it to report problems.",
+      "actions": [
+        {
+          "$type": "appx",
+          "name": "Microsoft.WindowsFeedbackHub",
+          "storeId": "9NBLGGH4R32N"
+        }
+      ]
+    },
+    {
+      "id": "weather",
+      "group": "optional",
+      "category": "Microsoft apps",
+      "title": "MSN Weather",
+      "description": "Removes the MSN Weather app.",
+      "actions": [
+        {
+          "$type": "appx",
+          "name": "Microsoft.BingWeather",
+          "storeId": "9WZDNCRFJ3Q2"
+        }
+      ]
+    },
+    {
+      "id": "strict-telemetry",
+      "group": "optional",
+      "category": "Privacy",
+      "title": "Stricter privacy: telemetry service and tasks",
+      "description": "Disables the Connected User Experiences and Telemetry service, the WAP push service, and the Customer Experience Improvement, compatibility appraiser, and feedback tasks.",
+      "warning": "Windows checks less often whether this PC is ready for the next feature update.",
+      "actions": [
+        {
+          "$type": "service",
+          "name": "DiagTrack",
+          "startType": "disabled"
+        },
+        {
+          "$type": "service",
+          "name": "dmwappushservice",
+          "startType": "disabled"
+        },
+        {
+          "$type": "scheduledTask",
+          "path": "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Consolidator"
+        },
+        {
+          "$type": "scheduledTask",
+          "path": "\\Microsoft\\Windows\\Customer Experience Improvement Program\\UsbCeip"
+        },
+        {
+          "$type": "scheduledTask",
+          "path": "\\Microsoft\\Windows\\Application Experience\\Microsoft Compatibility Appraiser"
+        },
+        {
+          "$type": "scheduledTask",
+          "path": "\\Microsoft\\Windows\\Application Experience\\Microsoft Compatibility Appraiser Exp"
+        },
+        {
+          "$type": "scheduledTask",
+          "path": "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClient"
+        },
+        {
+          "$type": "scheduledTask",
+          "path": "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClientOnScenarioDownload"
+        }
+      ]
+    }
+  ],
+  "keep": [
+    "Microsoft.WindowsStore",
+    "Microsoft.StorePurchaseApp",
+    "Microsoft.DesktopAppInstaller",
+    "Microsoft.Winget.*",
+    "Microsoft.SecHealthUI",
+    "Microsoft.WindowsCalculator",
+    "Microsoft.WindowsCamera",
+    "Microsoft.WindowsNotepad",
+    "Microsoft.WindowsTerminal",
+    "Microsoft.Paint",
+    "Microsoft.Windows.Photos",
+    "Microsoft.ScreenSketch",
+    "Microsoft.WindowsSoundRecorder",
+    "Microsoft.WindowsAlarms",
+    "Microsoft.ZuneMusic",
+    "Microsoft.MicrosoftStickyNotes",
+    "Microsoft.WindowsScan",
+    "Microsoft.PowerShell",
+    "Microsoft.RemoteDesktop",
+    "MicrosoftCorporationII.QuickAssist",
+    "Microsoft.Windows.DevHome",
+    "Microsoft.*Extension",
+    "Microsoft.*Extensions",
+    "*WinAppRuntime*",
+    "Microsoft.ApplicationCompatibilityEnhancements",
+    "Microsoft.WidgetsPlatformRuntime",
+    "Microsoft.StartExperiencesApp",
+    "MicrosoftWindows.Client.WebExperience",
+    "MicrosoftWindows.CrossDevice",
+    "Microsoft.LanguageExperiencePack*",
+    "MicrosoftWindows.Speech.*",
+    "MicrosoftWindows.Voice.*",
+    "MicrosoftWindows.NarratorScript.*",
+    "Microsoft.Ink.Handwriting.*",
+    "Microsoft.GamingServices",
+    "Microsoft.Xbox.TCUI",
+    "Microsoft.XboxIdentityProvider",
+    "Microsoft.XboxSpeechToTextOverlay",
+    "NVIDIACorp.*",
+    "AdvancedMicroDevicesInc*",
+    "AppUp.Intel*",
+    "RealtekSemiconductorCorp.*",
+    "DolbyLaboratories.*",
+    "WavesAudio.*",
+    "SynapticsIncorporated.*",
+    "ElanMicroelectronicsCorp.*",
+    "*.ThunderboltControlCenter"
+  ]
+}

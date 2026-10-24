@@ -9,9 +9,10 @@ public static class CatalogFiles
     public const string Apps = "apps.json";
     public const string Templates = "templates.json";
     public const string Holds = "holds.json";
+    public const string Debloat = "debloat.json";
 
     /// <summary>Every file in a catalog set. An origin must supply all of them to be used.</summary>
-    public static IReadOnlyList<string> All { get; } = [Apps, Templates, Holds];
+    public static IReadOnlyList<string> All { get; } = [Apps, Templates, Holds, Debloat];
 
     /// <summary>
     /// The newest <c>schemaVersion</c> this build understands. Bump only for breaking changes
@@ -48,4 +49,13 @@ public sealed record TemplatesFile : CatalogFileBase
 public sealed record HoldsFile : CatalogFileBase
 {
     public required IReadOnlyList<HoldRule> Holds { get; init; }
+}
+
+[Description("Updatr catalog: debloat items (ads, junk, privacy) and the Store apps never to flag.")]
+public sealed record DebloatFile : CatalogFileBase
+{
+    public required IReadOnlyList<DebloatItem> Items { get; init; }
+
+    [Description("Store app package names (wildcards) that are wanted or part of Windows, so never listed as unrecognized.")]
+    public IReadOnlyList<string> Keep { get; init => field = value ?? []; } = [];
 }

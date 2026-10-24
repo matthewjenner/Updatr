@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Updatr catalog: debloat items (ads, junk, privacy) and the Store apps never to flag.",
+  "type": "object",
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "description": "One debloat item: a named, revertible set of changes.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Unique id: lowercase letters/digits joined by single hyphens. Shown in the CLI and kept in history - do not rename.",
+            "type": "string"
+          },
+          "group": {
+            "description": "recommended (applied by default) or optional (only when picked).",
+            "enum": [
+              "recommended",
+              "optional"
+            ]
+          },
+          "category": {
+            "description": "Heading it is listed under, e.g. \"Ads and suggestions\".",
+            "type": "string"
+          },
+          "title": {
+            "description": "Short name shown in the list.",
+            "type": "string"
+          },
+          "description": {
+            "description": "What it changes and why, in a sentence or two.",
+            "type": "string"
+          },
+          "warning": {
+            "description": "Shown before applying when the change has a cost (\"Game Pass needs the Xbox app\").",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "minBuild": {
+            "description": "Lowest Windows build it applies to (22000 = Windows 11). Omit for every supported build.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "actions": {
+            "description": "The changes, applied in order and reverted in reverse.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "$type"
+              ],
+              "anyOf": [
+                {
+                  "description": "Set or remove one registry value. Set exactly one of dword, string, or delete.",
+                  "properties": {
+                    "$type": {
+                      "const": "registry"
+                    },
+                    "hive": {
+                      "description": "hklm or hkcu.",
+                      "enum": [
+                        "hklm",
+                        "hkcu"
+                      ]
+                    },
+                    "key": {
+                      "description": "Key path under the hive, e.g. Software\\Microsoft\\Windows\\CurrentVersion\\AdvertisingInfo.",
+                      "type": "string"
+                    },
+                    "name": {
+                      "description": "Value name.",
+                      "type": "string"
+                    },
+                    "dword": {
+                      "description": "Set a REG_DWORD to this number.",
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "string": {
+                      "description": "Set a REG_SZ to this text.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "delete": {
+                      "description": "Remove the value instead of setting it.",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "hive",
+                    "key",
+                    "name"
+                  ]
+                },
+                {
+                  "description": "Remove a Microsoft Store (Appx) app for the current user, and from the image so new users do not get it.",
+                  "properties": {
+                    "$type": {
+                      "const": "appx"
+                    },
+                    "name": {
+                      "description": "Package name wildcard (* and ?), e.g. Microsoft.BingNews or king.com.*. Case-insensitive.",
+                      "type": "string"
+                    },
+                    "storeId": {
+                      "description": "Microsoft Store product id used to reinstall it on revert, e.g. 9WZDNCRFHVFW. Omit when the Store no longer offers it.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "keepProvisioned": {
+                      "description": "Leave it in the Windows image, so only the current user loses it (skips the administrator step).",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ]
+                },
+                {
+                  "description": "Change a Windows service's start type (and stop it when disabling). Needs administrator access.",
+                  "properties": {
+                    "$type": {
+                      "const": "service"
+                    },
+                    "name": {
+                      "description": "Service name (not the display name), e.g. DiagTrack.",
+                      "type": "string"
+                    },
+                    "startType": {
+                      "description": "disabled or manual.",
+                      "enum": [
+                        "disabled",
+                        "manual"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "startType"
+                  ]
+                },
+                {
+                  "description": "Disable a scheduled task. Needs administrator access.",
+                  "properties": {
+                    "$type": {
+                      "const": "scheduledTask"
+                    },
+                    "path": {
+                      "description": "Full task path, e.g. \\Microsoft\\Windows\\Feedback\\Siuf\\DmClient.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "group",
+          "category",
+          "title",
+          "description",
+          "actions"
+        ]
+      }
+    },
+    "keep": {
+      "description": "Store app package names (wildcards) that are wanted or part of Windows, so never listed as unrecognized.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "$schema": {
+      "description": "Editor hint pointing at this file's JSON schema. Ignored by Updatr.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "schemaVersion": {
+      "description": "Catalog schema version. Updatr ignores a catalog newer than it understands and falls back to its cached or built-in copy.",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "items",
+    "schemaVersion"
+  ]
+}

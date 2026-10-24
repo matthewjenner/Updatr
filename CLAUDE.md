@@ -130,6 +130,10 @@ dotnet test                         # MTP runner (global.json)
   Set `UPDATR_CATALOG_DIR=<repo>/catalog` to test them (the splash says "Local catalog folder").
 - **A process keeps its start-up PATH.** After installing something that adds a tool (Node, VS
   Code, .NET SDK), call `IToolEnvironment.Refresh()` before running that tool.
+- **Late-bound COM throws mapped .NET exceptions,** not `COMException` (0x80070002 arrives as
+  `FileNotFoundException`). Match `Exception.HResult` (see `ScheduledTaskTarget`).
+- **A `= true` default on a JSON model bool is lost** when the field is omitted (the deserializer
+  assigns false). Name such flags negatively, default false (`AppxAction.KeepProvisioned`).
 - **Do not trim.** WinRT.Runtime and the Windows SDK projection are not trim-safe (IL2104). Publish
   is single-file + compressed, untrimmed.
 - **Version 0.0.0 never releases.** CI builds, tests, and packages it, but the release step is
@@ -172,6 +176,11 @@ dotnet test                         # MTP runner (global.json)
   tool on PATH, run `dotnet test`, and try it with `UPDATR_CATALOG_DIR` before pushing.
 - **Install a new kind of source:** implement `IAppInstaller` (Handles / IsInstalled / Install) and
   add it to `UpdatrHost`'s installer list; `InstallApps` picks it up.
+- **Add a debloat item:** add it to `catalog/debloat.json` (machine registry keys must be under
+  `SOFTWARE\`; give appx actions a `storeId` verified with `winget show --id <id> --source msstore`
+  so revert can reinstall), check it with `UPDATR_CATALOG_DIR=<repo>/catalog updatr-cli debloat
+  status --json`, run `dotnet test`. A new action kind needs an `IDebloatTarget` and an entry in the
+  broker's allow-list (`DebloatBrokerHandler.Allowed`).
 - **Recognize another launcher's games:** add its uninstall-command / install-folder markers to
   `LauncherDetector.Launchers`, its own entries to `LauncherSelf` / `LauncherIds`, a test with a
   real uninstall string, and an `explicit` hold for the launcher's winget id in `holds.json`.

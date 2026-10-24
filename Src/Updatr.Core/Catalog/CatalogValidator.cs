@@ -84,6 +84,62 @@ public static partial class CatalogValidator
         return issues;
     }
 
+    /// <summary>Service names: what the SCM accepts and nothing a shell could misread.</summary>
+    [GeneratedRegex("^[A-Za-z0-9_.-]{1,80}$", RegexOptions.CultureInvariant)]
+    public static partial Regex ServiceNamePattern();
+
+    /// <summary>Validates the debloat file. Returns every issue found, empty when valid.</summary>
+    public static IReadOnlyList<string> Validate(DebloatFile debloat)
+    {
+        List<string> issues = [];
+        HashSet<string> ids = new(StringComparer.Ordinal);
+
+        foreach (DebloatItem item in debloat.Items)
+        {
+            string where = $"{CatalogFiles.Debloat}: item '{item.Id}'";
+
+            if (!IdPattern().IsMatch(item.Id))
+                issues.Add($"{where}: id must be lowercase letters/digits joined by single hyphens");
+            if (!ids.Add(item.Id))
+                issues.Add($"{where}: duplicate id");
+            if (string.IsNullOrWhiteSpace(item.Title) || string.IsNullOrWhiteSpace(item.Category) || string.IsNullOrWhiteSpace(item.Description))
+                issues.Add($"{where}: title, category, and description are required");
+            if (item.Actions.Count == 0)
+                issues.Add($"{where}: needs at least one action");
+
+            foreach (DebloatAction action in item.Actions)
+            {
+                if (ValidateAction(action) is { } problem)
+                    issues.Add($"{where}: {problem}");
+            }
+        }
+
+        if (debloat.Keep.Any(string.IsNullOrWhiteSpace))
+            issues.Add($"{CatalogFiles.Debloat}: keep has an empty pattern");
+
+        return issues;
+    }
+
+    /// <summary>Why a debloat action is malformed, or null. Also used by the elevated broker on what it is sent.</summary>
+    public static string? ValidateAction(DebloatAction action) => action switch
+    {
+        RegistryAction r when string.IsNullOrWhiteSpace(r.Key) || string.IsNullOrWhiteSpace(r.Name)
+            => "registry action needs a key and a value name",
+        RegistryAction r when r.Key.StartsWith('\\') || r.Key.EndsWith('\\') || r.Key.Contains("\\\\", StringComparison.Ordinal)
+            => $"registry key '{r.Key}' must not start or end with \\ or contain empty parts",
+        RegistryAction r when r.Hive == RegistryHive.LocalMachine && !r.Key.StartsWith("SOFTWARE\\", StringComparison.OrdinalIgnoreCase)
+            => $"machine registry key '{r.Key}' must be under SOFTWARE\\",
+        RegistryAction r when (r.Dword is not null ? 1 : 0) + (r.String is not null ? 1 : 0) + (r.Delete ? 1 : 0) != 1
+            => $"registry value '{r.Name}' needs exactly one of dword, string, or delete",
+        AppxAction a when string.IsNullOrWhiteSpace(a.Name) || a.Name.Trim('*', '?', '.').Length == 0
+            => "appx action needs a package name (not just wildcards)",
+        ServiceAction s when !ServiceNamePattern().IsMatch(s.Name)
+            => $"service name '{s.Name}' is not a valid service name",
+        ScheduledTaskAction t when !t.Path.StartsWith('\\') || t.Path.EndsWith('\\')
+            => $"task path '{t.Path}' must be a full path starting with \\",
+        _ => null,
+    };
+
     private static void ValidateSource(PackageSourceRef source, string where, List<string> issues)
     {
         switch (source)

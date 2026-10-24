@@ -26,7 +26,7 @@ internal static class TestCatalog
     }
 
     /// <summary>A small valid set, with optional overrides of individual files.</summary>
-    public static CatalogFileSet Minimal(string? apps = null, string? templates = null, string? holds = null, DateTimeOffset? timestamp = null)
+    public static CatalogFileSet Minimal(string? apps = null, string? templates = null, string? holds = null, DateTimeOffset? timestamp = null, string? debloat = null)
         => new(
             new Dictionary<string, string>
             {
@@ -40,6 +40,9 @@ internal static class TestCatalog
                     """,
                 [CatalogFiles.Holds] = holds ?? """
                     { "schemaVersion": 1, "holds": [] }
+                    """,
+                [CatalogFiles.Debloat] = debloat ?? """
+                    { "schemaVersion": 1, "items": [] }
                     """,
             },
             timestamp);
