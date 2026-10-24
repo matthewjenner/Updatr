@@ -9,7 +9,7 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 ## Current state
 
 - **Phase:** 4 complete - other sources. 0.0.2 ships on push. Still open (not blocking): winget
-  repair on a clean / LTSC VM; a decision on pip.
+  repair on a clean / LTSC VM.
 - **Last updated:** 2026-10-23
 - **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (174/174).
   Version 0.0.2 (0.0.1 released 2026-10-24).
@@ -145,7 +145,7 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
       source filter in the GUI; every source works with upgrade / reinstall / hold
 - [x] **Manual (2026-10-24):** listed all five on the dev machine (1-3 s each); upgraded
       `Microsoft.WinGet.Client` 1.12.440 -> 1.29.380 via PSGallery - PowerShell lists and loads it
-- [ ] pip (global/user site-packages) - not added; see the decisions log, awaiting a call
+- [x] pip (global/user site-packages) - left out by decision (pipx is the supported path)
 
 ## Phase 5 - Install, carts, templates
 
@@ -256,8 +256,8 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
   (`Get-InstalledPSResource`); the legacy PowerShellGet 2.2.5 `Get-InstalledModule` lists only
   versions it installed itself. Accepted - the module loads and the current tooling agrees.
 - **2026-10-24** - pip is not a source yet: upgrading global site-packages breaks the virtualenvs
-  and apps that pin them, which is why pipx exists. Waiting on the user's call (list-only, opt-in,
-  or leave out).
+  and apps that pin them, which is why pipx exists. Decided 2026-10-24: left out (the user
+  does not use Python much; pipx covers Python apps).
 - **2026-10-24** - Windows PowerShell's execution policy blocked an unsigned dev helper script on
   the dev machine - a live reminder of why Updatr itself never runs PowerShell.
 - **2026-10-23** - winget reports an installed scope for almost no packages (all but 7 of ~50
