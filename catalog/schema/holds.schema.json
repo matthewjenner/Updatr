@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Updatr catalog: hold rules for version-sensitive packages.",
+  "type": "object",
+  "properties": {
+    "holds": {
+      "type": "array",
+      "items": {
+        "description": "Packages to leave alone during \"upgrade all\".",
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "description": "Package id wildcard: * matches any run of characters, ? one character. Case-insensitive.",
+            "type": "string"
+          },
+          "source": {
+            "description": "Source the pattern applies to (winget, npm, ...). Defaults to winget.",
+            "type": "string"
+          },
+          "group": {
+            "description": "Grouping shown in the UI, e.g. \"Databases\".",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why this is held - shown to the user.",
+            "type": "string"
+          },
+          "behavior": {
+            "description": "hold (default) or storeManaged.",
+            "enum": [
+              "hold",
+              "storeManaged"
+            ]
+          }
+        },
+        "required": [
+          "pattern",
+          "group",
+          "reason"
+        ]
+      }
+    },
+    "$schema": {
+      "description": "Editor hint pointing at this file's JSON schema. Ignored by Updatr.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "schemaVersion": {
+      "description": "Catalog schema version. Updatr ignores a catalog newer than it understands and falls back to its cached or built-in copy.",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "holds",
+    "schemaVersion"
+  ]
+}

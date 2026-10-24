@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Updatr catalog: templates (named sets of apps).",
+  "type": "object",
+  "properties": {
+    "templates": {
+      "type": "array",
+      "items": {
+        "description": "A named set of apps.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Stable template id, same rules as app ids.",
+            "type": "string"
+          },
+          "name": {
+            "description": "Display name.",
+            "type": "string"
+          },
+          "description": {
+            "description": "What the template is for.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "items": {
+            "description": "Catalog app ids in this template.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "items"
+        ]
+      }
+    },
+    "$schema": {
+      "description": "Editor hint pointing at this file's JSON schema. Ignored by Updatr.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "schemaVersion": {
+      "description": "Catalog schema version. Updatr ignores a catalog newer than it understands and falls back to its cached or built-in copy.",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "templates",
+    "schemaVersion"
+  ]
+}

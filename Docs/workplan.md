@@ -8,11 +8,11 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Current state
 
-- **Phase:** 0 complete. All spikes answered except the clean-VM bootstrap, which moved to Phase 3.
+- **Phase:** 1 complete - Core models and catalog. Awaiting review before Phase 2.
 - **Last updated:** 2026-10-23
-- **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (3/3, convention tests);
-  `Scripts/publish.sh` produces win-x64 + win-arm64 zips. Version 0.0.0 (never released).
-- **Next:** Phase 1 (Core models and catalog).
+- **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (84/84).
+  Version 0.0.0 (never released).
+- **Next:** Phase 2 (host foundation: data store, splash + preflight, shell, broker, CLI host).
 
 ## Versioning
 
@@ -45,17 +45,27 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Phase 1 - Core models and catalog
 
-- [ ] Catalog models (apps, sources, templates, holds, defluff rules) + JSON schema
-- [ ] Catalog loader: remote -> cache -> embedded, schemaVersion gate
-- [ ] Port the error code table + HTTP-facility decoding (`legacy-script.md`) to
-      `Errors/ErrorCodes` with tests
-- [ ] Port the hold list (`legacy-script.md`) to `catalog/holds.json`, reasoning as descriptions
-- [ ] `PackageOutcome` model (Ok / AlreadyCurrent / Failed / Skipped + reboot flag)
-- [ ] Operation + sink abstractions; parity test scaffold
+- [x] Catalog models (apps, polymorphic sources, templates, holds) + JSON schemas generated from
+      the models and snapshot-tested (`UPDATR_UPDATE_SCHEMAS=1 dotnet test` regenerates)
+- [x] Catalog loader: origins tried in order, whole-set-or-nothing, schemaVersion gate, cache
+      written only after validation, tolerant at runtime / strict for the repo catalog
+- [x] Embedded origin (catalog compiled into Core) + `CatalogValidator`
+- [x] Port the error code table + HTTP-facility decoding to `Errors/ErrorCodes` - every winget
+      code re-verified against `AppInstallerErrors.h` v1.29.380; extended with in-use, disk,
+      network, reboot-initiated, pinned, already-installed, source-open codes; transient flag
+- [x] Port the hold list to `catalog/holds.json` (reasons kept) + `HoldPolicy` + `WildcardPattern`
+- [x] `PackageOutcome` model (Ok / AlreadyCurrent / Failed / Skipped + reboot flag + decoded code)
+- [x] Operation + sink abstractions (`IOperation`, `IOperationSink`, events, `[Operation]` name)
+- [x] Seed `apps.json` (9 apps, winget ids verified with `winget show`); templates come in Phase 5
+- Moved: defluff rule model -> Phase 6 (designed with its targets); remote + cache origins ->
+  Phase 2 (they need the data store and network checks); parity test -> Phase 2 (arrives with
+  the first operation, `doctor`, so it is not vacuous)
 
 ## Phase 2 - Host foundation
 
 - [ ] Portable data store (`Updatr.data\`, atomic writes, fail-soft on drive removal)
+- [ ] Catalog origins: remote (HTTPS, short timeout) and cache (`Updatr.data\catalog-cache\`)
+- [ ] `Updatr.Cli.Tests` (Windows TFM) with the GUI/CLI parity test over `[Operation]` names
 - [ ] DiagLog + per-run log files
 - [ ] Preflight checks (all rows in DESIGN)
 - [ ] Splash window with icon, version, progress, per-check rows, fix buttons
@@ -94,6 +104,7 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Phase 6 - Defluff
 
+- [ ] Defluff rule model in the catalog (`defluff.json` + schema), designed with the targets
 - [ ] Targets: registry value, appx, provisioned appx, service, scheduled task
 - [ ] Detect / apply / revert, backups, history, restore point
 - [ ] Recommended rule set (ads + junk + baseline privacy)
@@ -158,6 +169,17 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 - **2026-10-23** - Manual spike runs: WinGet COM works elevated (through the explicit activation
   handler, which becomes the production path); rename-and-replace of a running exe works on a
   FAT32 thumb drive, so self-update swaps in place. License: MIT.
+- **2026-10-23** - Catalog = three files (apps, templates, holds), loaded as one set or not at
+  all. Unknown properties ignored at runtime, disallowed for the repo's own catalog in tests.
+  `schemaVersion` bumps only for breaking changes.
+- **2026-10-23** - JSON schemas are generated from the models with `JsonSchemaExporter` and
+  snapshot-tested, so editor validation cannot drift from what Updatr reads.
+- **2026-10-23** - Optional model properties coerce null in their init setter (C# 14 `field`):
+  the source-generated deserializer assigns omitted init properties null, wiping defaults.
+- **2026-10-23** - Computed members on polymorphic source refs live in the base as a switch:
+  `[JsonIgnore]` on an abstract member does not apply to its overrides, which leaked into JSON.
+- **2026-10-23** - Apps declare `provides` (tools they install); source types imply a required
+  tool. A repo test guarantees every required tool has a provider, for the cart resolver.
 - **2026-10-23** - .NET 10 + Avalonia + CommunityToolkit.Mvvm, matching Klakr.
 - **2026-10-23** - Self-contained single-file binaries; no Velopack (portable, not installed).
 - **2026-10-23** - Two binaries (`Updatr.exe` GUI, `updatr-cli.exe` CLI) over one shared Core +

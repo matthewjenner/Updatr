@@ -27,6 +27,8 @@ Src/Updatr.Platform/        Windows implementations shared by GUI and CLI. net10
 Src/Updatr.App/             Avalonia GUI -> Updatr.exe
 Src/Updatr.Cli/             Console -> updatr-cli.exe
 Tests/Updatr.Core.Tests/    Unit + convention tests.
+catalog/                    apps.json, templates.json, holds.json + generated schema/. Fetched live
+                            by every Updatr in the field, and embedded in Core as the fallback.
 Docs/                       DESIGN, TECHARCH, workplan, legacy-script.
 Scripts/                    run.sh, publish.sh, bump-version.sh.
 .github/workflows/          release.yml - calls Scripts/publish.sh, releases on version bump.
@@ -89,6 +91,12 @@ dotnet test                         # MTP runner (global.json)
   "could not check". See `Docs/workplan.md` decisions log (Phase 0).
 - **Composite searches need non-explicit catalogs only.** Skip catalogs whose `Info.Explicit` is
   true (`winget-font`). Wrap the read in try/catch - older servers lack the property.
+- **Optional JSON model properties coerce null in their setter**
+  (`{ get; init => field = value ?? []; } = [];`). The source-generated deserializer assigns every
+  init property and passes null for omitted fields, silently wiping `= []` defaults.
+- **No `[JsonIgnore]` on abstract or virtual members of polymorphic models.** It does not carry
+  over to overrides, which then leak into the JSON and the schema. Compute such members in the
+  base class (see `PackageSourceRef.RequiredTool`).
 - **Do not trim.** WinRT.Runtime and the Windows SDK projection are not trim-safe (IL2104). Publish
   is single-file + compressed, untrimmed.
 - **Version 0.0.0 never releases.** CI builds, tests, and packages it, but the release step is
@@ -101,6 +109,16 @@ dotnet test                         # MTP runner (global.json)
 - **Cut a release:** `./Scripts/bump-version.sh` (default Patch; `Minor` / `Major`), commit, push
   to `main`. CI skips if that release exists. Check what has shipped first:
   `gh release list --limit 5`. Bump only for user-visible changes, not docs/refactors.
+- **Edit the catalog:** change `catalog/*.json` (your editor validates against `catalog/schema/`),
+  then `dotnet test`. `RepositoryCatalogTests` parse it strictly, so typos fail. Verify a new
+  winget id with `winget show --id <id> --exact` first. Once the remote origin ships (Phase 2), pushing
+  to `main` updates every Updatr in the field on its next launch - no release needed for
+  catalog-only changes.
+- **Change a catalog model:** edit the record in `Src/Updatr.Core/Catalog/`, run
+  `UPDATR_UPDATE_SCHEMAS=1 dotnet test`, commit the regenerated schema with it. Bump
+  `CatalogFiles.SchemaVersion` only for breaking changes (renamed/retyped/new required fields).
+- **Decode an installer or winget code:** `ErrorCodes.Describe(code)` / `PackageOutcome.FromCode`.
+  New winget codes come from `AppInstallerErrors.h`; keep the constant name in the comment.
 - **Add a convention test:** walk files with `RepositoryFiles.Authored()` (everything a person
   wrote) or `RepositoryFiles.Source()` (what ships), so new folders and extensions are covered by
   every convention at once.

@@ -3,4 +3,12 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      The built-in catalog: the last-resort origin when neither GitHub nor the cache on the drive
+      has a usable copy. Read by EmbeddedCatalogOrigin.
+    -->
+    <EmbeddedResource Include="..\..\catalog\*.json" LogicalName="Updatr.Catalog.%(Filename)%(Extension)" Link="Catalog\Embedded\%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

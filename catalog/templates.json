@@ -1,0 +1,5 @@
+{
+  "$schema": "./schema/templates.schema.json",
+  "schemaVersion": 1,
+  "templates": []
+}

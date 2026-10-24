@@ -185,35 +185,65 @@ public interface IDefluffTarget   // one per kind: registry value, appx, provisi
 
 ## Catalog
 
-Files in `catalog/`, validated by JSON schema in CI. Loaded at runtime in this order:
+Three files in `catalog/` - `apps.json`, `templates.json`, `holds.json` - each with a
+`schemaVersion` and a `$schema` pointer to `catalog/schema/*.schema.json`. The schemas are
+generated from the C# models (`CatalogSchemaTests`; regenerate with
+`UPDATR_UPDATE_SCHEMAS=1 dotnet test`), so editors get completion and validation that cannot drift
+from what Updatr actually reads.
+
+Loaded at runtime by `CatalogLoader`, first usable origin wins:
 
 1. Remote: `raw.githubusercontent.com/matthewjenner/Updatr/main/catalog/...` (short timeout).
 2. Cache: last good remote copy in `Updatr.data\catalog-cache\`.
-3. Embedded: copy compiled into the binary at build time.
+3. Embedded: the copy compiled into Updatr.Core as resources.
 
-The loaded catalog's origin and date are shown in Settings. A catalog with a newer
-`schemaVersion` than the binary understands is ignored in favor of cache/embedded, with a
-banner suggesting a self-update.
+Rules:
 
-App entry sketch:
+- **A set is used whole or not at all.** All three files must parse and validate together, so a
+  template can never reference an app from a different catalog version. A remote set is cached
+  only after it validates.
+- **Tolerant at runtime, strict in CI.** Unknown properties are ignored when loading (an older
+  Updatr reading a newer catalog that only added optional fields), but the repository's own
+  catalog is parsed with unknown properties disallowed, so a typo fails the build.
+- **`schemaVersion` is bumped only for breaking changes.** A set newer than the build understands
+  is skipped and flagged (`NewerSchemaAvailable`) - the hint for a self-update banner.
+- **Semantic validation** (`CatalogValidator`): kebab-case unique ids, `requires` and template
+  items resolve, every app has a source, direct-URL sources have exactly one of `url` /
+  `githubRelease`, https everywhere, a signer, a well-formed optional sha256.
+- **Tools:** an app lists what it puts on the machine in `provides` (`nodejs-lts` provides `node`,
+  `npm`). Each source type implies a required tool (`npm` -> `npm`, `vscode` -> `code`, ...). A test
+  checks every required tool in the catalog is provided by some catalog app, so the cart's
+  dependency resolver always has a prerequisite to add.
+- The loaded catalog's origin, date, and diagnostics are shown in Settings.
+
+App entry:
 
 ```json
 {
   "id": "git",
   "name": "Git",
   "category": "dev",
+  "description": "Distributed version control.",
+  "homepage": "https://git-scm.com",
   "sources": [
-    { "$type": "winget", "packageId": "Git.Git" },
-    { "$type": "directUrl", "githubRelease": "git-for-windows/git", "assetPattern": "Git-*-64-bit.exe",
+    { "$type": "winget", "id": "Git.Git" },
+    { "$type": "directUrl",
+      "githubRelease": { "repo": "git-for-windows/git", "assetPattern": "Git-*-64-bit.exe" },
       "installerType": "inno", "silentArgs": "/VERYSILENT /NORESTART",
       "signer": "Johannes Schindelin", "mirrors": [] }
   ],
-  "requires": [],
-  "hold": true
+  "provides": [ "git" ]
 }
 ```
 
-Template entry: `{ "id": "dev", "name": "Dev", "items": ["git", "vscode", "node-lts", ...] }`.
+Source `$type`s: `winget` (`id`, optional `source`: `winget` / `msstore`), `npm`, `pipx`,
+`dotnetTool` (`package`), `psGallery` (`module`), `vscode` (`extension`), `directUrl`.
+
+Hold rule: `{ "pattern": "OpenJS.NodeJS*", "group": "Runtimes", "reason": "...", "behavior": "hold" }`
+(`source` defaults to `winget`; `behavior` is `hold` or `storeManaged`). `HoldPolicy` applies them
+with precedence user hold > user release > catalog rule.
+
+Template entry: `{ "id": "dev", "name": "Dev", "items": ["git", "vscode", "nodejs-lts"] }`.
 User templates and carts use the same shape and live in `Updatr.data\`.
 
 ## Portable data folder

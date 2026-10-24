@@ -1,0 +1,83 @@
+{
+  "$schema": "./schema/apps.schema.json",
+  "schemaVersion": 1,
+  "apps": [
+    {
+      "id": "7zip",
+      "name": "7-Zip",
+      "category": "utilities",
+      "description": "File archiver with a high compression ratio.",
+      "homepage": "https://www.7-zip.org",
+      "sources": [ { "$type": "winget", "id": "7zip.7zip" } ]
+    },
+    {
+      "id": "windows-terminal",
+      "name": "Windows Terminal",
+      "category": "utilities",
+      "description": "Tabbed terminal for PowerShell, Command Prompt, and WSL.",
+      "homepage": "https://github.com/microsoft/terminal",
+      "sources": [ { "$type": "winget", "id": "Microsoft.WindowsTerminal" } ]
+    },
+    {
+      "id": "powershell",
+      "name": "PowerShell 7",
+      "category": "utilities",
+      "description": "Cross-platform PowerShell.",
+      "homepage": "https://github.com/PowerShell/PowerShell",
+      "sources": [ { "$type": "winget", "id": "Microsoft.PowerShell" } ]
+    },
+    {
+      "id": "git",
+      "name": "Git",
+      "category": "dev",
+      "description": "Distributed version control.",
+      "homepage": "https://git-scm.com",
+      "sources": [ { "$type": "winget", "id": "Git.Git" } ],
+      "provides": [ "git" ]
+    },
+    {
+      "id": "vscode",
+      "name": "Visual Studio Code",
+      "category": "dev",
+      "description": "Code editor.",
+      "homepage": "https://code.visualstudio.com",
+      "sources": [ { "$type": "winget", "id": "Microsoft.VisualStudioCode" } ],
+      "provides": [ "code" ]
+    },
+    {
+      "id": "nodejs-lts",
+      "name": "Node.js LTS",
+      "category": "dev",
+      "description": "JavaScript runtime, long-term-support line. Includes npm.",
+      "homepage": "https://nodejs.org",
+      "sources": [ { "$type": "winget", "id": "OpenJS.NodeJS.LTS" } ],
+      "provides": [ "node", "npm" ]
+    },
+    {
+      "id": "python-3-14",
+      "name": "Python 3.14",
+      "category": "dev",
+      "description": "Python runtime. Includes pip.",
+      "homepage": "https://www.python.org",
+      "sources": [ { "$type": "winget", "id": "Python.Python.3.14" } ],
+      "provides": [ "python", "pip" ]
+    },
+    {
+      "id": "dotnet-sdk-10",
+      "name": ".NET SDK 10",
+      "category": "dev",
+      "description": ".NET 10 SDK. Provides the dotnet CLI for .NET global tools.",
+      "homepage": "https://dot.net",
+      "sources": [ { "$type": "winget", "id": "Microsoft.DotNet.SDK.10" } ],
+      "provides": [ "dotnet" ]
+    },
+    {
+      "id": "typescript",
+      "name": "TypeScript",
+      "category": "dev",
+      "description": "TypeScript compiler (tsc), installed as a global npm package.",
+      "homepage": "https://www.typescriptlang.org",
+      "sources": [ { "$type": "npm", "package": "typescript" } ]
+    }
+  ]
+}

@@ -1,0 +1,261 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Updatr catalog: installable apps.",
+  "type": "object",
+  "properties": {
+    "apps": {
+      "type": "array",
+      "items": {
+        "description": "An installable app.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Stable catalog id: lowercase letters, digits, and single hyphens. Templates and carts refer to apps by this id.",
+            "type": "string"
+          },
+          "name": {
+            "description": "Display name.",
+            "type": "string"
+          },
+          "category": {
+            "description": "Category the Install screen groups by, e.g. dev, browsers, media, gaming, utilities.",
+            "type": "string"
+          },
+          "description": {
+            "description": "One-line description shown in the picker.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "homepage": {
+            "description": "Project or vendor home page (https).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sources": {
+            "description": "Ways to install the app, most preferred first. At least one.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "$type"
+              ],
+              "anyOf": [
+                {
+                  "description": "A winget package.",
+                  "properties": {
+                    "$type": {
+                      "const": "winget"
+                    },
+                    "id": {
+                      "description": "winget package id, e.g. Git.Git. Matched exactly.",
+                      "type": "string"
+                    },
+                    "source": {
+                      "description": "winget source name. Defaults to \"winget\"; use \"msstore\" for Microsoft Store apps.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ]
+                },
+                {
+                  "description": "A global npm package.",
+                  "properties": {
+                    "$type": {
+                      "const": "npm"
+                    },
+                    "package": {
+                      "description": "npm package name, e.g. typescript or @scope/name.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "package"
+                  ]
+                },
+                {
+                  "description": "A Python application installed with pipx.",
+                  "properties": {
+                    "$type": {
+                      "const": "pipx"
+                    },
+                    "package": {
+                      "description": "PyPI package name.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "package"
+                  ]
+                },
+                {
+                  "description": "A .NET global tool.",
+                  "properties": {
+                    "$type": {
+                      "const": "dotnetTool"
+                    },
+                    "package": {
+                      "description": "NuGet package id of the tool, e.g. dotnet-ef.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "package"
+                  ]
+                },
+                {
+                  "description": "A PowerShell Gallery module. Installed natively from the NuGet feed; no PowerShell needed.",
+                  "properties": {
+                    "$type": {
+                      "const": "psGallery"
+                    },
+                    "module": {
+                      "description": "Module name as published on the PowerShell Gallery.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "module"
+                  ]
+                },
+                {
+                  "description": "A VS Code extension.",
+                  "properties": {
+                    "$type": {
+                      "const": "vscode"
+                    },
+                    "extension": {
+                      "description": "Marketplace extension id, publisher.name, e.g. ms-dotnettools.csharp.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "extension"
+                  ]
+                },
+                {
+                  "description": "An installer downloaded straight from the vendor.",
+                  "properties": {
+                    "$type": {
+                      "const": "directUrl"
+                    },
+                    "url": {
+                      "description": "Fixed https download URL. Set this or githubRelease, not both.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "githubRelease": {
+                      "description": "Resolve the latest release of a GitHub repository instead of a fixed URL.",
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "repo": {
+                          "description": "owner/name, e.g. git-for-windows/git.",
+                          "type": "string"
+                        },
+                        "assetPattern": {
+                          "description": "Wildcard matched against asset file names (* and ?), e.g. Git-*-64-bit.exe.",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "repo",
+                        "assetPattern"
+                      ]
+                    },
+                    "installerType": {
+                      "description": "Installer technology, which decides how it is run.",
+                      "enum": [
+                        "msi",
+                        "msix",
+                        "exe",
+                        "inno",
+                        "nullsoft",
+                        "wix",
+                        "burn",
+                        "zip"
+                      ]
+                    },
+                    "silentArgs": {
+                      "description": "Arguments for a silent, no-reboot install. Omit to use the installer type's default.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "signer": {
+                      "description": "Expected Authenticode signer (certificate subject CN). The download is rejected if it does not match.",
+                      "type": "string"
+                    },
+                    "sha256": {
+                      "description": "Optional SHA-256 of the installer. Only for installers whose URL never changes content.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "mirrors": {
+                      "description": "Fallback URLs tried in order when the primary fails. Reserved for a self-hosted mirror; normally empty.",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "installerType",
+                    "signer"
+                  ]
+                }
+              ]
+            }
+          },
+          "provides": {
+            "description": "Tools this app puts on the machine (e.g. node provides npm). Used to add prerequisites to a cart automatically.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requires": {
+            "description": "Other catalog app ids this app needs, beyond what its sources imply.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category",
+          "sources"
+        ]
+      }
+    },
+    "$schema": {
+      "description": "Editor hint pointing at this file's JSON schema. Ignored by Updatr.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "schemaVersion": {
+      "description": "Catalog schema version. Updatr ignores a catalog newer than it understands and falls back to its cached or built-in copy.",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "apps",
+    "schemaVersion"
+  ]
+}

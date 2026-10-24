@@ -1,0 +1,37 @@
+{
+  "$schema": "./schema/holds.schema.json",
+  "schemaVersion": 1,
+  "holds": [
+    { "pattern": "OpenJS.NodeJS*", "group": "Runtimes", "reason": "The id does not pin the major version, so an upgrade can jump majors in place (e.g. Node 20 -> 22)." },
+    { "pattern": "GoLang.Go*", "group": "Runtimes", "reason": "The id does not pin the major version, so an upgrade can jump majors in place." },
+    { "pattern": "Rustlang.*", "group": "Runtimes", "reason": "The id does not pin the major version, so an upgrade can jump majors in place." },
+    { "pattern": "Ruby.Ruby*", "group": "Runtimes", "reason": "The id does not pin the major version, so an upgrade can jump majors in place." },
+    { "pattern": "PHP.PHP*", "group": "Runtimes", "reason": "The id does not pin the major version, so an upgrade can jump majors in place." },
+
+    { "pattern": "PostgreSQL.PostgreSQL*", "group": "Databases", "reason": "Stateful; upgrade on your own terms, even within a major line." },
+    { "pattern": "Oracle.MySQL*", "group": "Databases", "reason": "Stateful; upgrade on your own terms, even within a major line." },
+    { "pattern": "MariaDB.*", "group": "Databases", "reason": "Stateful; upgrade on your own terms, even within a major line." },
+    { "pattern": "Redis.*", "group": "Databases", "reason": "Stateful; upgrade on your own terms, even within a major line." },
+    { "pattern": "MongoDB.*", "group": "Databases", "reason": "Stateful; upgrade on your own terms, even within a major line." },
+    { "pattern": "Microsoft.msodbcsql*", "group": "Databases", "reason": "Database client driver; apps depend on the exact version." },
+    { "pattern": "Microsoft.SQLServer.*", "group": "Databases", "reason": "Stateful; upgrade on your own terms, even within a major line." },
+
+    { "pattern": "Gradle.Gradle", "group": "Build tools", "reason": "Single id that can cross a major version." },
+    { "pattern": "Apache.Maven", "group": "Build tools", "reason": "Single id that can cross a major version." },
+    { "pattern": "Kitware.CMake", "group": "Build tools", "reason": "Single id that can cross a major version (CMake 3 -> 4)." },
+    { "pattern": "Git.Git", "group": "Build tools", "reason": "Single id that can cross a major version." },
+
+    { "pattern": "Kubernetes.*", "group": "Containers", "reason": "Version skew with the clusters you talk to." },
+    { "pattern": "Helm.*", "group": "Containers", "reason": "Version skew with the clusters you talk to." },
+
+    { "pattern": "Nvidia.CUDA*", "group": "GPU / compute", "reason": "ML frameworks pin CUDA versions." },
+
+    { "pattern": "Gyan.FFmpeg", "group": "Media libraries", "reason": "Scripts and apps depend on it; majors change the API." },
+
+    { "pattern": "Microsoft.WSL", "group": "Platform", "reason": "Your Linux distros run on it." },
+
+    { "pattern": "Microsoft.VCRedist.*", "group": "Redistributables", "reason": "Installers bundle the exact version they need; there is rarely a reason to bump these yourself." },
+
+    { "pattern": "Microsoft.AppInstaller", "group": "Self-servicing", "behavior": "storeManaged", "reason": "Listed as upgradable, but winget cannot advance its own host from the CLI - it updates through the Microsoft Store (Library > Get updates)." }
+  ]
+}
