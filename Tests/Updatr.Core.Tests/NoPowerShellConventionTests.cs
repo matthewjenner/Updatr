@@ -22,8 +22,13 @@ namespace Updatr.Core.Tests;
 /// </remarks>
 public sealed class NoPowerShellConventionTests
 {
+    /// <summary>
+    /// Ways of running PowerShell: its executables by name (with or without .exe, as a program to
+    /// start or to find on PATH), and hosting it in-process. A bare "PowerShell" string is allowed -
+    /// it is also a folder name (<c>Documents\PowerShell\Modules</c>, which the gallery source reads).
+    /// </summary>
     private static readonly Regex Forbidden = new(
-        @"powershell\.exe|pwsh\.exe|""powershell""|""pwsh""|System\.Management\.Automation|Microsoft\.PowerShell\.SDK",
+        @"powershell\.exe|pwsh\.exe|""pwsh""|(ProcessStartInfo|Process\.Start|FindOnPath|RunAsync)\(\s*""(powershell|pwsh)""|System\.Management\.Automation|Microsoft\.PowerShell\.SDK",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     [Fact]

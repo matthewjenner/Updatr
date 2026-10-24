@@ -12,6 +12,7 @@ using Updatr.Platform.Elevation;
 using Updatr.Platform.Net;
 using Updatr.Platform.Preflight;
 using Updatr.Platform.Processes;
+using Updatr.Platform.Sources;
 using Updatr.Platform.Windows;
 using Updatr.Platform.WinGet;
 
@@ -49,7 +50,15 @@ public sealed class UpdatrHost : IAsyncDisposable
 
         Holds = new HoldStore(Data);
         WinGet = new WinGetSource(Elevation, Processes);
-        Sources = [WinGet];
+        Sources =
+        [
+            WinGet,
+            new NpmSource(Processes),
+            new PipxSource(Processes, Http),
+            new DotnetToolSource(Processes, Http),
+            new PsGallerySource(Http, Elevation),
+            new VsCodeExtensionSource(Processes, Http),
+        ];
         List = new ListPackages(Sources, HoldPolicyAsync);
         PackageBatch batch = new(Sources, List, new InstallerGate(), HoldPolicyAsync);
         Upgrade = new UpgradePackages(batch);

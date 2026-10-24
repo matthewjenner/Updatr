@@ -44,6 +44,16 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
     [ObservableProperty]
     public partial string SearchText { get; set; } = string.Empty;
 
+    /// <summary>Source filter choices: "All sources", then each source as the grid's Source column names it.</summary>
+    public IReadOnlyList<string> SourceChoices { get; } = [AllSources, "winget", "npm", "pipx", "dotnet tool", "PSGallery", "VS Code"];
+
+    private const string AllSources = "All sources";
+
+    [ObservableProperty]
+    public partial string SourceFilter { get; set; } = AllSources;
+
+    partial void OnSourceFilterChanged(string value) => View.Refresh();
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RefreshCommand), nameof(UpgradeCheckedCommand), nameof(UpgradeAllCommand), nameof(ReinstallCheckedCommand), nameof(HoldCheckedCommand), nameof(UnholdCheckedCommand), nameof(CancelCommand))]
     public partial bool IsBusy { get; set; }
@@ -262,10 +272,20 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
                 return false;
         }
 
+        if (SourceFilter != AllSources && !SourceMatches(row.Listed.Package, SourceFilter))
+            return false;
+
         return SearchText.Length == 0
             || row.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase)
             || row.Id.Contains(SearchText, StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>winget rows carry their catalog (winget / msstore) or launcher; the others carry their ecosystem's name.</summary>
+    private static bool SourceMatches(InstalledPackage package, string filter)
+        => filter == "winget"
+            ? package.Source == "winget"
+            : string.Equals(package.Catalog, filter, StringComparison.OrdinalIgnoreCase)
+              || (package.Catalog?.StartsWith(filter + " ", StringComparison.OrdinalIgnoreCase) ?? false);
 
     private void UpdateCounts()
     {

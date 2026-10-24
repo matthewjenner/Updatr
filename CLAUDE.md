@@ -120,6 +120,12 @@ dotnet test                         # MTP runner (global.json)
   enforces it; `LauncherDetector` decides it. Launchers themselves are `explicit`, not managed.
 - **Adding an enum value to a catalog model breaks older readers** (unknown value -> whole set
   rejected). Bump `CatalogFiles.SchemaVersion` for it once a release exists.
+- **VS Code Marketplace "latest" is not "latest stable for this machine".** Pick the newest
+  non-pre-release entry for this platform or universal (see `EcosystemParsers.VsCodeMarketplace`).
+- **npm, pipx, and code are `.cmd` files** - cmd.exe re-parses their arguments. Validate every
+  name/version with `EcosystemParsers.IsSafePackageName` / `IsSafeVersion` before passing it.
+- **Signer names are the exact certificate CN.** Microsoft signs `dotnet.exe` as ".NET", not
+  "Microsoft Corporation". Check a new direct-URL entry's signer with `Authenticode.Check`.
 - **Do not trim.** WinRT.Runtime and the Windows SDK projection are not trim-safe (IL2104). Publish
   is single-file + compressed, untrimmed.
 - **Version 0.0.0 never releases.** CI builds, tests, and packages it, but the release step is
@@ -154,6 +160,9 @@ dotnet test                         # MTP runner (global.json)
 - **Add a user-facing action:** a class implementing `IOperation<,>` with `[Operation("verb noun")]`,
   a CLI command at that path in `CliApp`, and a GUI entry point. `ParityTests` fails until the
   CLI command exists.
+- **Add an ecosystem source:** derive `ToolSource` (or implement `IPackageSource` if it is native),
+  put its output parsers in `EcosystemParsers` with tests on real captured output, add it to
+  `UpdatrHost.Sources`, and its display name to the GUI's `SourceChoices`.
 - **Recognize another launcher's games:** add its uninstall-command / install-folder markers to
   `LauncherDetector.Launchers`, its own entries to `LauncherSelf` / `LauncherIds`, a test with a
   real uninstall string, and an `explicit` hold for the launcher's winget id in `holds.json`.

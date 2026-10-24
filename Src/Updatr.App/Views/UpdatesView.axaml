@@ -8,6 +8,7 @@
         <!-- Header: title, counts, filters. -->
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <ComboBox ItemsSource="{Binding SourceChoices}" SelectedItem="{Binding SourceFilter}" Width="150" />
                 <TextBox PlaceholderText="Search name or id" Text="{Binding SearchText}" Width="240" />
                 <CheckBox Content="Updates only" IsChecked="{Binding ShowUpdatesOnly}" />
             </StackPanel>

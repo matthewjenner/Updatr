@@ -128,8 +128,11 @@ held -> only when named or `--include-held`; unknown installed version -> only w
 `winget.exe`), retrying once on "another install in progress". Cancel stops between packages;
 a running installer always finishes.
 
-Sources in v0.1: winget (incl. `msstore`), direct URL, npm global, pipx (pip as fallback),
-dotnet global tools, PSGallery modules, VS Code extensions.
+Sources (Phase 4): winget (incl. `msstore`), npm global, pipx, dotnet global tools, PSGallery
+modules, VS Code extensions - all listed together. CLI-driven ones derive from `ToolSource`
+(missing tool = the source lists nothing); every format they read is parsed in
+`Core/Sources/EcosystemParsers` and unit-tested against captured real output. Direct-URL apps are
+installed by `DirectUrlInstaller` (Phase 5 carts) and show up afterwards through winget's listing.
 
 - **PSGallery without PowerShell:** PSGallery is a NuGet feed. List = scan `PSModulePath`
   directories for module manifests; install/upgrade = fetch the `.nupkg` from the feed and

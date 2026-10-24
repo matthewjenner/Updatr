@@ -8,12 +8,12 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Current state
 
-- **Phase:** 3 complete - first preview release 0.0.1 ships on push. Still open (not blocking):
-  winget repair on a clean / LTSC VM.
+- **Phase:** 4 complete - other sources. 0.0.2 ships on push. Still open (not blocking): winget
+  repair on a clean / LTSC VM; a decision on pip.
 - **Last updated:** 2026-10-23
 - **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (174/174).
-  Version 0.0.1.
-- **Next:** Phase 4 (other sources: direct URL, npm, pipx, dotnet tool, PSGallery, VS Code).
+  Version 0.0.2 (0.0.1 released 2026-10-24).
+- **Next:** Phase 5 (Install: catalog browser, carts, templates, queue).
 
 ## Versioning
 
@@ -125,10 +125,27 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Phase 4 - Other sources
 
-- [ ] Direct URL: resolver, downloader (stall detection, retry, mirror hook), signer check
-- [ ] npm global, pipx (+ pip fallback), dotnet tool, VS Code extensions
-- [ ] PSGallery via NuGet feed (no PowerShell)
-- [ ] Each source wired into Updates + CLI
+- [x] Shared `Downloader`: stall detection (no data for 30 s) rather than a total timeout,
+      retries with backoff, then mirrors in order; `.part` file renamed only when complete
+- [x] Direct URL installer: fixed URL or GitHub latest-release asset by pattern; sha256 when
+      given; Authenticode trust + exact signer CN (`WinVerifyTrust`, since
+      `CreateFromSignedFile` is obsolete in .NET 10); silent switches per installer type; elevated
+      installs via broker handler `directurl-run`, which re-verifies before running. Used by
+      Phase 5's carts (not listed on the Updates screen - those apps show up through winget)
+- [x] npm global (`npm ls` / `npm outdated`), pipx (+ PyPI for latest), dotnet global tools
+      (+ nuget.org; private-feed tools listed without update info), VS Code extensions
+      (+ Marketplace, per platform, stable only)
+- [x] PSGallery natively: gallery-installed modules found by `PSGetModuleInfo.xml`, latest from the
+      gallery's OData feed, upgrade = download + extract side by side (zip-slip guarded, metadata
+      carried over); all-users modules through broker handler `psgallery-install`, which only
+      writes into the known all-users module folders
+- [x] Argument safety for `.cmd` CLIs (npm, pipx, code): only names/versions that cannot carry
+      shell syntax are passed (`EcosystemParsers.IsSafePackageName`)
+- [x] All sources listed together on the Updates screen and by `updatr-cli list` (`--source`),
+      source filter in the GUI; every source works with upgrade / reinstall / hold
+- [x] **Manual (2026-10-24):** listed all five on the dev machine (1-3 s each); upgraded
+      `Microsoft.WinGet.Client` 1.12.440 -> 1.29.380 via PSGallery - PowerShell lists and loads it
+- [ ] pip (global/user site-packages) - not added; see the decisions log, awaiting a call
 
 ## Phase 5 - Install, carts, templates
 
@@ -230,6 +247,19 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
   the source-generated deserializer assigns omitted init properties null, wiping defaults.
 - **2026-10-23** - Computed members on polymorphic source refs live in the base as a switch:
   `[JsonIgnore]` on an abstract member does not apply to its overrides, which leaked into JSON.
+- **2026-10-24** - VS Code Marketplace traps (both seen live): "latest only" queries return one
+  latest build per platform plus sometimes a stale universal one (Claude Code: universal 2.1.89,
+  win32-x64 2.1.310), and the latest may be a pre-release (GitLens 2026.10.x pre-release vs stable
+  19.4.0). Updatr takes the newest stable for this platform; pre-release-only results get a second,
+  full-history query for just those extensions.
+- **2026-10-24** - PSGallery upgrades are recognized by PowerShell and PSResourceGet
+  (`Get-InstalledPSResource`); the legacy PowerShellGet 2.2.5 `Get-InstalledModule` lists only
+  versions it installed itself. Accepted - the module loads and the current tooling agrees.
+- **2026-10-24** - pip is not a source yet: upgrading global site-packages breaks the virtualenvs
+  and apps that pin them, which is why pipx exists. Waiting on the user's call (list-only, opt-in,
+  or leave out).
+- **2026-10-24** - Windows PowerShell's execution policy blocked an unsigned dev helper script on
+  the dev machine - a live reminder of why Updatr itself never runs PowerShell.
 - **2026-10-23** - winget reports an installed scope for almost no packages (all but 7 of ~50
   upgradable showed none), so broker routing also looks at the applicable installer's scope and
   elevation requirement. Without this, machine-wide installers ran unelevated and prompted one by one.

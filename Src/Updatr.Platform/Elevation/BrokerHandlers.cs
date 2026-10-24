@@ -26,6 +26,8 @@ public static class BrokerHandlers
     [
         new PingHandler(),
         new WinGet.WinGetBrokerHandler(),
+        new Sources.PsGalleryBrokerHandler(),
+        new DirectUrl.DirectUrlBrokerHandler(),
     ];
 }
 
