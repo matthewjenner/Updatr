@@ -69,7 +69,7 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
     {
         string itemId = package.Key.ToString();
 
-        if (elevation is not null && package.Scope == InstallScope.Machine)
+        if (elevation is not null && (package.RunsElevated || package.Scope == InstallScope.Machine))
         {
             BrokerClient? broker = await elevation.GetBrokerAsync(cancellationToken).ConfigureAwait(false);
 
@@ -351,8 +351,38 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
             Scope = scope.Equals("Machine", StringComparison.OrdinalIgnoreCase) ? InstallScope.Machine
                 : scope.Equals("User", StringComparison.OrdinalIgnoreCase) ? InstallScope.User
                 : InstallScope.Unknown,
+            RunsElevated = package.IsUpdateAvailable && NeedsElevation(scope, offered),
             IsManaged = offered is not null,
         };
+    }
+
+    /// <summary>
+    /// Whether the upgrade should run in the elevated broker. winget rarely knows the installed
+    /// scope (Phase 3: nearly every package reported none), so this asks about the installer it
+    /// would actually run: a machine-scope installer, or one that needs or requests elevation.
+    /// Running those from the broker means one UAC prompt per session instead of one per installer.
+    /// Only computed for packages with an update - it is a cross-process call per package.
+    /// </summary>
+    private static bool NeedsElevation(string installedScope, PackageVersionInfo? offered)
+    {
+        if (installedScope.Equals("Machine", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (installedScope.Equals("User", StringComparison.OrdinalIgnoreCase) || offered is null)
+            return false;
+
+        try
+        {
+            PackageInstallerInfo? installer = offered.GetApplicableInstaller(new InstallOptions());
+
+            return installer is not null
+                && (installer.Scope == PackageInstallerScope.System
+                    || installer.ElevationRequirement is ElevationRequirement.ElevationRequired or ElevationRequirement.ElevatesSelf);
+        }
+        catch (System.Runtime.InteropServices.COMException)
+        {
+            return false;
+        }
     }
 
     private static string DescribeTechnologyChange(PackageVersionInfo installed, PackageVersionInfo offered)

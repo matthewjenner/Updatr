@@ -8,12 +8,12 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Current state
 
-- **Phase:** 3 code complete - waiting on two manual tests (a real upgrade incl. the elevated
-  path; winget repair on a clean VM), then the first preview release (0.0.1).
+- **Phase:** 3 complete - first preview release 0.0.1 ships on push. Still open (not blocking):
+  winget repair on a clean / LTSC VM.
 - **Last updated:** 2026-10-23
 - **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (174/174).
-  Version 0.0.0 (never released).
-- **Next:** manual tests, bump to 0.0.1, then Phase 4 (other sources).
+  Version 0.0.1.
+- **Next:** Phase 4 (other sources: direct URL, npm, pipx, dotnet tool, PSGallery, VS Code).
 
 ## Versioning
 
@@ -116,9 +116,12 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
       "upgrade all", upgraded when named
 - [x] "Newer version needs a fresh install" (installer technology changed) listed with the
       reason instead of a failing upgrade
-- [ ] **Manual:** a real upgrade of one small package from the GUI and the CLI, incl. one
-      machine-scope package (exercises the broker path)
-- [ ] Release 0.0.1 preview (after the manual upgrade test)
+- [x] **Manual (2026-10-23):** real upgrades via the CLI, verified with `winget list` -
+      GitHub Desktop 3.6.2 -> 3.6.8 (user scope, unelevated) and PuTTY 0.84 -> 0.85 (machine MSI,
+      through the elevated broker: one UAC prompt, broker log written to the drive)
+- [x] Elevation routing uses the installer winget would run (machine scope, ElevationRequired,
+      ElevatesSelf), not only the installed scope - which winget almost never reports
+- [x] Version bumped to 0.0.1 - first preview release on push
 
 ## Phase 4 - Other sources
 
@@ -227,6 +230,9 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
   the source-generated deserializer assigns omitted init properties null, wiping defaults.
 - **2026-10-23** - Computed members on polymorphic source refs live in the base as a switch:
   `[JsonIgnore]` on an abstract member does not apply to its overrides, which leaked into JSON.
+- **2026-10-23** - winget reports an installed scope for almost no packages (all but 7 of ~50
+  upgradable showed none), so broker routing also looks at the applicable installer's scope and
+  elevation requirement. Without this, machine-wide installers ran unelevated and prompted one by one.
 - **2026-10-23** - "Defluff" renamed to **Debloat** everywhere (user choice; the term people already
   search for). Nav, docs, log category, and the future `debloat.json` / `updatr-cli debloat ...`.
 - **2026-10-23** - Phase 3 finding: winget's COM API and its CLI disagree on what is an update.

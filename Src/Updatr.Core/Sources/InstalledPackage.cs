@@ -49,6 +49,12 @@ public sealed record InstalledPackage
     public InstallScope Scope { get; init; } = InstallScope.Unknown;
 
     /// <summary>
+    /// The upgrade's installer is machine-wide or needs elevation, so it runs in the elevated
+    /// broker (one UAC prompt per session) rather than prompting by itself.
+    /// </summary>
+    public bool RunsElevated { get; init; }
+
+    /// <summary>
     /// False when no catalog knows this app (installed by hand, a game launcher's own updater, ...):
     /// it is listed, but Updatr cannot upgrade or reinstall it.
     /// </summary>
