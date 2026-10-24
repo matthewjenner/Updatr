@@ -8,11 +8,12 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Current state
 
-- **Phase:** 2 complete - host foundation, manual elevation tests passed. Ready for Phase 3.
+- **Phase:** 3 code complete - waiting on two manual tests (a real upgrade incl. the elevated
+  path; winget repair on a clean VM), then the first preview release (0.0.1).
 - **Last updated:** 2026-10-23
-- **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (133/133 across Core,
-  Platform, Cli test projects). Version 0.0.0 (never released).
-- **Next:** Phase 3 (winget source + Updates screen; first preview release).
+- **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (174/174).
+  Version 0.0.0 (never released).
+- **Next:** manual tests, bump to 0.0.1, then Phase 4 (other sources).
 
 ## Versioning
 
@@ -90,18 +91,34 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Phase 3 - winget + Updates screen
 
-- [ ] winget source via COM: parallel name-prefix partitions, bad-partition split, residue
-      reported as "could not check"; text fallback
-- [ ] Embedded `.winmd` self-heal (write beside exe if missing; else fall back + warn)
-- [ ] winget bootstrap (incl. LTSC path) + clean-VM test (spike 5)
-- [ ] Updates grid: incremental load, filters, multi-select
-- [ ] Upgrade / reinstall / hold / unhold, batch + single
-- [ ] Collision waits (MSI mutex, winget running)
-- [ ] Run summary dialog (moved from Phase 2)
-- [ ] Broker writes its own DiagLog to the run log (today its entries stay in the elevated
-      process; needed once admin work runs there)
-- [ ] CLI: `list`, `upgrade`, `reinstall`, `hold`, `unhold`
-- [ ] Release 0.0.x preview (replaces the script)
+- [x] winget source via COM: parallel name-prefix partitions (8-way), failing partition split by
+      two letters, residue listed as "could not check"; `winget.exe` text fallback
+      (`WinGetCliSource` + `WinGetTableParser`) when the API cannot be activated
+- [x] Embedded `.winmd` self-heal (done in Phase 2, verified on the published build)
+- [x] winget repair operation: re-register App Installer by family name, else install the
+      latest App Installer bundle + architecture dependencies from winget's GitHub release via the
+      WinRT `PackageManager`; offered as a Fix button on the splash/Settings winget row
+- [ ] **Manual:** winget repair on a clean / LTSC VM (spike 5)
+- [x] Updates grid: streams rows as groups finish, sort + search + "updates only", check
+      boxes, live per-row activity and progress, counts line
+- [x] Upgrade / reinstall / hold / unhold, checked rows or "upgrade all", one installer at a
+      time, confirmation listing every package
+- [x] Collision waits (MSI mutex, winget.exe) + one retry on "another install in progress"
+- [x] Machine-scope packages upgrade in the elevated broker (one UAC per session); declined or
+      "refuses elevation" falls back to running unelevated
+- [x] Run summary dialog (failures first, reboot note)
+- [x] Broker writes its own run log (`logs/...-broker.log`) beside the host's
+- [x] CLI: `list [--updates]`, `upgrade <ids> | --all [--include-held] [--include-unknown]`,
+      `reinstall <ids>`, `hold`, `unhold`, `winget repair`
+- [x] Launcher-managed apps (Steam, Battle.net, Epic, Ubisoft, EA, GOG, Riot, Rockstar) detected
+      from uninstall command / install folder; listed, never changed through winget
+- [x] Self-updating apps (launchers, Discord): new `explicit` hold behavior - skipped by
+      "upgrade all", upgraded when named
+- [x] "Newer version needs a fresh install" (installer technology changed) listed with the
+      reason instead of a failing upgrade
+- [ ] **Manual:** a real upgrade of one small package from the GUI and the CLI, incl. one
+      machine-scope package (exercises the broker path)
+- [ ] Release 0.0.1 preview (after the manual upgrade test)
 
 ## Phase 4 - Other sources
 
@@ -163,6 +180,17 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Known edges
 
+- **2026-10-23 bugcheck 0x153 on the dev machine (investigated, not attributed to Updatr).**
+  KERNEL_LOCK_ENTRY_LEAKED_ON_THREAD_TERMINATION: a user-mode thread exited while a file-system
+  filter still held a Filter Manager stream-list lock (lock sits beside
+  `FLTMGR!DeleteStreamListCtrlCallback`). The minidump cannot name the owning process. Loaded
+  minifilters were Microsoft's (Defender, cloud files, bindflt, wcifs, Wof, UnionFS) plus Gaming
+  Services' `gameflt`; anti-cheat drivers (BattlEye, EAC) were not loaded. The machine was also
+  mid-servicing (reboot pending). User-mode code cannot leak a kernel lock entry, so this is a
+  driver bug; Updatr's heavy winget listing (8 parallel queries) was the last thing it ran
+  ~8 min earlier and could at most have been a trigger. If it recurs during an Updatr run:
+  lower `WinGetComSource` parallelism and capture a kernel (not mini) dump.
+
 - ARM64 untested on hardware.
 - Unsigned binaries: SmartScreen / Defender warnings.
 - Restore points throttled (24 h) or disabled; own backup is the primary undo.
@@ -196,6 +224,19 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
   the source-generated deserializer assigns omitted init properties null, wiping defaults.
 - **2026-10-23** - Computed members on polymorphic source refs live in the base as a switch:
   `[JsonIgnore]` on an abstract member does not apply to its overrides, which leaked into JSON.
+- **2026-10-23** - Phase 3 finding: winget's COM API and its CLI disagree on what is an update.
+  COM `IsUpdateAvailable` is false when the new version switches installer technology (Audacity
+  exe -> WiX, Wave Link MSI -> MSIX); the CLI lists those and the upgrade then fails
+  (`0x8A15008E`). Updatr follows COM and lists them as "newer version needs a fresh install".
+  Conversely the CLI hides `RequireExplicitUpgrade` packages (Discord) that COM reports - that
+  flag is not in the COM API, so the catalog carries an `explicit` hold for known self-updaters.
+- **2026-10-23** - Launcher-managed games are detected from the uninstall command and install
+  folder (patterns taken from the dev machine: 38 Steam games, Battle.net's WoW / Diablo IV) and
+  are never changed through winget, even when named. Launchers themselves are self-updating
+  (`explicit`), not "managed by" themselves.
+- **2026-10-23** - Adding a value to a catalog enum (`HoldBehavior.Explicit`) breaks older
+  readers (the whole set is rejected and they fall back to cache/embedded). Fine before the first
+  release; after it, a new enum value needs a `schemaVersion` bump.
 - **2026-10-23** - CLI health command is `preflight`, not `doctor` (user preference; matches the
   splash's wording).
 - **2026-10-23** - Splash stays up at least 8 s even when everything passes (user feedback: it

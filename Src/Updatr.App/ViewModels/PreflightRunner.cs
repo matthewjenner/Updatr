@@ -18,11 +18,17 @@ public sealed partial class PreflightRunner : ObservableObject
     public PreflightRunner(RunPreflight preflight)
     {
         _preflight = preflight;
-        Rows = new ObservableCollection<CheckRowViewModel>(preflight.Checks.Select(c => new CheckRowViewModel(c.Id, c.Title)));
+        Rows = new ObservableCollection<CheckRowViewModel>(preflight.Checks.Select(c => new CheckRowViewModel(c.Id, c.Title, row => FixHandler?.Invoke(row) ?? Task.CompletedTask)));
         _byId = Rows.ToDictionary(r => r.Id, StringComparer.Ordinal);
     }
 
     public ObservableCollection<CheckRowViewModel> Rows { get; }
+
+    /// <summary>
+    /// Runs a row's fix. Set by whoever is showing the rows (the splash, then Settings), because
+    /// what happens after a fix - re-check, hand over to the main window - depends on the screen.
+    /// </summary>
+    public Func<CheckRowViewModel, Task>? FixHandler { get; set; }
 
     [ObservableProperty]
     public partial bool IsRunning { get; set; }

@@ -1,6 +1,9 @@
 using System.Runtime.InteropServices;
 using Updatr.Core;
 using Updatr.Core.Abstractions;
+using Updatr.Core.Catalog;
+using Updatr.Core.Packages;
+using Updatr.Core.Sources;
 using Updatr.Core.Diagnostics;
 using Updatr.Core.Preflight;
 using Updatr.Platform.Catalog;
@@ -10,6 +13,7 @@ using Updatr.Platform.Net;
 using Updatr.Platform.Preflight;
 using Updatr.Platform.Processes;
 using Updatr.Platform.Windows;
+using Updatr.Platform.WinGet;
 
 namespace Updatr.Platform;
 
@@ -39,9 +43,65 @@ public sealed class UpdatrHost : IAsyncDisposable
         Processes = new ProcessRunner();
         Http = UpdatrHttp.Client;
         CatalogCache = new DataStoreCatalogCache(Data);
-        Elevation = new ElevationService(Environment.ProcessPath ?? throw new InvalidOperationException("Cannot locate the running exe."));
+        Elevation = new ElevationService(Environment.ProcessPath ?? throw new InvalidOperationException("Cannot locate the running exe."), Data.DisplayRoot);
         Preflight = new RunPreflight(CreateChecks());
         TestElevation = new TestElevation(Elevation);
+
+        Holds = new HoldStore(Data);
+        WinGet = new WinGetSource(Elevation, Processes);
+        Sources = [WinGet];
+        List = new ListPackages(Sources, HoldPolicyAsync);
+        PackageBatch batch = new(Sources, List, new InstallerGate(), HoldPolicyAsync);
+        Upgrade = new UpgradePackages(batch);
+        Reinstall = new ReinstallPackages(batch);
+        Hold = new HoldPackages(Holds);
+        Unhold = new UnholdPackages(Holds, async ct => (await GetCatalogAsync(ct).ConfigureAwait(false)).Catalog.Holds);
+        RepairWinGet = new RepairWinGet(Http, WinGet);
+    }
+
+    public HoldStore Holds { get; }
+
+    public WinGetSource WinGet { get; }
+
+    public IReadOnlyList<IPackageSource> Sources { get; }
+
+    public ListPackages List { get; }
+
+    public UpgradePackages Upgrade { get; }
+
+    public ReinstallPackages Reinstall { get; }
+
+    public HoldPackages Hold { get; }
+
+    public UnholdPackages Unhold { get; }
+
+    public RepairWinGet RepairWinGet { get; }
+
+    private CatalogLoadResult? _catalog;
+
+    /// <summary>Uses the catalog preflight already loaded, so it is not fetched twice.</summary>
+    public void UseCatalog(CatalogLoadResult? catalog)
+    {
+        if (catalog is not null)
+            _catalog = catalog;
+    }
+
+    /// <summary>The catalog: the one preflight loaded, else loaded now (GitHub, then the drive, then built in).</summary>
+    public async Task<CatalogLoadResult> GetCatalogAsync(CancellationToken cancellationToken)
+    {
+        if (_catalog is not null)
+            return _catalog;
+
+        CatalogLoader loader = new([new RemoteCatalogOrigin(Http), CatalogCache, new EmbeddedCatalogOrigin()], CatalogCache);
+        return _catalog = await loader.LoadAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Catalog holds plus the user's own, read fresh so a hold made a moment ago applies.</summary>
+    public async Task<HoldPolicy> HoldPolicyAsync(CancellationToken cancellationToken)
+    {
+        CatalogLoadResult catalog = await GetCatalogAsync(cancellationToken).ConfigureAwait(false);
+        UserHoldsFile user = await Holds.LoadAsync(cancellationToken).ConfigureAwait(false);
+        return HoldStore.PolicyFor(catalog.Catalog.Holds, user);
     }
 
     public IDataStore Data { get; }

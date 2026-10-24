@@ -118,6 +118,13 @@ public static class DiagLog
     public static void WinGetMetadataRestored(string path)
         => Emit(LogCategory.Source, LogLevel.Warning, $"WinGet metadata was missing beside the exe; restored {path}");
 
+    public static void WinGetPartitionFailed(string prefix, int packages)
+        => Emit(LogCategory.Source, LogLevel.Warning,
+            $"winget could not check packages named '{prefix}...' ({packages} package(s)) - a broken entry in its index; listed without update info");
+
+    public static void WinGetRepairStep(string step)
+        => Emit(LogCategory.Source, LogLevel.Info, $"winget repair: {step}");
+
     public static void WinGetMetadataMissing(string reason)
         => Emit(LogCategory.Source, LogLevel.Error, $"WinGet metadata is missing beside the exe and could not be restored: {reason}");
 

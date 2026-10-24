@@ -1,0 +1,30 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ops="using:Updatr.Core.Operations"
+        xmlns:conv="using:Updatr.App.Converters"
+        x:Class="Updatr.App.Views.RunSummaryWindow"
+        Title="Updatr - run summary"
+        Icon="avares://Updatr/Assets/icon.ico"
+        Width="760" Height="520" MinWidth="480" MinHeight="300"
+        WindowStartupLocation="CenterOwner">
+    <DockPanel Margin="20">
+        <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,12">
+            <TextBlock x:Name="Headline" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock x:Name="RebootNote" Text="A reboot is needed to finish some of these." Foreground="#D49A1A" IsVisible="False" />
+        </StackPanel>
+        <Button DockPanel.Dock="Bottom" Content="Close" HorizontalAlignment="Right" Margin="0,12,0,0" Click="OnClose" IsDefault="True" />
+        <ListBox x:Name="Items">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="ops:ItemFinished">
+                    <Grid ColumnDefinitions="56,220,*" Margin="0,2">
+                        <TextBlock Text="{Binding Outcome.Kind, Converter={x:Static conv:OutcomeTagConverter.Instance}}"
+                                   Foreground="{Binding Outcome.Kind, Converter={x:Static conv:OutcomeBrushConverter.Instance}}"
+                                   FontWeight="SemiBold" FontFamily="Consolas,Courier New,monospace" FontSize="12" />
+                        <TextBlock Grid.Column="1" Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                        <SelectableTextBlock Grid.Column="2" Text="{Binding Outcome.Detail}" TextWrapping="Wrap" Opacity="0.75" />
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </DockPanel>
+</Window>

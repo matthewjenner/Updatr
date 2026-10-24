@@ -26,10 +26,11 @@
             "type": "string"
           },
           "behavior": {
-            "description": "hold (default) or storeManaged.",
+            "description": "hold (default), storeManaged, or explicit (self-updating: only upgraded when named).",
             "enum": [
               "hold",
-              "storeManaged"
+              "storeManaged",
+              "explicit"
             ]
           }
         },

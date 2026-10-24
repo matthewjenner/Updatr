@@ -55,7 +55,16 @@ public sealed partial class SplashViewModel : ObservableObject
         try
         {
             Host = await UpdatrHost.StartAsync(_options, _cancel.Token);
-            Runner = new PreflightRunner(Host.Preflight);
+            Runner = new PreflightRunner(Host.Preflight)
+            {
+                FixHandler = async row =>
+                {
+                    NeedsDecision = false;
+                    row.Summary = $"{row.Fix!.Label}...";
+                    Status = await FixRunner.RunAsync(Host, row.Fix);
+                    await RunChecksAsync();
+                },
+            };
             Runner.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(PreflightRunner.CurrentStep))

@@ -32,6 +32,14 @@
 
     { "pattern": "Microsoft.VCRedist.*", "group": "Redistributables", "reason": "Installers bundle the exact version they need; there is rarely a reason to bump these yourself." },
 
+    { "pattern": "Valve.Steam", "group": "Self-updating", "behavior": "explicit", "reason": "Steam updates itself and its games; upgrade it only when you name it." },
+    { "pattern": "Blizzard.BattleNet", "group": "Self-updating", "behavior": "explicit", "reason": "Battle.net updates itself and its games; upgrade it only when you name it." },
+    { "pattern": "EpicGames.EpicGamesLauncher", "group": "Self-updating", "behavior": "explicit", "reason": "The Epic Games Launcher updates itself and its games; upgrade it only when you name it." },
+    { "pattern": "Ubisoft.Connect", "group": "Self-updating", "behavior": "explicit", "reason": "Ubisoft Connect updates itself and its games; upgrade it only when you name it." },
+    { "pattern": "ElectronicArts.EADesktop", "group": "Self-updating", "behavior": "explicit", "reason": "The EA app updates itself and its games; upgrade it only when you name it." },
+    { "pattern": "GOG.Galaxy", "group": "Self-updating", "behavior": "explicit", "reason": "GOG GALAXY updates itself and its games; upgrade it only when you name it." },
+    { "pattern": "Discord.Discord", "group": "Self-updating", "behavior": "explicit", "reason": "Discord updates itself; its winget manifest sets RequireExplicitUpgrade." },
+
     { "pattern": "Microsoft.AppInstaller", "group": "Self-servicing", "behavior": "storeManaged", "reason": "Listed as upgradable, but winget cannot advance its own host from the CLI - it updates through the Microsoft Store (Library > Get updates)." }
   ]
 }

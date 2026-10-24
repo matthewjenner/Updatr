@@ -42,7 +42,8 @@ public partial class App : Application
     private void ShowMain(IClassicDesktopStyleApplicationLifetime desktop, Window splash, UpdatrHost host, PreflightReport report, PreflightRunner runner)
     {
         _host = host;
-        MainWindow main = new() { DataContext = new MainWindowViewModel(host, report, runner) };
+        MainWindow main = new();
+        main.DataContext = new MainWindowViewModel(host, report, runner, main);
 
         // Swap MainWindow before closing the splash, or closing it would end the app.
         desktop.MainWindow = main;

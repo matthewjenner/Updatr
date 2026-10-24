@@ -17,6 +17,14 @@ public enum HoldBehavior
     /// </summary>
     [JsonStringEnumMemberName("storeManaged")]
     StoreManaged,
+
+    /// <summary>
+    /// The app updates itself (launchers, Discord). Skipped by "upgrade all"; upgraded only when
+    /// named. Mirrors winget's <c>RequireExplicitUpgrade</c> manifest flag, which its COM API does
+    /// not expose.
+    /// </summary>
+    [JsonStringEnumMemberName("explicit")]
+    Explicit,
 }
 
 /// <summary>A pattern of package ids that should not be upgraded in passing.</summary>
@@ -40,6 +48,6 @@ public sealed record HoldRule
     [Description("Why this is held - shown to the user.")]
     public required string Reason { get; init; }
 
-    [Description("hold (default) or storeManaged.")]
+    [Description("hold (default), storeManaged, or explicit (self-updating: only upgraded when named).")]
     public HoldBehavior Behavior { get; init; } = HoldBehavior.Hold;
 }

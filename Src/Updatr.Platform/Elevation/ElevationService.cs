@@ -7,7 +7,7 @@ namespace Updatr.Platform.Elevation;
 /// closed with the host. A declined prompt is remembered so the user is not asked again for every
 /// item in a batch; <see cref="ResetDeclined"/> re-enables asking (the "try again" button).
 /// </summary>
-public sealed class ElevationService(string exePath) : IAsyncDisposable
+public sealed class ElevationService(string exePath, string? dataRoot) : IAsyncDisposable
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private BrokerClient? _broker;
@@ -33,7 +33,7 @@ public sealed class ElevationService(string exePath) : IAsyncDisposable
             if (Declined)
                 return null;
 
-            _broker = await BrokerClient.LaunchAsync(exePath, cancellationToken).ConfigureAwait(false);
+            _broker = await BrokerClient.LaunchAsync(exePath, dataRoot, cancellationToken).ConfigureAwait(false);
             Declined = _broker is null;
             return _broker;
         }

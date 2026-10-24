@@ -43,7 +43,8 @@ public sealed class BrokerClient : IAsyncDisposable
     /// Starts <paramref name="exePath"/> elevated as a broker and connects to it. Returns null when
     /// the user declines the UAC prompt.
     /// </summary>
-    public static async Task<BrokerClient?> LaunchAsync(string exePath, CancellationToken cancellationToken)
+    /// <param name="dataRoot">The host's data folder, so the broker writes its log next to the host's.</param>
+    public static async Task<BrokerClient?> LaunchAsync(string exePath, string? dataRoot, CancellationToken cancellationToken)
     {
         string pipeName = $"Updatr-broker-{Guid.NewGuid():N}";
         DiagLog.BrokerLaunching(pipeName);
@@ -53,8 +54,10 @@ public sealed class BrokerClient : IAsyncDisposable
             UseShellExecute = true,
             Verb = "runas",
             WindowStyle = ProcessWindowStyle.Hidden,
-            // Both values are generated here (a GUID-based name and a number); nothing to escape.
-            Arguments = $"{BrokerHost.BrokerSwitch} {pipeName} {BrokerHost.ParentSwitch} {Environment.ProcessId}",
+            // The pipe name and PID are generated here; the data folder is a Windows path, which
+            // cannot contain quotes - only a trailing backslash would escape the closing quote.
+            Arguments = $"{BrokerHost.BrokerSwitch} {pipeName} {BrokerHost.ParentSwitch} {Environment.ProcessId}"
+                + (dataRoot is null ? string.Empty : $" {BrokerHost.DataDirSwitch} \"{dataRoot.TrimEnd('\\')}\""),
         };
 
         Process? broker;

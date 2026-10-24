@@ -22,19 +22,29 @@ public enum PreflightStatus
     Fail,
 }
 
+/// <summary>
+/// An action that can fix a failed check. The GUI shows a button on the row; the CLI prints the
+/// command. Both run the same operation.
+/// </summary>
+/// <param name="Id">Stable id the front ends map to an operation (e.g. "winget-repair").</param>
+/// <param name="Label">Button text ("Install winget").</param>
+/// <param name="CliCommand">The equivalent command line ("updatr-cli winget repair").</param>
+public sealed record PreflightFix(string Id, string Label, string CliCommand);
+
 /// <summary>Outcome of one check.</summary>
 /// <param name="Status">How it came out.</param>
 /// <param name="Summary">One line for the splash row and CLI output.</param>
 /// <param name="Detail">Longer explanation and what to do, shown on expand / with <c>--verbose</c>.</param>
-public sealed record PreflightResult(PreflightStatus Status, string Summary, string? Detail = null)
+/// <param name="Fix">An action that can resolve it, if Updatr has one.</param>
+public sealed record PreflightResult(PreflightStatus Status, string Summary, string? Detail = null, PreflightFix? Fix = null)
 {
     public static PreflightResult Pass(string summary, string? detail = null) => new(PreflightStatus.Pass, summary, detail);
 
     public static PreflightResult Info(string summary, string? detail = null) => new(PreflightStatus.Info, summary, detail);
 
-    public static PreflightResult Warn(string summary, string? detail = null) => new(PreflightStatus.Warn, summary, detail);
+    public static PreflightResult Warn(string summary, string? detail = null, PreflightFix? fix = null) => new(PreflightStatus.Warn, summary, detail, fix);
 
-    public static PreflightResult Fail(string summary, string? detail = null) => new(PreflightStatus.Fail, summary, detail);
+    public static PreflightResult Fail(string summary, string? detail = null, PreflightFix? fix = null) => new(PreflightStatus.Fail, summary, detail, fix);
 }
 
 /// <summary>One startup check. Implementations live in Updatr.Platform.</summary>

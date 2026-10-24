@@ -35,7 +35,8 @@ public sealed class WinGetCheck : IndependentCheck
             result = PreflightResult.Fail(
                 "winget is not available",
                 $"{ex.Message}\nOn a fresh or slimmed image App Installer may be missing or not yet registered. "
-                + "Updates and installs from winget are unavailable until it is installed; other sources and defluff still work.");
+                + "Updates and installs from winget are unavailable until it is installed; other sources and defluff still work.",
+                new PreflightFix(RepairWinGet.FixId, "Install winget", "updatr-cli winget repair"));
         }
 
         return Task.FromResult(result);

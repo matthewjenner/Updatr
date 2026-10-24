@@ -45,3 +45,52 @@ public sealed class CheckStateTagConverter : IValueConverter
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
 }
+
+/// <summary>Colors for package row states.</summary>
+public sealed class RowStatusBrushConverter : IValueConverter
+{
+    public static readonly RowStatusBrushConverter Instance = new();
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value switch
+    {
+        RowStatus.Update or RowStatus.Running => CheckStateBrushConverter.Running,
+        RowStatus.Done => CheckStateBrushConverter.Pass,
+        RowStatus.Held or RowStatus.Blocked => CheckStateBrushConverter.Warn,
+        RowStatus.Failed or RowStatus.Problem => CheckStateBrushConverter.Fail,
+        _ => CheckStateBrushConverter.Neutral,
+    };
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
+}
+
+/// <summary>ASCII tag for an item outcome, matching the CLI's.</summary>
+public sealed class OutcomeTagConverter : IValueConverter
+{
+    public static readonly OutcomeTagConverter Instance = new();
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value switch
+    {
+        Core.Sources.OutcomeKind.Ok => "OK",
+        Core.Sources.OutcomeKind.AlreadyCurrent => "SAME",
+        Core.Sources.OutcomeKind.Skipped => "SKIP",
+        _ => "FAIL",
+    };
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
+}
+
+/// <summary>Color for an item outcome.</summary>
+public sealed class OutcomeBrushConverter : IValueConverter
+{
+    public static readonly OutcomeBrushConverter Instance = new();
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value switch
+    {
+        Core.Sources.OutcomeKind.Ok => CheckStateBrushConverter.Pass,
+        Core.Sources.OutcomeKind.AlreadyCurrent => CheckStateBrushConverter.Neutral,
+        Core.Sources.OutcomeKind.Skipped => CheckStateBrushConverter.Warn,
+        _ => CheckStateBrushConverter.Fail,
+    };
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
+}

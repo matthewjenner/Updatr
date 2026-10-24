@@ -1,5 +1,6 @@
 using System.Globalization;
 using Updatr.Core.Diagnostics;
+using Updatr.Platform.Data;
 using Updatr.Platform.Windows;
 
 namespace Updatr.Platform.Elevation;
@@ -12,6 +13,7 @@ public static class BrokerHost
 {
     public const string BrokerSwitch = "--broker";
     public const string ParentSwitch = "--parent";
+    public const string DataDirSwitch = "--data-dir";
 
     /// <summary>Returns the exit code if <paramref name="args"/> asked for broker mode, otherwise null.</summary>
     public static int? TryRun(string[] args)
@@ -32,6 +34,19 @@ public static class BrokerHost
         DiagLog.Started("broker", Core.ProductInfo.Version, WindowsInfo.Os().ToString(),
             System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString(), WindowsInfo.IsElevated);
 
-        return new BrokerServer(BrokerHandlers.All).RunAsync(args[index + 1], parent, CancellationToken.None).GetAwaiter().GetResult();
+        // The broker's own log goes beside the host's, so elevated work is on the drive too.
+        int dataIndex = Array.IndexOf(args, DataDirSwitch);
+        RunLogWriter? log = dataIndex >= 0 && dataIndex + 1 < args.Length
+            ? new RunLogWriter(new PortableDataStore(args[dataIndex + 1]), "broker")
+            : null;
+
+        try
+        {
+            return new BrokerServer(BrokerHandlers.All).RunAsync(args[index + 1], parent, CancellationToken.None).GetAwaiter().GetResult();
+        }
+        finally
+        {
+            log?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
     }
 }

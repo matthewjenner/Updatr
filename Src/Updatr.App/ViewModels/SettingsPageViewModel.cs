@@ -15,6 +15,12 @@ public sealed partial class SettingsPageViewModel : PageViewModel
     {
         _host = host;
         Preflight = preflight;
+        Preflight.FixHandler = async row =>
+        {
+            row.Summary = $"{row.Fix!.Label}...";
+            AdminTestResult = await FixRunner.RunAsync(host, row.Fix);
+            await RerunChecksAsync();
+        };
         Describe(preflight.Report);
     }
 

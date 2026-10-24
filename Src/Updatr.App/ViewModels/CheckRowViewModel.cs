@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Updatr.Core.Preflight;
 
 namespace Updatr.App.ViewModels;
@@ -15,7 +16,7 @@ public enum CheckRowState
 }
 
 /// <summary>One preflight check, as a row on the splash and in Settings.</summary>
-public sealed partial class CheckRowViewModel(string id, string title) : ObservableObject
+public sealed partial class CheckRowViewModel(string id, string title, Func<CheckRowViewModel, Task> runFix) : ObservableObject
 {
     public string Id { get; } = id;
 
@@ -31,6 +32,16 @@ public sealed partial class CheckRowViewModel(string id, string title) : Observa
     [NotifyPropertyChangedFor(nameof(HasDetail))]
     public partial string? Detail { get; set; }
 
+    /// <summary>An action that can fix this check, shown as a button on the row.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasFix))]
+    public partial PreflightFix? Fix { get; set; }
+
+    public bool HasFix => Fix is not null && State is not CheckRowState.Running;
+
+    [RelayCommand]
+    private Task RunFixAsync() => runFix(this);
+
     /// <summary>Detail is shown inline for problems only; it is in the tooltip for the rest.</summary>
     public bool HasDetail => Detail is not null && State is CheckRowState.Warn or CheckRowState.Fail;
 
@@ -39,6 +50,7 @@ public sealed partial class CheckRowViewModel(string id, string title) : Observa
         State = CheckRowState.Running;
         Summary = "Checking...";
         Detail = null;
+        Fix = null;
     }
 
     public void Finish(PreflightResult result)
@@ -52,6 +64,8 @@ public sealed partial class CheckRowViewModel(string id, string title) : Observa
         };
         Summary = result.Summary;
         Detail = result.Detail;
+        Fix = result.Fix;
         OnPropertyChanged(nameof(HasDetail));
+        OnPropertyChanged(nameof(HasFix));
     }
 }

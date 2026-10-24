@@ -131,8 +131,9 @@ public sealed class RunPreflightTests
     }
 }
 
-/// <summary>An <see cref="IOperationSink"/> that keeps every event, in order.</summary>
-internal sealed class RecordingSink : IOperationSink
+/// <summary>An <see cref="IOperationSink"/> that keeps every event, in order, and answers confirmations.</summary>
+/// <param name="answer">The answer to every confirmation (default yes, like <c>--yes</c>).</param>
+internal sealed class RecordingSink(bool answer = true) : IOperationSink
 {
     private readonly Lock _gate = new();
     private readonly List<OperationEvent> _events = [];
@@ -152,5 +153,5 @@ internal sealed class RecordingSink : IOperationSink
             _events.Add(operationEvent);
     }
 
-    public Task<bool> ConfirmAsync(Confirmation confirmation, CancellationToken cancellationToken) => Task.FromResult(confirmation.DefaultAnswer);
+    public Task<bool> ConfirmAsync(Confirmation confirmation, CancellationToken cancellationToken) => Task.FromResult(answer);
 }

@@ -111,6 +111,15 @@ dotnet test                         # MTP runner (global.json)
   escapes the folder). The drive may be read-only or yanked; decide per call whether it matters.
 - **Do not `taskkill` a running `Updatr.exe` the user started.** Only kill dev instances you
   launched yourself from `bin/`.
+- **winget's COM API and CLI disagree on updates.** COM says "no update" when the new version
+  changes installer technology (the CLI lists it and the upgrade fails with `0x8A15008E`); the CLI
+  hides `RequireExplicitUpgrade` packages that COM reports, and COM does not expose that flag.
+  Follow COM; surface the first as "needs a fresh install", cover the second with `explicit`
+  holds in the catalog. Never "fix" a mismatch by trusting the CLI's list.
+- **Launcher-managed apps are never changed through winget, even when named.** `PackageBatch`
+  enforces it; `LauncherDetector` decides it. Launchers themselves are `explicit`, not managed.
+- **Adding an enum value to a catalog model breaks older readers** (unknown value -> whole set
+  rejected). Bump `CatalogFiles.SchemaVersion` for it once a release exists.
 - **Do not trim.** WinRT.Runtime and the Windows SDK projection are not trim-safe (IL2104). Publish
   is single-file + compressed, untrimmed.
 - **Version 0.0.0 never releases.** CI builds, tests, and packages it, but the release step is
@@ -145,6 +154,9 @@ dotnet test                         # MTP runner (global.json)
 - **Add a user-facing action:** a class implementing `IOperation<,>` with `[Operation("verb noun")]`,
   a CLI command at that path in `CliApp`, and a GUI entry point. `ParityTests` fails until the
   CLI command exists.
+- **Recognize another launcher's games:** add its uninstall-command / install-folder markers to
+  `LauncherDetector.Launchers`, its own entries to `LauncherSelf` / `LauncherIds`, a test with a
+  real uninstall string, and an `explicit` hold for the launcher's winget id in `holds.json`.
 - **Add a convention test:** walk files with `RepositoryFiles.Authored()` (everything a person
   wrote) or `RepositoryFiles.Source()` (what ships), so new folders and extensions are covered by
   every convention at once.

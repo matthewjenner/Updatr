@@ -85,6 +85,14 @@ available version, status. Filters: has-update, held, source, search.
   catalog (ported from `Get-WingetUpdates.ps1`) and you can add or remove your own.
 - Packages that cannot be upgraded from the CLI (App Installer) are labeled "updates via Store"
   instead of failing every run.
+- **Launcher-managed apps** (Steam, Battle.net, Epic, Ubisoft, EA, GOG, Riot, Rockstar games) are
+  recognized and labeled "Managed by Steam" etc. Updatr never changes them through winget - doing
+  so risks a second copy outside the launcher or a broken install. Updating through the launcher
+  ("open in Steam / validate") is a later addition.
+- **Self-updating apps** (the launchers themselves, Discord) are skipped by "Upgrade all" and
+  upgraded only when picked explicitly.
+- **Needs a fresh install:** when the newer version switches installer technology (exe to MSI,
+  MSI to MSIX), winget cannot upgrade in place; the row says so and why instead of failing.
 - Outcomes per item: **Upgraded**, **Already current**, **Failed** (with decoded reason),
   **Skipped**. Reboot-required is surfaced.
 
@@ -161,7 +169,8 @@ output, `--yes` to skip confirmations.
 updatr-cli preflight [--only <check>...] [--verbose]
 updatr-cli admin test
 updatr-cli list [--updates] [--source winget|npm|...]
-updatr-cli upgrade [<id>...] [--all] [--include-held]
+updatr-cli upgrade [<id>...] [--all] [--include-held] [--include-unknown]
+updatr-cli winget repair
 updatr-cli reinstall <id>...
 updatr-cli hold <id> | unhold <id>
 updatr-cli install <id>... [--template <name>...] [--cart <name>...]

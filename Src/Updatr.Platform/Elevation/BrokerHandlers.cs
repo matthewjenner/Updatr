@@ -25,6 +25,7 @@ public static class BrokerHandlers
     public static IReadOnlyList<IBrokerHandler> All { get; } =
     [
         new PingHandler(),
+        new WinGet.WinGetBrokerHandler(),
     ];
 }
 

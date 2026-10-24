@@ -40,16 +40,18 @@ public sealed class PlaceholderPageViewModel(string title, string description, s
 /// <summary>The main window: navigation, banners, and the current page.</summary>
 public sealed partial class MainWindowViewModel : ObservableObject
 {
-    public MainWindowViewModel(UpdatrHost host, PreflightReport report, PreflightRunner preflight)
+    public MainWindowViewModel(UpdatrHost host, PreflightReport report, PreflightRunner preflight, Services.IDialogService dialogs)
     {
         Host = host;
+        host.UseCatalog(report.Context.Catalog);
+        Updates = new UpdatesPageViewModel(host, dialogs);
 
         Settings = new SettingsPageViewModel(host, preflight);
         Settings.ChecksRerun += ApplyReport;
 
         Navigation =
         [
-            new NavItem("Updates", new PlaceholderPageViewModel("Updates", "Everything installed across winget and other sources, with available updates, holds, and batch upgrade / reinstall.", "Phase 3")),
+            new NavItem("Updates", Updates),
             new NavItem("Install", new PlaceholderPageViewModel("Install", "Pick apps and templates into a cart, merge and save carts, and install them in one run.", "Phase 5")),
             new NavItem("Defluff", new PlaceholderPageViewModel("Defluff", "Remove ads and junk from Windows, safely re-runnable after feature updates.", "Phase 6")),
             new NavItem("Uninstall", new PlaceholderPageViewModel("Uninstall", "Remove apps through their own uninstallers, with leftover cleanup to follow.", "Phase 7")),
@@ -71,6 +73,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     public SettingsPageViewModel Settings { get; }
 
+    public UpdatesPageViewModel Updates { get; }
+
     public ObservableCollection<BannerViewModel> Banners { get; } = [];
 
     [ObservableProperty]
@@ -78,6 +82,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public partial NavItem? SelectedNav { get; set; }
 
     public PageViewModel? CurrentPage => SelectedNav?.Page;
+
+    partial void OnSelectedNavChanged(NavItem? value)
+    {
+        if (value?.Page is UpdatesPageViewModel updates)
+            updates.EnsureLoaded();
+    }
 
     private BannerViewModel? _dataBanner;
 

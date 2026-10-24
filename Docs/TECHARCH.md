@@ -108,6 +108,26 @@ public interface IPackageSource
 `PackageOutcome` is `Ok | AlreadyCurrent | Failed | Skipped`, plus decoded detail and a
 reboot-required flag (the model from `Get-WingetUpdates.ps1`).
 
+**winget (Phase 3).** `WinGetSource` picks, on first use, `WinGetComSource` (COM API) or
+`WinGetCliSource` (`winget.exe` + `WinGetTableParser`, English output only, lists updates only).
+The COM source:
+
+- Lists by name-prefix partitions built from the local installed catalog, 8 in parallel,
+  streaming each group's rows; a failing group is split by two letters; what still fails is listed
+  as "could not check".
+- Maps each package's scope (machine/user), launcher ownership (`LauncherDetector` over the
+  uninstall command + install folder + id), and "newer version needs a fresh install" (newer
+  `DefaultInstallVersion` but `IsUpdateAvailable` false - installer technology changed).
+- Upgrades / reinstalls (`InstallOptions.Force` + the installed `PackageVersionId`) silently, with
+  progress; machine-scope packages go through the broker handler `winget-run`.
+
+`PackageBatch` (shared by `upgrade` and `reinstall`) applies the safety rules, in order:
+launcher-managed -> never; Store-managed -> never; `explicit` (self-updating) -> only when named;
+held -> only when named or `--include-held`; unknown installed version -> only with
+`--include-unknown`. Then: confirm, and run one at a time behind `IInstallerGate` (MSI mutex,
+`winget.exe`), retrying once on "another install in progress". Cancel stops between packages;
+a running installer always finishes.
+
 Sources in v0.1: winget (incl. `msstore`), direct URL, npm global, pipx (pip as fallback),
 dotnet global tools, PSGallery modules, VS Code extensions.
 

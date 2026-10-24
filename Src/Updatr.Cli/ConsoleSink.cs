@@ -1,19 +1,27 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Updatr.Core.Operations;
+using Updatr.Core.Packages;
 using Updatr.Core.Preflight;
+using Updatr.Core.Sources;
 
 namespace Updatr.Cli;
 
-/// <summary>Renders operation events as text rows for a person at a console.</summary>
+/// <summary>Renders operation events as text for a person at a console.</summary>
+/// <remarks>
+/// Progress goes on a single line that is rewritten in place (only when stdout is a console); any
+/// other output clears it first, so progress never leaves fragments behind.
+/// </remarks>
 public class ConsoleSink(bool assumeYes) : IOperationSink
 {
     private readonly Lock _gate = new();
+    private int _progressWidth;
 
     /// <summary>Show every check's detail, not only warnings and failures.</summary>
     public bool Verbose { get; set; }
 
-    protected bool Colors { get; } = !Console.IsOutputRedirected;
+    protected bool Interactive { get; } = !Console.IsOutputRedirected;
 
     /// <summary>The user passed <c>--yes</c>.</summary>
     protected bool AssumeYes => assumeYes;
@@ -27,6 +35,12 @@ public class ConsoleSink(bool assumeYes) : IOperationSink
                 break;
             case StepStarted step:
                 Line(ConsoleColor.Cyan, step.Step);
+                break;
+            case ProgressReported progress:
+                Progress(Describe(progress));
+                break;
+            case ItemFinished item:
+                WriteOutcome(item);
                 break;
             case LogLine { Level: LogLevel.Warning or LogLevel.Error } log:
                 Line(log.Level == LogLevel.Error ? ConsoleColor.Red : ConsoleColor.Yellow, log.Text);
@@ -64,6 +78,47 @@ public class ConsoleSink(bool assumeYes) : IOperationSink
             : "Ready.");
     }
 
+    public virtual void Summary(RunSummary summary)
+    {
+        Console.WriteLine();
+        string text = string.Create(CultureInfo.InvariantCulture,
+            $"{summary.Action}: {summary.Count(OutcomeKind.Ok)} done, {summary.Count(OutcomeKind.AlreadyCurrent)} already current, "
+            + $"{summary.Count(OutcomeKind.Skipped)} skipped, {summary.Count(OutcomeKind.Failed)} failed ({summary.Duration.TotalMinutes:0.0} min).");
+        Line(summary.HasFailures ? ConsoleColor.Yellow : ConsoleColor.Green, text);
+
+        if (summary.RebootRequired)
+            Line(ConsoleColor.Yellow, "A reboot is needed to finish some of these.");
+    }
+
+    /// <summary>The package list as a table.</summary>
+    public virtual void Table(IReadOnlyList<ListedPackage> packages)
+    {
+        ClearProgress();
+
+        if (packages.Count == 0)
+        {
+            Line(ConsoleColor.Green, "Nothing to show.");
+            return;
+        }
+
+        int name = Math.Clamp(packages.Max(p => p.Package.Name.Length), 4, 40);
+        int id = Math.Clamp(packages.Max(p => p.Package.Id.Length), 2, 44);
+
+        Console.WriteLine($"   {"Name".PadRight(name)}  {"Id".PadRight(id)}  {"Installed",-16}  {"Available",-16}  Source");
+
+        foreach (ListedPackage p in packages)
+        {
+            string flag = p.IsStoreManaged ? "S" : p.IsHeld ? "H" : p.Package.CheckProblem is not null ? "?" : p.Package.HasUpdate ? "*" : " ";
+            ConsoleColor color = flag switch { "*" => ConsoleColor.White, "H" or "S" => ConsoleColor.DarkYellow, "?" => ConsoleColor.Red, _ => ConsoleColor.Gray };
+
+            Line(color, $" {flag} {Fit(p.Package.Name, name)}  {Fit(p.Package.Id, id)}  {Fit(p.Package.InstalledVersion, 16)}  {Fit(p.Package.AvailableVersion ?? "", 16)}  {p.Package.Catalog}");
+        }
+
+        Console.WriteLine();
+        Line(ConsoleColor.DarkGray, "* update available   H held (skipped by upgrade --all)   S updates via the Microsoft Store   ? could not be checked");
+        Line(ConsoleColor.Gray, $"{packages.Count} package(s), {packages.Count(p => p.Package.HasUpdate)} with updates, {packages.Count(p => p.IsHeld)} held.");
+    }
+
     public virtual void Error(string message) => Line(ConsoleColor.Red, message);
 
     /// <summary>The one-line outcome of a command that is not a list of items.</summary>
@@ -81,31 +136,101 @@ public class ConsoleSink(bool assumeYes) : IOperationSink
 
         lock (_gate)
         {
+            ClearProgress();
             Write(color, tag);
             Console.WriteLine($" {check.Title,-22} {check.Result.Summary}");
 
-            bool showDetail = check.Result.Detail is not null && (Verbose || check.Result.Status is PreflightStatus.Warn or PreflightStatus.Fail);
+            bool problem = check.Result.Status is PreflightStatus.Warn or PreflightStatus.Fail;
 
-            if (showDetail)
+            if (check.Result.Detail is not null && (Verbose || problem))
             {
-                foreach (string line in check.Result.Detail!.Split('\n'))
-                    Line(ConsoleColor.DarkGray, $"         {line}");
+                foreach (string line in check.Result.Detail.Split('\n'))
+                    WriteLine(ConsoleColor.DarkGray, $"         {line}");
             }
+
+            if (check.Result.Fix is { } fix)
+                WriteLine(ConsoleColor.Cyan, $"         Fix: {fix.CliCommand}");
         }
+    }
+
+    private void WriteOutcome(ItemFinished item)
+    {
+        (string tag, ConsoleColor color) = item.Outcome.Kind switch
+        {
+            OutcomeKind.Ok => ("[ OK ]", ConsoleColor.Green),
+            OutcomeKind.AlreadyCurrent => ("[SAME]", ConsoleColor.Gray),
+            OutcomeKind.Skipped => ("[SKIP]", ConsoleColor.DarkYellow),
+            _ => ("[FAIL]", ConsoleColor.Red),
+        };
+
+        lock (_gate)
+        {
+            ClearProgress();
+            Write(color, tag);
+            Console.WriteLine($" {item.DisplayName}{(item.Outcome.Detail.Length > 0 ? "  - " + item.Outcome.Detail : "")}");
+        }
+    }
+
+    private static string Describe(ProgressReported p)
+    {
+        string text = p.Message ?? "Working";
+
+        if (p.Bytes is { } bytes)
+            text += p.TotalBytes is { } total ? $" {Mb(bytes)} / {Mb(total)}" : $" {Mb(bytes)}";
+
+        if (p.Fraction is { } fraction && p.Bytes is null)
+            text += $" {fraction:P0}";
+
+        return text;
+
+        static string Mb(long b) => string.Create(CultureInfo.InvariantCulture, $"{b / 1048576.0:0.0} MB");
+    }
+
+    private void Progress(string text)
+    {
+        if (!Interactive)
+            return;
+
+        lock (_gate)
+        {
+            string line = "    " + text;
+            int width = Math.Max(1, Console.WindowWidth - 1);
+
+            if (line.Length > width)
+                line = line[..width];
+
+            Console.Write("\r" + line.PadRight(_progressWidth));
+            _progressWidth = line.Length;
+        }
+    }
+
+    private void ClearProgress()
+    {
+        if (_progressWidth == 0)
+            return;
+
+        Console.Write("\r" + new string(' ', _progressWidth) + "\r");
+        _progressWidth = 0;
     }
 
     protected void Line(ConsoleColor color, string text)
     {
         lock (_gate)
         {
-            Write(color, text);
-            Console.WriteLine();
+            ClearProgress();
+            WriteLine(color, text);
         }
+    }
+
+    private void WriteLine(ConsoleColor color, string text)
+    {
+        Write(color, text);
+        Console.WriteLine();
     }
 
     private void Write(ConsoleColor color, string text)
     {
-        if (!Colors)
+        if (!Interactive)
         {
             Console.Write(text);
             return;
@@ -116,21 +241,25 @@ public class ConsoleSink(bool assumeYes) : IOperationSink
         Console.Write(text);
         Console.ForegroundColor = previous;
     }
+
+    private static string Fit(string text, int width)
+        => text.Length <= width ? text.PadRight(width) : text[..(width - 3)] + "...";
 }
 
 /// <summary>
-/// <c>--json</c>: one JSON object per line on stdout, so scripts can parse progress as it happens.
+/// <c>--json</c>: one JSON object per line on stdout, so scripts can follow progress as it happens.
 /// Field names are stable; every line has an <c>event</c>.
 /// </summary>
 public sealed class JsonLinesSink(bool assumeYes) : ConsoleSink(assumeYes)
 {
-    // Relaxed escaping: Windows paths and apostrophes stay readable ('C:\x', not \u0027C:\\x\u0027).
-    // Still valid JSON, and stdout is never embedded in HTML.
+    // Relaxed escaping: Windows paths and apostrophes stay readable. Still valid JSON, and stdout
+    // is never embedded in HTML.
     private static readonly JsonSerializerOptions Compact = new()
     {
         WriteIndented = false,
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
+
     private readonly Lock _gate = new();
 
     public override void Report(OperationEvent operationEvent)
@@ -146,7 +275,28 @@ public sealed class JsonLinesSink(bool assumeYes) : ConsoleSink(assumeYes)
                 ["status"] = c.Result.Status.ToString().ToLowerInvariant(),
                 ["summary"] = c.Result.Summary,
                 ["detail"] = c.Result.Detail,
+                ["fix"] = c.Result.Fix?.CliCommand,
                 ["elapsedMs"] = (long)c.Elapsed.TotalMilliseconds,
+            },
+            PackageListed p => Package("package", p.Listed),
+            ProgressReported p => new JsonObject
+            {
+                ["event"] = "progress",
+                ["item"] = p.ItemId,
+                ["fraction"] = p.Fraction,
+                ["bytes"] = p.Bytes,
+                ["totalBytes"] = p.TotalBytes,
+                ["message"] = p.Message,
+            },
+            ItemFinished i => new JsonObject
+            {
+                ["event"] = "itemFinished",
+                ["item"] = i.ItemId,
+                ["name"] = i.DisplayName,
+                ["outcome"] = i.Outcome.Kind.ToString().ToLowerInvariant(),
+                ["detail"] = i.Outcome.Detail,
+                ["code"] = i.Outcome.Code?.Hex,
+                ["rebootRequired"] = i.Outcome.RebootRequired,
             },
             StepStarted s => new JsonObject { ["event"] = "step", ["step"] = s.Step },
             LogLine l => new JsonObject { ["event"] = "log", ["level"] = l.Level.ToString().ToLowerInvariant(), ["text"] = l.Text, ["item"] = l.ItemId },
@@ -174,10 +324,48 @@ public sealed class JsonLinesSink(bool assumeYes) : ConsoleSink(assumeYes)
             ["warnings"] = report.Results.Count(r => r.Result.Status == PreflightStatus.Warn),
         });
 
+    public override void Summary(RunSummary summary)
+        => Emit(new JsonObject
+        {
+            ["event"] = "result",
+            ["action"] = summary.Action.ToLowerInvariant(),
+            ["ok"] = summary.Count(OutcomeKind.Ok),
+            ["alreadyCurrent"] = summary.Count(OutcomeKind.AlreadyCurrent),
+            ["skipped"] = summary.Count(OutcomeKind.Skipped),
+            ["failed"] = summary.Count(OutcomeKind.Failed),
+            ["rebootRequired"] = summary.RebootRequired,
+        });
+
+    /// <summary>Packages were already streamed as "package" events; the table adds a closing count.</summary>
+    public override void Table(IReadOnlyList<ListedPackage> packages)
+        => Emit(new JsonObject { ["event"] = "result", ["packages"] = packages.Count, ["updates"] = packages.Count(p => p.Package.HasUpdate) });
+
     public override void Error(string message) => Emit(new JsonObject { ["event"] = "error", ["message"] = message });
 
     public override void Result(bool succeeded, string summary)
         => Emit(new JsonObject { ["event"] = "result", ["succeeded"] = succeeded, ["summary"] = summary });
+
+    private static JsonObject Package(string kind, ListedPackage listed)
+    {
+        InstalledPackage p = listed.Package;
+
+        return new JsonObject
+        {
+            ["event"] = kind,
+            ["source"] = p.Source,
+            ["id"] = p.Id,
+            ["name"] = p.Name,
+            ["installed"] = p.InstalledVersion,
+            ["available"] = p.AvailableVersion,
+            ["catalog"] = p.Catalog,
+            ["scope"] = p.Scope.ToString().ToLowerInvariant(),
+            ["managed"] = p.IsManaged,
+            ["held"] = listed.IsHeld,
+            ["storeManaged"] = listed.IsStoreManaged,
+            ["holdReason"] = listed.Hold?.Rule.Reason,
+            ["problem"] = p.CheckProblem,
+        };
+    }
 
     private void Emit(JsonObject line)
     {
