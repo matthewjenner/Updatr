@@ -13,7 +13,7 @@ public enum LogCategory
     Elevation,
     Source,
     Queue,
-    Defluff,
+    Debloat,
     Update,
 }
 

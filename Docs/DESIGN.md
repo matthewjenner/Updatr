@@ -10,7 +10,7 @@ See `TECHARCH.md` for how it is built and `workplan.md` for build state.
 ## Goals
 
 - **Portable.** Copy the folder to a drive, plug into any Windows 10/11 machine, run. All user
-  data (carts, templates, settings, logs, defluff history) lives in `Updatr.data\` beside the
+  data (carts, templates, settings, logs, debloat history) lives in `Updatr.data\` beside the
   binaries. A cart made on machine A is there on machine B. Nothing is per-machine.
 - **Self-sufficient.** If the machine is missing something Updatr needs (winget, App Installer,
   Node for an npm item, ...), Updatr says what is missing and why, and offers to install it.
@@ -113,7 +113,7 @@ are marked (and can be selected for reinstall).
 - **Run:** downloads in parallel, installs one at a time, per-item progress and log, cancel at
   any point (current installer finishes; the rest are skipped).
 
-### Defluff
+### Debloat
 
 Removes ads and junk, and re-runs cleanly after Windows feature updates.
 
@@ -130,7 +130,7 @@ Removes ads and junk, and re-runs cleanly after Windows feature updates.
   re-run only touches what has drifted. A "new since last run" filter highlights what Windows
   added or reverted since last time.
 - Before applying: restore point (best effort) plus Updatr's own registry backup in
-  `Updatr.data\defluff\backups\`. Each item can be reverted from the history list.
+  `Updatr.data\debloat\backups\`. Each item can be reverted from the history list.
 - Rules ship in the catalog, so new junk is handled by updating the repo, not the binary.
 
 ### Uninstall
@@ -147,7 +147,7 @@ Removes ads and junk, and re-runs cleanly after Windows feature updates.
 
 ### Settings / Log
 
-Data folder location, catalog source and refresh, hold rules, defluff keep list, log viewer
+Data folder location, catalog source and refresh, hold rules, debloat keep list, log viewer
 (DiagLog-style categories), run reports, about / version / check for updates.
 
 ## Alerting
@@ -176,7 +176,7 @@ updatr-cli hold <id> | unhold <id>
 updatr-cli install <id>... [--template <name>...] [--cart <name>...]
 updatr-cli cart list | show <name> | save <name> | merge <name>...
 updatr-cli template list | show <name>
-updatr-cli defluff status | apply [--recommended] [--item <id>...] | revert <id>...
+updatr-cli debloat status | apply [--recommended] [--item <id>...] | revert <id>...
 updatr-cli uninstall <id>...
 updatr-cli self-update
 ```
@@ -204,13 +204,13 @@ Exact package ids are verified when the catalog is authored.
 - **Restore points** are throttled by Windows (one per 24 h by default) and disabled on many
   machines; Updatr's own backup is the primary undo.
 - **Edge removal** is restricted by Microsoft outside the EEA; the optional item may be limited
-  to disabling nags and background behavior. Investigated in the defluff phase.
+  to disabling nags and background behavior. Investigated in the debloat phase.
 - **Store app removal is not perfectly reversible:** revert reinstalls from the Store.
 
 ## Roadmap / backlog
 
 - Leftover cleanup + install footprints (v0.2).
-- Opt-in scheduled task, e.g. "defluff after each feature update".
+- Opt-in scheduled task, e.g. "debloat after each feature update".
 - Reinstall the Microsoft Store on LTSC.
 - Mirror fallback for direct-URL installers (S3 / home server) - schema field exists now.
 - Code signing (Azure Trusted Signing) if Defender becomes a nuisance.

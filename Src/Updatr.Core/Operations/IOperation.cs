@@ -1,7 +1,7 @@
 namespace Updatr.Core.Operations;
 
 /// <summary>
-/// One user-facing action (list packages, upgrade, apply defluff, ...). The GUI and the CLI are
+/// One user-facing action (list packages, upgrade, apply debloat, ...). The GUI and the CLI are
 /// both thin adapters over these, which is how they stay at parity: neither has logic the other
 /// lacks.
 /// </summary>

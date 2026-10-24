@@ -67,7 +67,7 @@
                             <Button Content="Test administrator access" Command="{Binding TestAdminCommand}" />
                             <TextBlock Text="{Binding AdminTestResult}" VerticalAlignment="Center" TextWrapping="Wrap" Opacity="0.85" />
                         </StackPanel>
-                        <TextBlock Text="Shows one UAC prompt and checks the elevated helper that machine-wide installs and defluff use."
+                        <TextBlock Text="Shows one UAC prompt and checks the elevated helper that machine-wide installs and debloat use."
                                    FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
                     </StackPanel>
 

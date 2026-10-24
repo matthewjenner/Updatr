@@ -189,7 +189,7 @@ public static class CliApp
             return result.Succeeded ? ExitCodes.Ok : ExitCodes.Failed;
         }));
 
-        Command admin = new("admin", "Administrator access used by machine-wide installs and defluff.");
+        Command admin = new("admin", "Administrator access used by machine-wide installs and debloat.");
         admin.Subcommands.Add(test);
         return admin;
     }

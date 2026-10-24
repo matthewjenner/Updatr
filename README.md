@@ -7,7 +7,7 @@ A portable Windows machine manager you can run from a thumb drive.
   or in batches.
 - **Install** a new machine Ninite-style: pick apps or whole templates (Base, Dev, Gaming, ...),
   merge them into a cart, save and reuse carts.
-- **Defluff** Windows: remove ads, sponsored apps, and junk, and re-run safely after feature
+- **Debloat** Windows: remove ads, sponsored apps, and junk, and re-run safely after feature
   updates to catch whatever Windows added back.
 - **Uninstall** apps through their own uninstallers, with leftover cleanup to follow.
 

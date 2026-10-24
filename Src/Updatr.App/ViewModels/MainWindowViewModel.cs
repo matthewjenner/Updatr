@@ -53,7 +53,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         [
             new NavItem("Updates", Updates),
             new NavItem("Install", new PlaceholderPageViewModel("Install", "Pick apps and templates into a cart, merge and save carts, and install them in one run.", "Phase 5")),
-            new NavItem("Defluff", new PlaceholderPageViewModel("Defluff", "Remove ads and junk from Windows, safely re-runnable after feature updates.", "Phase 6")),
+            new NavItem("Debloat", new PlaceholderPageViewModel("Debloat", "Remove ads and junk from Windows, safely re-runnable after feature updates.", "Phase 6")),
             new NavItem("Uninstall", new PlaceholderPageViewModel("Uninstall", "Remove apps through their own uninstallers, with leftover cleanup to follow.", "Phase 7")),
             new NavItem("Log", new LogPageViewModel()),
             new NavItem("Settings", Settings),

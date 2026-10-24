@@ -19,7 +19,7 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 - `0.0.0` until something is shippable - CI builds and tests it but never releases it.
 - `0.0.x` preview releases as phases ship usable pieces (first one at the end of Phase 3).
-- **`0.1.0`** = Phases 0-7: updates, install/carts, defluff, uninstall (uninstaller only),
+- **`0.1.0`** = Phases 0-7: updates, install/carts, debloat, uninstall (uninstaller only),
   self-update, CLI parity.
 - **`0.2.0`** = Phase 8: leftover cleanup + install footprints.
 
@@ -58,7 +58,7 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 - [x] `PackageOutcome` model (Ok / AlreadyCurrent / Failed / Skipped + reboot flag + decoded code)
 - [x] Operation + sink abstractions (`IOperation`, `IOperationSink`, events, `[Operation]` name)
 - [x] Seed `apps.json` (9 apps, winget ids verified with `winget show`); templates come in Phase 5
-- Moved: defluff rule model -> Phase 6 (designed with its targets); remote + cache origins ->
+- Moved: debloat rule model -> Phase 6 (designed with its targets); remote + cache origins ->
   Phase 2 (they need the data store and network checks); parity test -> Phase 2 (arrives with
   the first operation, `preflight`, so it is not vacuous)
 
@@ -137,9 +137,9 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 - [ ] Author starter catalog + templates (Base, Dev, Gaming, Media, Productivity)
 - [ ] CLI: `install`, `cart *`, `template *`
 
-## Phase 6 - Defluff
+## Phase 6 - Debloat
 
-- [ ] Defluff rule model in the catalog (`defluff.json` + schema), designed with the targets
+- [ ] Debloat rule model in the catalog (`debloat.json` + schema), designed with the targets
 - [ ] Targets: registry value, appx, provisioned appx, service, scheduled task
 - [ ] Detect / apply / revert, backups, history, restore point
 - [ ] Recommended rule set (ads + junk + baseline privacy)
@@ -147,7 +147,7 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 - [ ] Unrecognized Appx detection + keep list
 - [ ] "New since last run" view
 - [ ] Investigate Edge removal constraints
-- [ ] CLI: `defluff status | apply | revert`
+- [ ] CLI: `debloat status | apply | revert`
 
 ## Phase 7 - Uninstall (basic) and self-update -> 0.1.0
 
@@ -169,7 +169,10 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Backlog
 
-- Opt-in scheduled task (defluff after feature updates).
+- Update launcher-managed games through their launcher (e.g. open Steam's update / validate for
+  a game, Battle.net's update) instead of only labeling them "Managed by ...".
+
+- Opt-in scheduled task (debloat after feature updates).
 - Reinstall Microsoft Store on LTSC.
 - Mirror implementation for direct-URL installers (S3 / home server).
 - Code signing.
@@ -224,6 +227,8 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
   the source-generated deserializer assigns omitted init properties null, wiping defaults.
 - **2026-10-23** - Computed members on polymorphic source refs live in the base as a switch:
   `[JsonIgnore]` on an abstract member does not apply to its overrides, which leaked into JSON.
+- **2026-10-23** - "Defluff" renamed to **Debloat** everywhere (user choice; the term people already
+  search for). Nav, docs, log category, and the future `debloat.json` / `updatr-cli debloat ...`.
 - **2026-10-23** - Phase 3 finding: winget's COM API and its CLI disagree on what is an update.
   COM `IsUpdateAvailable` is false when the new version switches installer technology (Audacity
   exe -> WiX, Wave Link MSI -> MSIX); the CLI lists those and the upgrade then fails
@@ -264,7 +269,7 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 - **2026-10-23** - Installers come from upstream; catalog is metadata only; mirror hook stubbed.
 - **2026-10-23** - Direct-URL verification by HTTPS + Authenticode signer, optional sha256.
 - **2026-10-23** - Unelevated host + on-demand elevated broker over a named pipe.
-- **2026-10-23** - Defluff default removes ads/junk only; everything else is opt-in; unknown
+- **2026-10-23** - Debloat default removes ads/junk only; everything else is opt-in; unknown
   Appx are surfaced for review, never auto-removed.
 - **2026-10-23** - Alerting in-app only.
 - **2026-10-23** - Unsigned to start.

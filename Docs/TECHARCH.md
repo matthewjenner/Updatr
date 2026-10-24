@@ -36,11 +36,11 @@ the default is the latest stable.
 Updatr/
 +-- Src/
 |   +-- Updatr.Core/              Pure logic, net10.0, no platform deps
-|   |   +-- Catalog/              CatalogApp, Template, HoldRule, DefluffRule models, loader
+|   |   +-- Catalog/              CatalogApp, Template, HoldRule, DebloatRule models, loader
 |   |   +-- Carts/                Cart, CartMerger, DependencyResolver
 |   |   +-- Operations/           One class per user action + OperationRunner, events, results
 |   |   +-- Sources/              IPackageSource, PackageRef, InstalledPackage, Outcome
-|   |   +-- Defluff/              IDefluffTarget, rule evaluation, drift detection, history
+|   |   +-- Debloat/              IDebloatTarget, rule evaluation, drift detection, history
 |   |   +-- Preflight/            IPreflightCheck, check results, ordering
 |   |   +-- Errors/               ErrorCodes (decoded hint table), ErrorInfo
 |   |   +-- Diagnostics/          DiagLog (typed emit surface, no UI dispatch)
@@ -50,7 +50,7 @@ Updatr/
 |   |   +-- Ecosystems/           Npm, Pipx, Pip, DotnetTool, PsGallery, VsCode sources
 |   |   +-- DirectUrl/            Downloader, signature verification, mirror hook
 |   |   +-- Appx/                 PackageManager wrapper, App Installer bootstrap
-|   |   +-- Defluff/              Registry / Appx / service / task targets, backup, restore point
+|   |   +-- Debloat/              Registry / Appx / service / task targets, backup, restore point
 |   |   +-- Uninstall/            Uninstall-key reader, (v0.2) leftover scanner, quarantine
 |   |   +-- Elevation/            Broker launcher, named-pipe client and server
 |   |   +-- Preflight/            Concrete checks
@@ -61,7 +61,7 @@ Updatr/
 +-- Tests/
 |   +-- Updatr.Core.Tests/        Unit tests, fakes for every abstraction
 |   +-- Updatr.Platform.Tests/    Integration tests, opt-in (added with the first Platform code)
-+-- catalog/                      apps.json, templates.json, holds.json, defluff.json, schema/ (Phase 1)
++-- catalog/                      apps.json, templates.json, holds.json, debloat.json, schema/ (Phase 1)
 +-- Docs/  Scripts/  .github/workflows/
 +-- Directory.Build.props         Version source of truth + shared Windows TFM / RID properties
 +-- Directory.Build.targets       Keeps the WinGet .winmd beside the exe on publish
@@ -87,7 +87,7 @@ thread with `Dispatcher.UIThread.Post` and updates ViewModels; the CLI's sink re
 console or emits JSON lines. Operations never know which one they are talking to.
 
 Examples: `ListPackages`, `UpgradePackages`, `ReinstallPackages`, `SetHold`, `InstallCart`,
-`MergeCarts`, `SaveCart`, `DefluffStatus`, `DefluffApply`, `DefluffRevert`, `Uninstall`,
+`MergeCarts`, `SaveCart`, `DebloatStatus`, `DebloatApply`, `DebloatRevert`, `Uninstall`,
 `RunPreflight`, `SelfUpdate`.
 
 ## Package sources
@@ -201,7 +201,7 @@ same rows (`--verbose` for every detail, `--json` for one object per line) and e
 - The broker exits when the pipe closes or the parent process exits.
 - `admin test` (CLI) / Settings > Test administrator access (GUI) requests elevation and pings
   the broker - the manual check that UAC elevation works on a given machine.
-- Scope routing: machine-scope installs and defluff go to the broker; user-scope installs run
+- Scope routing: machine-scope installs and debloat go to the broker; user-scope installs run
   in the unelevated process (correct profile). An installer returning "refuses to run
   elevated" (`0x8A150056`) is retried unelevated automatically.
 - If UAC is declined, admin-only items are Skipped with a clear reason; the rest still run.
@@ -216,18 +216,18 @@ same rows (`--verbose` for every detail, `--json` for one object per line) and e
 
 No PowerShell module (`Repair-WinGetPackageManager`) involved.
 
-## Defluff engine
+## Debloat engine
 
 ```csharp
-public interface IDefluffTarget   // one per kind: registry value, appx, provisioned appx, service, task, ...
+public interface IDebloatTarget   // one per kind: registry value, appx, provisioned appx, service, task, ...
 {
-    Task<TargetState> DetectAsync(DefluffItem item, CancellationToken ct);
-    Task<ApplyResult> ApplyAsync(DefluffItem item, IBackupWriter backup, CancellationToken ct);
-    Task<ApplyResult> RevertAsync(DefluffItem item, BackupEntry entry, CancellationToken ct);
+    Task<TargetState> DetectAsync(DebloatItem item, CancellationToken ct);
+    Task<ApplyResult> ApplyAsync(DebloatItem item, IBackupWriter backup, CancellationToken ct);
+    Task<ApplyResult> RevertAsync(DebloatItem item, BackupEntry entry, CancellationToken ct);
 }
 ```
 
-- **Rules are data** (`catalog/defluff.json`): id, group (`recommended`, `optional`,
+- **Rules are data** (`catalog/debloat.json`): id, group (`recommended`, `optional`,
   `privacy`), title, description, and a list of typed actions (`registryValue`,
   `appxRemove`, `appxDeprovision`, `serviceStartType`, `scheduledTaskDisable`, ...).
 - **Detect before apply, every time.** Status is computed from live machine state, so re-runs
@@ -237,7 +237,7 @@ public interface IDefluffTarget   // one per kind: registry value, appx, provisi
   not protected (frameworks, Store, system), and not a known rule is listed as Unrecognized
   for review. Never auto-removed.
 - **Backups:** every registry change records the prior value (or absence) to
-  `Updatr.data\defluff\backups\<timestamp>.json` plus a `.reg` export. History records what was
+  `Updatr.data\debloat\backups\<timestamp>.json` plus a `.reg` export. History records what was
   applied and when, which drives the "new since last run" view.
 - **Restore point:** attempted before apply; failure (throttled, disabled) is a warning, not a
   blocker.
@@ -314,7 +314,7 @@ Updatr.data\
   templates\<name>.json         user templates (built-ins come from the catalog)
   holds.json                    user hold rules (merged over catalog holds)
   catalog-cache\
-  defluff\keep-list.json  history.json  backups\
+  debloat\keep-list.json  history.json  backups\
   quarantine\                   (v0.2)
   footprints\                   (v0.2)
   logs\<timestamp>-<op>.log  reports\
@@ -330,7 +330,7 @@ Updatr.data\
 
 `Updatr.Core/Diagnostics/DiagLog.cs` follows Klakr's pattern: one typed method per event, the
 format string lives only there, categories (`System`, `Preflight`, `Source`, `Queue`,
-`Defluff`, `Elevation`, `Update`). Unlike Klakr it is not tied to a sidecar window: every run
+`Debloat`, `Elevation`, `Update`). Unlike Klakr it is not tied to a sidecar window: every run
 also writes its log to `Updatr.data\logs\`. The GUI log viewer subscribes and marshals.
 
 ## Threading (GUI)

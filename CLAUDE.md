@@ -2,7 +2,7 @@
 
 Portable Windows machine manager. Runs from a thumb drive on a mature or freshly imaged machine:
 lists and applies updates across winget and other ecosystems, installs from a Ninite-style cart of
-templates, removes Windows ads and junk (defluff), and uninstalls apps. GUI (`Updatr.exe`) and CLI
+templates, removes Windows ads and junk (debloat), and uninstalls apps. GUI (`Updatr.exe`) and CLI
 (`updatr-cli.exe`) with full parity.
 
 See `Docs/DESIGN.md` for product detail and `Docs/TECHARCH.md` for the architecture.
@@ -164,7 +164,7 @@ dotnet test                         # MTP runner (global.json)
 ## What NOT to do
 
 - Don't run PowerShell, or wrap a script and call it a feature.
-- Don't auto-remove anything defluff does not recognize; surface it for review.
+- Don't auto-remove anything debloat does not recognize; surface it for review.
 - Don't delete leftover files/keys during uninstall cleanup; quarantine them.
 - Don't host or mirror installers; pull from upstream (the mirror hook stays a stub).
 - Don't add per-machine state; carts, templates, and settings travel with the drive.

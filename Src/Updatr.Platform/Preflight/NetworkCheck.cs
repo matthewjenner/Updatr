@@ -36,7 +36,7 @@ public sealed class NetworkCheck(HttpClient http) : IndependentCheck
 
         return reachable == Endpoints.Length ? PreflightResult.Pass("Online", detail)
             : reachable > 0 ? PreflightResult.Warn($"Partly reachable ({reachable} of {Endpoints.Length} services)", detail)
-            : PreflightResult.Fail("Offline - nothing can be downloaded", detail + "\nUpdates and installs need the internet; defluff and the saved catalog still work offline.");
+            : PreflightResult.Fail("Offline - nothing can be downloaded", detail + "\nUpdates and installs need the internet; debloat and the saved catalog still work offline.");
     }
 
     private async Task<string> ProbeAsync(string host, string purpose, string url, CancellationToken cancellationToken)

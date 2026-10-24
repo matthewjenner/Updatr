@@ -35,7 +35,7 @@ public sealed class OsCheck : IndependentCheck
             : os.IsLtsc
                 ? PreflightResult.Warn($"{os} (LTSC)", "LTSC has no Microsoft Store: winget can be installed, but Store apps (the msstore source) are unavailable.")
             : os.IsServer
-                ? PreflightResult.Warn(os.ToString(), "Windows Server: some desktop apps and defluff items do not apply.")
+                ? PreflightResult.Warn(os.ToString(), "Windows Server: some desktop apps and debloat items do not apply.")
             : PreflightResult.Info(os.ToString());
 
         return Task.FromResult(result);
@@ -102,7 +102,7 @@ public sealed class DiskSpaceCheck : IndependentCheck
     }
 }
 
-/// <summary>Whether admin-only steps (machine installs, defluff) can be elevated.</summary>
+/// <summary>Whether admin-only steps (machine installs, debloat) can be elevated.</summary>
 public sealed class ElevationCheck : IndependentCheck
 {
     public override string Id => "elevation";
@@ -123,7 +123,7 @@ public sealed class ElevationCheck : IndependentCheck
                 "Start Updatr normally instead: per-user apps installed from an elevated session can land in the wrong profile. Updatr asks for elevation only for the steps that need it."),
             _ => PreflightResult.Warn(
                 "This account is not an administrator",
-                "Machine-wide installs and defluff need an administrator to approve the UAC prompt."),
+                "Machine-wide installs and debloat need an administrator to approve the UAC prompt."),
         };
 
         return Task.FromResult(result);
