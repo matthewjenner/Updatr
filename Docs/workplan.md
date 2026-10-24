@@ -8,11 +8,11 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Current state
 
-- **Phase:** 5 code complete - Install screen, carts, templates. Waiting on a manual install test,
-  then 0.0.3. Still open (not blocking): winget repair on a clean / LTSC VM.
-- **Last updated:** 2026-10-23
-- **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (174/174).
-  Version 0.0.2 (released 2026-10-24); 0.0.3 after the manual install test.
+- **Phase:** 5 complete - Install screen, carts, templates. 0.0.3 ships on push. Still open (not
+  blocking): winget repair on a clean / LTSC VM.
+- **Last updated:** 2026-10-24
+- **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (253/253).
+  Version 0.0.3 (0.0.2 released 2026-10-24).
 - **Next:** Phase 6 (Debloat).
 
 ## Versioning
@@ -169,8 +169,8 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 - [x] CLI: `install`, `catalog list`, `cart list|show|save|remove|delete`,
       `template list|show|save|copy|delete`; `--json` confirmation now carries the plan
 - [x] `UPDATR_CATALOG_DIR` developer override: test catalog edits locally before pushing them
-- [ ] **Manual:** a real install from the GUI (a small app not yet installed, e.g. Everything or
-      ShareX) and one template-edit round trip; then bump to 0.0.3
+- [x] Real install verified: Everything via `updatr-cli install everything` (then "Already
+      installed" on re-run); template copy / save / show / built-in guard / delete round trip
 
 ## Phase 6 - Debloat
 
