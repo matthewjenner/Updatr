@@ -8,11 +8,11 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Current state
 
-- **Phase:** 6 code complete - Debloat. Waiting on a manual GUI + admin-item test, then 0.0.4.
+- **Phase:** 6 complete - Debloat. 0.0.4 ships on push (GUI screen still to be looked over).
   Still open (not blocking): winget repair on a clean / LTSC VM.
 - **Last updated:** 2026-10-24
 - **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (291/291).
-  Version 0.0.3 (released 2026-10-24); 0.0.4 after the manual debloat test.
+  Version 0.0.4 (0.0.3 released 2026-10-24).
 - **Next:** Phase 7 (Uninstall basic + self-update -> 0.1.0).
 
 ## Versioning
@@ -202,8 +202,9 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
       apps with Keep, history with Revert)
 - [x] Real round trip verified (CLI, current-user item): apply, re-run is "already applied",
       drift detected after Windows-style reset, revert restores the original state
-- [ ] **Manual:** the GUI screen, and one admin item (e.g. `diagnostic-data`) apply + revert
-      through the UAC prompt (proves the broker path and the restore point); then bump to 0.0.4
+- [x] Admin path verified: `diagnostic-data` applied through one UAC prompt (restore point via
+      the broker in 8 s, two HKLM policy writes) and reverted; restore point outcome now logged
+- [ ] **Manual:** look over the Debloat screen in the GUI before pushing 0.0.4
 
 ## Phase 7 - Uninstall (basic) and self-update -> 0.1.0
 

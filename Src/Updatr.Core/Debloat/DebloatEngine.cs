@@ -92,6 +92,7 @@ public sealed class DebloatEngine(
         {
             sink.Report(new StepStarted("Creating a restore point"));
             string? why = await restorePoint.CreateAsync("Updatr debloat", cancellationToken).ConfigureAwait(false);
+            Diagnostics.DiagLog.DebloatRestorePoint(why);
             sink.Report(new LogLine(why is null ? LogLevel.Info : LogLevel.Warning,
                 why is null ? "Restore point created." : $"No restore point ({why}). Updatr's own backup still covers every change."));
         }

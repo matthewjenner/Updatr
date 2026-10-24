@@ -131,6 +131,12 @@ public static class DiagLog
     public static void WinGetMetadataMissing(string reason)
         => Emit(LogCategory.Source, LogLevel.Error, $"WinGet metadata is missing beside the exe and could not be restored: {reason}");
 
+    // ---- Debloat ------------------------------------------------------------------------
+
+    public static void DebloatRestorePoint(string? problem)
+        => Emit(LogCategory.Debloat, problem is null ? LogLevel.Info : LogLevel.Warning,
+            problem is null ? "Restore point created before debloat" : $"No restore point before debloat: {problem}");
+
     // ---- Plumbing -----------------------------------------------------------------------
 
     private static string YesNo(bool value) => value ? "yes" : "no";
