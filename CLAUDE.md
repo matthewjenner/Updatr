@@ -27,6 +27,8 @@ Src/Updatr.Platform/        Windows implementations shared by GUI and CLI. net10
 Src/Updatr.App/             Avalonia GUI -> Updatr.exe
 Src/Updatr.Cli/             Console -> updatr-cli.exe
 Tests/Updatr.Core.Tests/    Unit + convention tests.
+Tests/Updatr.Platform.Tests/ Real files, named pipes, processes (no network, no UAC).
+Tests/Updatr.Cli.Tests/     Command tree + the GUI/CLI parity test.
 catalog/                    apps.json, templates.json, holds.json + generated schema/. Fetched live
                             by every Updatr in the field, and embedded in Core as the fallback.
 Docs/                       DESIGN, TECHARCH, workplan, legacy-script.
@@ -42,7 +44,8 @@ Directory.Build.targets     Keeps the WinGet .winmd beside the exe on publish.
 dotnet build
 dotnet test                         # MTP runner (global.json)
 ./Scripts/run.sh                    # clean + build + run GUI (Debug|Release, App|Cli)
-./Scripts/run.sh Debug Cli -- --help
+./Scripts/run.sh Debug Cli -- preflight
+./Scripts/run.sh Debug Cli -- admin test   # one UAC prompt; proves the elevated broker works
 ./Scripts/publish.sh                # dist/ zips for win-x64 + win-arm64, as CI builds them
 ```
 
@@ -97,6 +100,17 @@ dotnet test                         # MTP runner (global.json)
 - **No `[JsonIgnore]` on abstract or virtual members of polymorphic models.** It does not carry
   over to overrides, which then leak into the JSON and the schema. Compute such members in the
   base class (see `PackageSourceRef.RequiredTool`).
+- **Call `WinGetRuntime.EnsureReady()` (or `CreatePackageManager()`) before any
+  `Microsoft.Management.Deployment` type.** It installs the activation handler and restores the
+  `.winmd` beside the exe if it is missing.
+- **Do not cancel cross-process work from a `CancellationToken.Register` callback in a method
+  that also awaits `WaitAsync(token)`.** Callbacks run newest-first; `WaitAsync`'s resumes the
+  method, which disposes the registration before yours runs. Catch the cancellation and act
+  there (see `BrokerClient.SendAsync`).
+- **`IDataStore` throws only `DataStoreException`** (and `ArgumentException` for a path that
+  escapes the folder). The drive may be read-only or yanked; decide per call whether it matters.
+- **Do not `taskkill` a running `Updatr.exe` the user started.** Only kill dev instances you
+  launched yourself from `bin/`.
 - **Do not trim.** WinRT.Runtime and the Windows SDK projection are not trim-safe (IL2104). Publish
   is single-file + compressed, untrimmed.
 - **Version 0.0.0 never releases.** CI builds, tests, and packages it, but the release step is
@@ -119,6 +133,18 @@ dotnet test                         # MTP runner (global.json)
   `CatalogFiles.SchemaVersion` only for breaking changes (renamed/retyped/new required fields).
 - **Decode an installer or winget code:** `ErrorCodes.Describe(code)` / `PackageOutcome.FromCode`.
   New winget codes come from `AppInstallerErrors.h`; keep the constant name in the comment.
+- **Add a preflight check:** implement `IPreflightCheck` in `Src/Updatr.Platform/Preflight/`
+  (derive `IndependentCheck` if it needs no other check's result), return Warn/Fail rather than
+  throwing for expected conditions, write shared facts to `PreflightContext`, and add it to
+  `UpdatrHost.CreateChecks()` in display order. It appears on the splash, in Settings, and in
+  `updatr-cli preflight` with no other changes.
+- **Add something that needs admin:** add an `IBrokerHandler` to `BrokerHandlers.All` (typed
+  payload in, result out, progress via `emit`), call it with
+  `host.Elevation.GetBrokerAsync()` + `SendAsync`. Treat a null broker as "declined": skip
+  with a reason.
+- **Add a user-facing action:** a class implementing `IOperation<,>` with `[Operation("verb noun")]`,
+  a CLI command at that path in `CliApp`, and a GUI entry point. `ParityTests` fails until the
+  CLI command exists.
 - **Add a convention test:** walk files with `RepositoryFiles.Authored()` (everything a person
   wrote) or `RepositoryFiles.Source()` (what ships), so new folders and extensions are covered by
   every convention at once.

@@ -8,11 +8,12 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Current state
 
-- **Phase:** 1 complete - Core models and catalog. Awaiting review before Phase 2.
+- **Phase:** 2 complete - host foundation. Awaiting review (and the manual admin test) before
+  Phase 3.
 - **Last updated:** 2026-10-23
-- **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (84/84).
-  Version 0.0.0 (never released).
-- **Next:** Phase 2 (host foundation: data store, splash + preflight, shell, broker, CLI host).
+- **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (133/133 across Core,
+  Platform, Cli test projects). Version 0.0.0 (never released).
+- **Next:** Phase 3 (winget source + Updates screen; first preview release).
 
 ## Versioning
 
@@ -59,19 +60,34 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 - [x] Seed `apps.json` (9 apps, winget ids verified with `winget show`); templates come in Phase 5
 - Moved: defluff rule model -> Phase 6 (designed with its targets); remote + cache origins ->
   Phase 2 (they need the data store and network checks); parity test -> Phase 2 (arrives with
-  the first operation, `doctor`, so it is not vacuous)
+  the first operation, `preflight`, so it is not vacuous)
 
 ## Phase 2 - Host foundation
 
-- [ ] Portable data store (`Updatr.data\`, atomic writes, fail-soft on drive removal)
-- [ ] Catalog origins: remote (HTTPS, short timeout) and cache (`Updatr.data\catalog-cache\`)
-- [ ] `Updatr.Cli.Tests` (Windows TFM) with the GUI/CLI parity test over `[Operation]` names
-- [ ] DiagLog + per-run log files
-- [ ] Preflight checks (all rows in DESIGN)
-- [ ] Splash window with icon, version, progress, per-check rows, fix buttons
-- [ ] Main window shell: nav, banner strip, run summary dialog
-- [ ] Elevation broker (pipe, ACL, typed requests, lifetime)
-- [ ] CLI host: System.CommandLine, console sink, `--json`, `doctor`
+- [x] Portable data store (`Updatr.data\`, atomic write-through writes, path-escape guard,
+      fail-soft `DataStoreException` + `Failed` event for the banner)
+- [x] Catalog origins: remote (HTTPS, 10 s whole-set deadline) and cache (`catalog-cache\`,
+      marker written last so an interrupted write reads as absent)
+- [x] DiagLog (typed, always on) + per-run log files in `logs\` (batched, pruned to 30)
+- [x] Preflight: 12 checks (os, architecture, network, winget, catalog, tools, elevation, reboot,
+      busy, disk, data, self-update), run in dependency waves in parallel; a crashing check is a
+      Fail row, never a crash
+- [x] WinGet runtime: explicit activation handler + `.winmd` self-heal from an embedded copy
+- [x] Splash: icon, version, progress, live rows, inline detail for problems, Retry / Continue
+      anyway / Quit on failure, minimum 8 s on screen
+- [x] Main window shell: navigation, banner strip (preflight warnings, data-folder failures,
+      newer version), placeholder pages, live Log page, Settings (data folder, log file, catalog
+      origin, machine checks with re-run, administrator test)
+- [x] Elevation broker: random pipe, FirstPipeInstance, current-user ACL + network deny, PID
+      checks both ways, closed handler set, exits with its parent; `ElevationService` launches
+      once per session and remembers a declined prompt
+- [x] CLI host: System.CommandLine, text and `--json` sinks, `--data-dir`, `--yes`, exit codes;
+      `preflight` (named so instead of `doctor`, matching the splash) and `admin test`
+- [x] `Updatr.Platform.Tests` (data store, cache, broker over a real pipe, process runner) and
+      `Updatr.Cli.Tests` (parity test over `[Operation]` names, command-line parsing)
+- [ ] **Manual:** `updatr-cli admin test` (or Settings > Test administrator access) - approve the
+      UAC prompt; expect "Working: elevated helper answered"
+- Moved: run summary dialog -> Phase 3 (built with the first batch operation that fills it)
 
 ## Phase 3 - winget + Updates screen
 
@@ -82,6 +98,7 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 - [ ] Updates grid: incremental load, filters, multi-select
 - [ ] Upgrade / reinstall / hold / unhold, batch + single
 - [ ] Collision waits (MSI mutex, winget running)
+- [ ] Run summary dialog (moved from Phase 2)
 - [ ] CLI: `list`, `upgrade`, `reinstall`, `hold`, `unhold`
 - [ ] Release 0.0.x preview (replaces the script)
 
@@ -178,6 +195,21 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
   the source-generated deserializer assigns omitted init properties null, wiping defaults.
 - **2026-10-23** - Computed members on polymorphic source refs live in the base as a switch:
   `[JsonIgnore]` on an abstract member does not apply to its overrides, which leaked into JSON.
+- **2026-10-23** - CLI health command is `preflight`, not `doctor` (user preference; matches the
+  splash's wording).
+- **2026-10-23** - Splash stays up at least 8 s even when everything passes (user feedback: it
+  vanished before it could be read).
+- **2026-10-23** - Preflight checks run in parallel waves by declared dependency; results are
+  reported as they land, returned in registration order.
+- **2026-10-23** - Broker cancel is sent explicitly when `SendAsync` observes cancellation, not
+  from a token callback: callbacks run newest-first, so `WaitAsync`'s resumed the method and
+  disposed the registration before it ran (caught by `BrokerTests`).
+- **2026-10-23** - Windows ignores a PID's low two bits (`ProcessId + 1` opens the same
+  process). Tests that need "some other process" start a real one; never fake a PID by offset.
+- **2026-10-23** - Verified on the published single-file build: winget via the activation
+  handler, and `.winmd` self-heal when the file is deleted from beside the exe.
+- **2026-10-23** - `admin test` operation added so real UAC elevation can be verified by hand on
+  any machine (GUI button + CLI command, per the parity rule).
 - **2026-10-23** - Apps declare `provides` (tools they install); source types imply a required
   tool. A repo test guarantees every required tool has a provider, for the cart resolver.
 - **2026-10-23** - .NET 10 + Avalonia + CommunityToolkit.Mvvm, matching Klakr.

@@ -67,8 +67,10 @@ Checks:
 | Each ecosystem tool (npm, pipx/pip, dotnet, code, PSGallery path) | That source is hidden until installed |
 | Updatr self-update available | Banner in main window |
 
-The CLI equivalent is `updatr-cli doctor`, and every other CLI command runs the same checks
-first (quietly, unless something fails).
+The splash stays up for at least 8 seconds even when everything passes, so the results can be
+read; a slower run is never held longer than it took.
+
+The CLI equivalent is `updatr-cli preflight` (`--only <ids>`, `--verbose`, `--json`).
 
 ## Screens
 
@@ -156,7 +158,8 @@ In-app only:
 output, `--yes` to skip confirmations.
 
 ```
-updatr-cli doctor
+updatr-cli preflight [--only <check>...] [--verbose]
+updatr-cli admin test
 updatr-cli list [--updates] [--source winget|npm|...]
 updatr-cli upgrade [<id>...] [--all] [--include-held]
 updatr-cli reinstall <id>...

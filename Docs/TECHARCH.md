@@ -135,13 +135,52 @@ dotnet global tools, PSGallery modules, VS Code extensions.
 - Cancellation: the running installer is allowed to finish (killing installers corrupts
   state); everything not yet started becomes Skipped.
 
+## Preflight
+
+`RunPreflight` (Core, `[Operation("preflight")]`) runs `IPreflightCheck`s (Platform) in waves:
+every check whose `DependsOn` are done runs in parallel. Results stream to the sink as they land
+and come back in registration order. A check that throws becomes a Fail row. Checks share facts
+through `PreflightContext` (online, catalog, winget available, tools found, newer version).
+
+| Id | Checks | Fail / Warn when |
+|---|---|---|
+| `os` | Windows version, edition, LTSC / Server | Fail below build 19041; Warn on LTSC (no Store) or Server |
+| `architecture` | OS vs process architecture | Warn for the x64 build emulated on ARM64 |
+| `network` | DNS + HTTPS HEAD to api.github.com, raw.githubusercontent.com, cdn.winget.microsoft.com; proxy | Fail when none reachable (offline), Warn when some |
+| `winget` | COM API activation, version, sources | Fail when unavailable |
+| `catalog` (needs network) | Loads remote -> cache -> embedded | Warn when not the latest |
+| `tools` | npm, pipx, pip, dotnet, code on PATH + versions | Info only |
+| `elevation` | Token elevation type | Warn when already elevated, or a standard user |
+| `reboot` | CBS / Windows Update reboot flags | Warn |
+| `busy` | `Global\_MSIExecute`, winget, TiWorker | Warn |
+| `disk` | Free space on the system drive | Warn below 10 GB |
+| `data` | Data folder writable (probe file) | Warn (runs without saving) |
+| `self-update` (needs network) | GitHub latest release vs running version | Info |
+
+The splash stays up for at least 8 s even on a clean pass. Any Fail holds it with Retry /
+Continue anyway / Quit. Warnings and Fails become banners in the main window. The CLI prints the
+same rows (`--verbose` for every detail, `--json` for one object per line) and exits 1 on any Fail.
+
 ## Elevation broker
 
-- The GUI and CLI run unelevated. When a step needs admin, the host launches its own exe with
-  `--broker <pipe-name>` via `runas` (one UAC prompt per session).
-- The pipe ACL allows only the current user's SID. The broker accepts a closed set of typed
-  requests (run operation X with request Y); never arbitrary command lines.
-- The broker exits when the pipe closes or the parent process dies.
+- The GUI and CLI run unelevated. When a step needs admin, `ElevationService` launches the
+  running exe with `--broker <pipe> --parent <pid>` via `runas` (one UAC prompt per session; a
+  declined prompt is remembered until an explicit retry). Both `Program.Main`s call
+  `BrokerHost.TryRun(args)` first, so broker mode never starts a UI.
+- Hardening (`Platform/Elevation/`):
+  - Random pipe name per launch; the broker creates it with `FirstPipeInstance`, so a name
+    squatted by another process makes the broker refuse to run.
+  - Pipe ACL: current user read/write, `NETWORK` denied.
+  - PID checks both ways: the broker serves only its `--parent`; the client uses the pipe only
+    if it is served by the PID it launched.
+  - A closed set of typed handlers (`BrokerHandlers.All`); unknown types are refused. Never an
+    arbitrary command line.
+- Wire format: one JSON object per line - `request` / `response` / `event` (progress) / `cancel`,
+  correlated by id. Requests run concurrently; a client-side cancellation sends `cancel` and the
+  handler's token fires.
+- The broker exits when the pipe closes or the parent process exits.
+- `admin test` (CLI) / Settings > Test administrator access (GUI) requests elevation and pings
+  the broker - the manual check that UAC elevation works on a given machine.
 - Scope routing: machine-scope installs and defluff go to the broker; user-scope installs run
   in the unelevated process (correct profile). An installer returning "refuses to run
   elevated" (`0x8A150056`) is retried unelevated automatically.

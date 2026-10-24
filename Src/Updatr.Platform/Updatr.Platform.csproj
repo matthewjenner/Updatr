@@ -14,7 +14,21 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.WindowsPackageManager.ComInterop" />
+    <!-- GeneratePathProperty exposes $(PkgMicrosoft_WindowsPackageManager_ComInterop) for the embed below. -->
+    <PackageReference Include="Microsoft.WindowsPackageManager.ComInterop" GeneratePathProperty="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Spare copy of the WinGet metadata. It must sit beside the exe (Directory.Build.targets); if a
+      user copies only the exes to a drive, WinGetRuntime writes this back on startup.
+    -->
+    <EmbeddedResource Include="$(PkgMicrosoft_WindowsPackageManager_ComInterop)\lib\uap10.0\Microsoft.Management.Deployment.winmd"
+                      LogicalName="Updatr.WinGet.Microsoft.Management.Deployment.winmd" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Updatr.Platform.Tests" />
   </ItemGroup>
 
   <ItemGroup>

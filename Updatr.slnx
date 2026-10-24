@@ -7,5 +7,7 @@
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="Tests/Updatr.Core.Tests/Updatr.Core.Tests.csproj" />
+    <Project Path="Tests/Updatr.Platform.Tests/Updatr.Platform.Tests.csproj" />
+    <Project Path="Tests/Updatr.Cli.Tests/Updatr.Cli.Tests.csproj" />
   </Folder>
 </Solution>

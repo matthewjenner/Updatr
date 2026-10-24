@@ -1,12 +1,135 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Updatr.App.ViewModels"
+        xmlns:conv="using:Updatr.App.Converters"
         x:Class="Updatr.App.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="{Binding Title}"
         Icon="avares://Updatr/Assets/icon.ico"
-        Width="960" Height="640"
+        Width="1100" Height="720" MinWidth="760" MinHeight="480"
         WindowStartupLocation="CenterScreen">
-    <!-- Phase 0 placeholder: proves the single-file publish starts. Replaced by the shell in Phase 2. -->
-    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-        <Image Source="avares://Updatr/Assets/icon.png" Width="96" Height="96" />
-        <TextBlock x:Name="TitleText" FontSize="28" HorizontalAlignment="Center" />
-    </StackPanel>
+
+    <Window.DataTemplates>
+        <!-- One template per page ViewModel. -->
+        <DataTemplate DataType="vm:PlaceholderPageViewModel">
+            <StackPanel Margin="32" Spacing="10" MaxWidth="640" HorizontalAlignment="Left">
+                <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Opacity="0.85" />
+                <TextBlock Text="{Binding Arrives, StringFormat='Arrives in {0}.'}" Opacity="0.55" />
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate DataType="vm:LogPageViewModel">
+            <DockPanel Margin="24">
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                    <Button DockPanel.Dock="Right" Content="Clear view" Command="{Binding ClearCommand}" />
+                    <TextBlock Text="Log" FontSize="24" FontWeight="SemiBold" />
+                </DockPanel>
+                <ListBox ItemsSource="{Binding Entries}" FontFamily="Consolas,Courier New,monospace" FontSize="12">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <SelectableTextBlock Text="{Binding}" TextWrapping="NoWrap" />
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </DataTemplate>
+
+        <DataTemplate DataType="vm:SettingsPageViewModel">
+            <ScrollViewer>
+                <StackPanel Margin="24" Spacing="16" MaxWidth="900" HorizontalAlignment="Left">
+                    <TextBlock Text="Settings" FontSize="24" FontWeight="SemiBold" />
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Data folder" FontWeight="SemiBold" />
+                        <SelectableTextBlock Text="{Binding DataFolder}" Opacity="0.85" />
+                        <TextBlock Text="Carts, templates, settings, and logs live here and travel with the drive." FontSize="12" Opacity="0.6" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="This run's log" FontWeight="SemiBold" />
+                        <SelectableTextBlock Text="{Binding LogFile}" Opacity="0.85" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="App catalog" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding CatalogDescription}" TextWrapping="Wrap" Opacity="0.85" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Administrator access" FontWeight="SemiBold" />
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Button Content="Test administrator access" Command="{Binding TestAdminCommand}" />
+                            <TextBlock Text="{Binding AdminTestResult}" VerticalAlignment="Center" TextWrapping="Wrap" Opacity="0.85" />
+                        </StackPanel>
+                        <TextBlock Text="Shows one UAC prompt and checks the elevated helper that machine-wide installs and defluff use."
+                                   FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="8">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Content="Run checks again" Command="{Binding RerunChecksCommand}"
+                                    IsEnabled="{Binding !Preflight.IsRunning}" />
+                            <TextBlock Text="Machine checks" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <ItemsControl ItemsSource="{Binding Preflight.Rows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:CheckRowViewModel">
+                                    <Grid ColumnDefinitions="48,180,*" Margin="0,4">
+                                        <TextBlock Text="{Binding State, Converter={x:Static conv:CheckStateTagConverter.Instance}}"
+                                                   Foreground="{Binding State, Converter={x:Static conv:CheckStateBrushConverter.Instance}}"
+                                                   FontWeight="SemiBold" FontFamily="Consolas,Courier New,monospace" FontSize="12" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Title}" />
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" Opacity="0.85" />
+                                            <SelectableTextBlock Text="{Binding Detail}" IsVisible="{Binding Detail, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                                                 TextWrapping="Wrap" FontSize="11" Opacity="0.6" Margin="0,2,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </DataTemplate>
+    </Window.DataTemplates>
+
+    <DockPanel>
+        <!-- Banner strip: app-level state from preflight and the data folder. -->
+        <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding Banners}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:BannerViewModel">
+                    <Border Padding="16,8" BorderThickness="0,0,0,1"
+                            BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Ellipse Width="10" Height="10" VerticalAlignment="Center"
+                                     Fill="{Binding Severity, Converter={x:Static conv:CheckStateBrushConverter.Instance}}" />
+                            <TextBlock Text="{Binding Text}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Navigation. -->
+        <Border DockPanel.Dock="Left" Width="190" BorderThickness="0,0,1,0"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="16,16,16,12">
+                    <Image Source="avares://Updatr/Assets/icon.png" Width="28" Height="28" />
+                    <TextBlock Text="Updatr" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </StackPanel>
+                <ListBox ItemsSource="{Binding Navigation}" SelectedItem="{Binding SelectedNav}" Background="Transparent">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:NavItem">
+                            <TextBlock Text="{Binding Title}" Margin="4,2" />
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <ContentControl Content="{Binding CurrentPage}" />
+    </DockPanel>
 </Window>

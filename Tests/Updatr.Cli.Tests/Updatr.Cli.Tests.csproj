@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The CLI's command tree, including the GUI/CLI parity test. -->
+  <PropertyGroup>
+    <TargetFramework>$(UpdatrWindowsTfm)</TargetFramework>
+    <SupportedOSPlatformVersion>$(UpdatrMinWindows)</SupportedOSPlatformVersion>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">$(UpdatrHostRid)</RuntimeIdentifier>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="AwesomeAssertions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="AwesomeAssertions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Src\Updatr.Cli\Updatr.Cli.csproj" />
+  </ItemGroup>
+</Project>

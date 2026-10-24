@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Windows integration tests: real files, real named pipes, real processes. No network, no UAC. -->
+  <PropertyGroup>
+    <TargetFramework>$(UpdatrWindowsTfm)</TargetFramework>
+    <SupportedOSPlatformVersion>$(UpdatrMinWindows)</SupportedOSPlatformVersion>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <MicrosoftManagementDeployment-ErrorNoPlatform>false</MicrosoftManagementDeployment-ErrorNoPlatform>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="AwesomeAssertions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="AwesomeAssertions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Src\Updatr.Platform\Updatr.Platform.csproj" />
+  </ItemGroup>
+</Project>

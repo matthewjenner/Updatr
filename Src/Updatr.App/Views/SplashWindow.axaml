@@ -1,0 +1,64 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Updatr.App.ViewModels"
+        xmlns:conv="using:Updatr.App.Converters"
+        x:Class="Updatr.App.Views.SplashWindow"
+        x:DataType="vm:SplashViewModel"
+        Title="Updatr"
+        Icon="avares://Updatr/Assets/icon.ico"
+        Width="580" Height="640"
+        CanResize="False"
+        WindowDecorations="None"
+        WindowStartupLocation="CenterScreen"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent">
+    <!-- Startup splash: icon, version, what is being checked, a row per check. -->
+    <Border CornerRadius="12" Padding="28,24"
+            Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+            BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
+        <DockPanel>
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="16" Margin="0,0,0,16">
+                <Image Source="avares://Updatr/Assets/icon.png" Width="56" Height="56" />
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Title}" FontSize="26" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Version}" Opacity="0.6" />
+                </StackPanel>
+            </StackPanel>
+
+            <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,12">
+                <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
+                <ProgressBar Minimum="0"
+                             Maximum="{Binding Runner.Total, FallbackValue=1}"
+                             Value="{Binding Runner.Completed, FallbackValue=0}"
+                             IsIndeterminate="{Binding Runner, Converter={x:Static ObjectConverters.IsNull}}"
+                             Height="6" />
+            </StackPanel>
+
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
+                <Button Content="Quit" Command="{Binding QuitCommand}" />
+                <Button Content="Retry" Command="{Binding RetryCommand}" IsVisible="{Binding NeedsDecision}" />
+                <Button Content="Continue anyway" Command="{Binding ContinueCommand}" IsVisible="{Binding NeedsDecision}" Classes="accent" />
+            </StackPanel>
+
+            <ScrollViewer>
+                <ItemsControl ItemsSource="{Binding Runner.Rows, FallbackValue={x:Null}}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:CheckRowViewModel">
+                            <Grid ColumnDefinitions="48,150,*" Margin="0,3" ToolTip.Tip="{Binding Detail}">
+                                <TextBlock Text="{Binding State, Converter={x:Static conv:CheckStateTagConverter.Instance}}"
+                                           Foreground="{Binding State, Converter={x:Static conv:CheckStateBrushConverter.Instance}}"
+                                           FontWeight="SemiBold" FontFamily="Consolas,Courier New,monospace" FontSize="12" VerticalAlignment="Top" />
+                                <TextBlock Grid.Column="1" Text="{Binding Title}" VerticalAlignment="Top" />
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" Opacity="0.85" />
+                                    <TextBlock Text="{Binding Detail}" IsVisible="{Binding HasDetail}"
+                                               TextWrapping="Wrap" FontSize="11" Opacity="0.6" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </DockPanel>
+    </Border>
+</Window>
