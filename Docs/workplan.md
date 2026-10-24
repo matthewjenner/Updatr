@@ -8,8 +8,7 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Current state
 
-- **Phase:** 2 complete - host foundation. Awaiting review (and the manual admin test) before
-  Phase 3.
+- **Phase:** 2 complete - host foundation, manual elevation tests passed. Ready for Phase 3.
 - **Last updated:** 2026-10-23
 - **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (133/133 across Core,
   Platform, Cli test projects). Version 0.0.0 (never released).
@@ -85,8 +84,8 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
       `preflight` (named so instead of `doctor`, matching the splash) and `admin test`
 - [x] `Updatr.Platform.Tests` (data store, cache, broker over a real pipe, process runner) and
       `Updatr.Cli.Tests` (parity test over `[Operation]` names, command-line parsing)
-- [ ] **Manual:** `updatr-cli admin test` (or Settings > Test administrator access) - approve the
-      UAC prompt; expect "Working: elevated helper answered"
+- [x] **Manual (2026-10-23):** `updatr-cli admin test` and Settings > Test administrator access
+      both passed - UAC prompt, elevated broker answered, exited cleanly with its parent
 - Moved: run summary dialog -> Phase 3 (built with the first batch operation that fills it)
 
 ## Phase 3 - winget + Updates screen
@@ -99,6 +98,8 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 - [ ] Upgrade / reinstall / hold / unhold, batch + single
 - [ ] Collision waits (MSI mutex, winget running)
 - [ ] Run summary dialog (moved from Phase 2)
+- [ ] Broker writes its own DiagLog to the run log (today its entries stay in the elevated
+      process; needed once admin work runs there)
 - [ ] CLI: `list`, `upgrade`, `reinstall`, `hold`, `unhold`
 - [ ] Release 0.0.x preview (replaces the script)
 
