@@ -21,7 +21,17 @@ public enum LogCategory
 public sealed record LogEntry(DateTimeOffset Timestamp, LogCategory Category, LogLevel Level, string Message)
 {
     public override string ToString()
-        => string.Create(CultureInfo.InvariantCulture, $"{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level,-7}] {Category,-9} {Message}");
+        => string.Create(CultureInfo.InvariantCulture, $"{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Center(Level.ToString(), LevelWidth)}] {Category,-9} {Message}");
+
+    /// <summary>Wide enough for the longest level ("Warning") with a space each side.</summary>
+    private const int LevelWidth = 9;
+
+    /// <summary>Centers the text in a fixed width (an odd leftover space goes on the right).</summary>
+    public static string Center(string text, int width)
+    {
+        int left = Math.Max(0, (width - text.Length) / 2);
+        return (new string(' ', left) + text).PadRight(width);
+    }
 }
 
 /// <summary>

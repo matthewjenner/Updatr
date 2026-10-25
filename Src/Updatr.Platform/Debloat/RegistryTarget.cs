@@ -107,6 +107,12 @@ public sealed class RegistryTarget(ElevationService elevation) : IDebloatTarget
             write();
             return PackageOutcome.Ok();
         }
+        catch (UnauthorizedAccessException) when (Windows.WindowsInfo.IsElevated)
+        {
+            // Administrators may write here by the ACL, so a refusal comes from Windows itself -
+            // the User Choice Protection driver guards a few settings (Widgets, default apps).
+            return PackageOutcome.Failed($"Windows blocks changes to {r.Name}, even for administrators (it protects this setting)");
+        }
         catch (Exception ex) when (ex is UnauthorizedAccessException or SecurityException or IOException)
         {
             return PackageOutcome.Failed($"Could not write {r.Name}: {ex.Message}");

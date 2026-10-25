@@ -463,15 +463,14 @@
       "group": "optional",
       "category": "Windows features",
       "title": "Widgets and news feed",
-      "description": "Turns off the Widgets board and its taskbar weather / news button.",
+      "description": "Removes the Widgets board (the Windows Web Experience Pack) and with it the taskbar weather / news button.",
+      "warning": "Lock screen weather and other lock screen widgets go too.",
       "minBuild": 22000,
       "actions": [
         {
-          "$type": "registry",
-          "hive": "hklm",
-          "key": "SOFTWARE\\Policies\\Microsoft\\Dsh",
-          "name": "AllowNewsAndInterests",
-          "dword": 0
+          "$type": "appx",
+          "name": "MicrosoftWindows.Client.WebExperience",
+          "storeId": "9MSSGKG348SP"
         }
       ]
     },
@@ -790,7 +789,6 @@
     "Microsoft.ApplicationCompatibilityEnhancements",
     "Microsoft.WidgetsPlatformRuntime",
     "Microsoft.StartExperiencesApp",
-    "MicrosoftWindows.Client.WebExperience",
     "MicrosoftWindows.CrossDevice",
     "Microsoft.LanguageExperiencePack*",
     "MicrosoftWindows.Speech.*",

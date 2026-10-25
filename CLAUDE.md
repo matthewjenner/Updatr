@@ -150,6 +150,10 @@ dotnet test                         # MTP runner (global.json)
 - **Leftovers are never deleted, only quarantined,** and only within `LeftoverSafety`. A new place
   to look must also pass `LeftoverRules.IsOfferableFolder` / `LeftoverSafety.Problem` and get tests
   in `LeftoverTests`.
+- **Keep winget COM load low.** Two listing workers, one connection each; lookups serialized
+  (`WinGetComSource.DefaultParallelism`). Heavier load preceded three 0x153 bugchecks on the dev
+  machine (a driver bug, triggered by it). And never kill an Updatr process mid-listing in
+  testing (`| head`): write output to a file instead.
 - **Do not trim.** WinRT.Runtime and the Windows SDK projection are not trim-safe (IL2104). Publish
   is single-file + compressed, untrimmed.
 - **Version 0.0.0 never releases.** CI builds, tests, and packages it, but the release step is

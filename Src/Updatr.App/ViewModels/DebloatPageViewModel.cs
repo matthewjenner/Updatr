@@ -148,7 +148,8 @@ public sealed partial class DebloatPageViewModel(UpdatrHost host, IDialogService
     private async Task RefreshAsync()
     {
         IsBusy = true;
-        BusyText = "Checking what is applied on this PC...";
+        const string checking = "Checking what is applied on this PC...";
+        BusyText = checking;
 
         try
         {
@@ -165,6 +166,10 @@ public sealed partial class DebloatPageViewModel(UpdatrHost host, IDialogService
         finally
         {
             IsBusy = false;
+
+            // Only clear our own message; an apply's result line stays visible.
+            if (BusyText == checking)
+                BusyText = string.Empty;
         }
     }
 

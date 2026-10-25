@@ -289,16 +289,22 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Known edges
 
-- **2026-10-23 bugcheck 0x153 on the dev machine (investigated, not attributed to Updatr).**
-  KERNEL_LOCK_ENTRY_LEAKED_ON_THREAD_TERMINATION: a user-mode thread exited while a file-system
-  filter still held a Filter Manager stream-list lock (lock sits beside
-  `FLTMGR!DeleteStreamListCtrlCallback`). The minidump cannot name the owning process. Loaded
-  minifilters were Microsoft's (Defender, cloud files, bindflt, wcifs, Wof, UnionFS) plus Gaming
-  Services' `gameflt`; anti-cheat drivers (BattlEye, EAC) were not loaded. The machine was also
-  mid-servicing (reboot pending). User-mode code cannot leak a kernel lock entry, so this is a
-  driver bug; Updatr's heavy winget listing (8 parallel queries) was the last thing it ran
-  ~8 min earlier and could at most have been a trigger. If it recurs during an Updatr run:
-  lower `WinGetComSource` parallelism and capture a kernel (not mini) dump.
+- **Bugcheck 0x153 on the dev machine, three times (2026-10-23 21:09, 10-24 04:12, 10-25 13:36).**
+  KERNEL_LOCK_ENTRY_LEAKED_ON_THREAD_TERMINATION, identical each time: a thread exited while the
+  kernel still tracked a Filter Manager stream-list lock (`FLTMGR!DeleteStreamListCtrlCallback`).
+  The 10-25 dump names the thread: a thread-pool worker of `WindowsPackageManagerServer.exe`
+  (winget's COM server); 10-24 has the same thread start offsets, 12 minutes after the dev GUI had
+  used the server. Each crash followed Updatr driving winget hard - 8 parallel listing queries,
+  each opening its own composite catalog (and on 10-25 two runs killed mid-listing by `| head`).
+  In every boot BattlEye's `BEDaisy.sys` had been loaded and unloaded earlier (a game played and
+  closed) - the prime suspect for leaving Filter Manager in a bad state; a minidump cannot prove
+  it. User-mode code cannot leak a kernel lock entry: the bug is in a driver; Updatr's load was
+  the trigger. Mitigations (in Updatr's control): listing uses 2 workers with one catalog
+  connection each for the whole run; single-package lookups share one cached connection, one at
+  a time; the CLI survives a closed output pipe and gives Ctrl+C 60 s to let queries finish. A
+  full listing afterwards on a clean boot (BattlEye not loaded): 461 packages, 50 s, no crash.
+  Next occurrence: switch the PC to "Automatic memory dump" (it was set to small dumps) so the
+  kernel dump shows the lock's owner.
 
 - ARM64 untested on hardware.
 - Unsigned binaries: SmartScreen / Defender warnings.
@@ -333,6 +339,10 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
   the source-generated deserializer assigns omitted init properties null, wiping defaults.
 - **2026-10-23** - Computed members on polymorphic source refs live in the base as a switch:
   `[JsonIgnore]` on an abstract member does not apply to its overrides, which leaked into JSON.
+- **2026-10-25** - winget COM load is kept low on purpose: 2 listing workers (was 8), one catalog
+  connection per worker for the whole listing (was one per query), lookups serialized through one
+  cached connection. A full listing takes about 50 s here with these settings; the load preceded three 0x153
+  bugchecks (Known edges). Do not raise it back without a reason and a kernel dump in hand.
 - **2026-10-25** - Many uninstallers return at once and finish in the background (SumatraPDF:
   the first scan listed its install folder and uninstall key, both gone seconds later). The scan
   now waits up to 60 s for the app's Uninstall key to go, and the review list re-checks every item.

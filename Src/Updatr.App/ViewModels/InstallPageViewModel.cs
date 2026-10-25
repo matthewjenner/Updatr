@@ -234,7 +234,7 @@ public sealed partial class InstallPageViewModel : PageViewModel
         foreach (CatalogRowViewModel row in Apps)
             row.Installed = "checking...";
 
-        await Parallel.ForEachAsync(Apps.ToList(), new ParallelOptions { MaxDegreeOfParallelism = 4 }, async (row, ct) =>
+        await Parallel.ForEachAsync(Apps.ToList(), new ParallelOptions { MaxDegreeOfParallelism = Platform.WinGet.WinGetComSource.DefaultParallelism }, async (row, ct) =>
         {
             bool installed = await _host.IsInstalledAsync(row.App, ct);
             Avalonia.Threading.Dispatcher.UIThread.Post(() => row.Installed = installed ? "Installed" : string.Empty);

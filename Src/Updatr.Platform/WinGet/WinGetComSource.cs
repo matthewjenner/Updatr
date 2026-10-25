@@ -16,9 +16,16 @@ namespace Updatr.Platform.WinGet;
 /// <para>
 /// <b>Listing is partitioned.</b> One bad manifest in the community index makes a single "list
 /// everything" query fail outright (<c>0x80070057</c>, reproduced in Phase 0). So installed packages
-/// are queried in groups by the first letter of their name, in parallel; results stream out per
-/// group; a failing group is split by its first two letters; and only the packages in a group that
-/// still fails are listed with "could not check". One broken entry costs a handful of rows.
+/// are queried in groups by the first letter of their name; results stream out per group; a failing
+/// group is split by its first two letters; and only the packages in a group that still fails are
+/// listed with "could not check". One broken entry costs a handful of rows.
+/// </para>
+/// <para>
+/// <b>Gently, though.</b> Two workers, each with one catalog connection for the whole listing.
+/// Phase 9 finding: three bugchecks (0x153, a Filter Manager lock leaked when a thread of winget's
+/// COM server exited) each followed a listing that ran eight parallel queries, each opening its own
+/// composite catalog - a burst of index-file opens and server worker threads. The kernel bug is
+/// not ours, but this is the load that set it off.
 /// </para>
 /// <para>
 /// <b>Machine-wide packages upgrade in the elevated broker</b> when one is available: one UAC
@@ -26,9 +33,12 @@ namespace Updatr.Platform.WinGet;
 /// to run elevated, falls back to running here (the installer may then prompt by itself).
 /// </para>
 /// </remarks>
-public sealed class WinGetComSource(ElevationService? elevation, int parallelism = 8) : IPackageSource
+public sealed class WinGetComSource(ElevationService? elevation, int parallelism = WinGetComSource.DefaultParallelism) : IPackageSource
 {
     public const string SourceId = "winget";
+
+    /// <summary>Concurrent queries against winget's COM server while listing. Keep low - see the remarks.</summary>
+    public const int DefaultParallelism = 2;
 
     /// <summary>Broker request type for an elevated upgrade/reinstall.</summary>
     public const string BrokerRunType = "winget-run";
@@ -48,16 +58,51 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
         await producer.ConfigureAwait(false);
     }
 
-    public Task<InstalledPackage?> FindInstalledAsync(string id, CancellationToken cancellationToken)
-        => Task.Run(() =>
+    /// <summary>One lookup at a time, through one catalog connection reused for a while (see the remarks).</summary>
+    private readonly SemaphoreSlim _lookupGate = new(1, 1);
+    private static readonly TimeSpan LookupConnectionLifetime = TimeSpan.FromMinutes(5);
+    private PackageCatalog? _lookupCatalog;
+    private DateTime _lookupCatalogAt;
+
+    public async Task<InstalledPackage?> FindInstalledAsync(string id, CancellationToken cancellationToken)
+    {
+        await _lookupGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+        try
         {
-            CatalogPackage? package = FindCatalogPackage(WinGetRuntime.CreatePackageManager(), id, out FindPackagesResultStatus status);
+            return await Task.Run(() =>
+            {
+                if (_lookupCatalog is null || DateTime.UtcNow - _lookupCatalogAt > LookupConnectionLifetime)
+                {
+                    _lookupCatalog = ConnectComposite(WinGetRuntime.CreatePackageManager());
+                    _lookupCatalogAt = DateTime.UtcNow;
+                }
 
-            if (status != FindPackagesResultStatus.Ok)
-                throw new PackageSourceException($"winget could not look up '{id}' ({status}) - its index may have a broken entry for this package.");
+                CatalogPackage? package;
+                FindPackagesResultStatus status;
 
-            return package is null ? null : Map(package);
-        }, cancellationToken);
+                try
+                {
+                    package = FindCatalogPackage(_lookupCatalog, id, out status);
+                }
+                catch (System.Runtime.InteropServices.COMException)
+                {
+                    // The server recycled the connection: drop it, and let the next lookup reconnect.
+                    _lookupCatalog = null;
+                    throw;
+                }
+
+                if (status != FindPackagesResultStatus.Ok)
+                    throw new PackageSourceException($"winget could not look up '{id}' ({status}) - its index may have a broken entry for this package.");
+
+                return package is null ? null : Map(package);
+            }, CancellationToken.None).ConfigureAwait(false);
+        }
+        finally
+        {
+            _lookupGate.Release();
+        }
+    }
 
     public Task<PackageOutcome> UpgradeAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
         => RunAsync(package, reinstall: false, sink, cancellationToken);
@@ -472,26 +517,39 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
                 await output.WriteAsync(package, cancellationToken).ConfigureAwait(false);
             }
 
-            await Parallel.ForEachAsync(groups, new ParallelOptions { MaxDegreeOfParallelism = parallelism, CancellationToken = cancellationToken }, async (group, ct) =>
+            // A fixed set of workers, each holding one catalog connection for the whole listing,
+            // pulling groups off a shared queue. In-flight queries always finish: cancellation is
+            // only checked between groups.
+            System.Collections.Concurrent.ConcurrentQueue<IGrouping<string, LocalEntry>> queue = new(groups);
+
+            async Task WorkAsync()
             {
-                if (!await TryQueryAsync(group.Key, Emit, ct).ConfigureAwait(false))
+                PackageCatalog catalog = ConnectComposite(WinGetRuntime.CreatePackageManager());
+
+                while (!cancellationToken.IsCancellationRequested && queue.TryDequeue(out IGrouping<string, LocalEntry>? group))
                 {
-                    // Split the failing group by its first two letters and try each part.
-                    foreach (IGrouping<string, LocalEntry> part in group.GroupBy(l => Prefix(l.Name, 2)))
+                    if (!await TryQueryAsync(catalog, group.Key, Emit).ConfigureAwait(false))
                     {
-                        if (await TryQueryAsync(part.Key, Emit, ct).ConfigureAwait(false))
-                            continue;
+                        // Split the failing group by its first two letters and try each part.
+                        foreach (IGrouping<string, LocalEntry> part in group.GroupBy(l => Prefix(l.Name, 2)))
+                        {
+                            if (await TryQueryAsync(catalog, part.Key, Emit).ConfigureAwait(false))
+                                continue;
 
-                        DiagLog.WinGetPartitionFailed(part.Key, part.Count());
+                            DiagLog.WinGetPartitionFailed(part.Key, part.Count());
 
-                        foreach (LocalEntry entry in part)
-                            await Emit(entry.ToUncheckedPackage()).ConfigureAwait(false);
+                            foreach (LocalEntry entry in part)
+                                await Emit(entry.ToUncheckedPackage()).ConfigureAwait(false);
+                        }
                     }
-                }
 
-                int completed = Interlocked.Increment(ref done);
-                sink.Report(new ProgressReported(null, (double)completed / groups.Count, Message: $"winget: checked {completed} of {groups.Count} groups"));
-            }).ConfigureAwait(false);
+                    int completed = Interlocked.Increment(ref done);
+                    sink.Report(new ProgressReported(null, (double)completed / groups.Count, Message: $"winget: checked {completed} of {groups.Count} groups"));
+                }
+            }
+
+            await Task.WhenAll(Enumerable.Range(0, Math.Clamp(parallelism, 1, Math.Max(1, groups.Count))).Select(_ => Task.Run(WorkAsync, CancellationToken.None))).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
 
             output.Complete();
         }
@@ -501,12 +559,8 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
         }
     }
 
-    private static async Task<bool> TryQueryAsync(string prefix, Func<InstalledPackage, ValueTask> emit, CancellationToken cancellationToken)
+    private static async Task<bool> TryQueryAsync(PackageCatalog catalog, string prefix, Func<InstalledPackage, ValueTask> emit)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        // A composite catalog per query: they are cheap, and independent ones parallelize cleanly.
-        PackageCatalog catalog = ConnectComposite(WinGetRuntime.CreatePackageManager());
         FindPackagesOptions options = new();
         options.Filters.Add(new PackageMatchFilter { Field = PackageMatchField.Name, Option = PackageFieldMatchOption.StartsWithCaseInsensitive, Value = prefix });
         FindPackagesResult result = catalog.FindPackages(options);
@@ -558,10 +612,13 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
     }
 
     private static CatalogPackage? FindCatalogPackage(PackageManager manager, string id, out FindPackagesResultStatus status)
+        => FindCatalogPackage(ConnectComposite(manager), id, out status);
+
+    private static CatalogPackage? FindCatalogPackage(PackageCatalog catalog, string id, out FindPackagesResultStatus status)
     {
         FindPackagesOptions options = new();
         options.Filters.Add(new PackageMatchFilter { Field = PackageMatchField.Id, Option = PackageFieldMatchOption.EqualsCaseInsensitive, Value = id });
-        FindPackagesResult result = ConnectComposite(manager).FindPackages(options);
+        FindPackagesResult result = catalog.FindPackages(options);
         status = result.Status;
 
         if (status != FindPackagesResultStatus.Ok)
