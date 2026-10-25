@@ -263,13 +263,27 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ---
 
+## Polish (after 0.2.0)
+
+- [x] Kinds: every installed package is an App, Game, Runtime & SDK, Driver & hardware, Windows
+      component, or Developer package (`AppKinds`, rules fitted to a 461-package machine, tested)
+- [x] Filter chips, multi-select: OR within a group, AND across groups, counts per chip, Clear;
+      Updates (Status / Kind / Source - Status replaces "Updates only"), Uninstall (Kind / Source),
+      Install (Category / Installed)
+- [x] CLI parity: `list --kind <k>... --source <s>...`; `--json` rows carry kind, publisher, managedBy
+- [x] Uninstall shows what it will not remove (launcher games, winget) with the reason; not selectable
+- [x] Log page: columns with a centered, colored level; the log file centers the level too
+- [x] Widgets debloat item removes the Web Experience Pack (the policy key is UCPD-protected)
+- [x] winget COM load lowered after three 0x153 bugchecks (see Known edges)
+- [ ] **Manual:** look over the chips on Updates, Install, and Uninstall
+- [ ] Release 0.2.1 (version bumped)
+
 ## Backlog
 
-- **Uninstall / Updates list organization (polish):** 464 rows with nothing telling a Windows
-  component from a game, a runtime, a driver panel, or a launcher's item. Add kind tags and
-  filters (Windows / Microsoft, games + launcher, runtimes and redistributables, drivers and
-  hardware tools, apps), group or filter by them, and say up front what cannot be removed from
-  here. User feedback 2026-10-24.
+- Duplicate rows for one app: winget lists a Store app twice (its MSIX entry and its msstore
+  entry, e.g. "AV1 Video Extension"). Merge them into one row.
+- Escape from Tarkov and other launcher games outside the known launchers show as apps; add the
+  Battlestate launcher to `LauncherDetector`.
 - NVIDIA App in the catalog - not in winget and no stable "latest" download link; needs a
   direct-URL resolver for NVIDIA's versioned URLs.
 - VS Code extensions show their id as the name on the Updates screen; use the Marketplace display

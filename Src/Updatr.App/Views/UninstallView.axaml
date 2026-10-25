@@ -3,6 +3,7 @@
              xmlns:vm="using:Updatr.App.ViewModels"
              xmlns:conv="using:Updatr.App.Converters"
              xmlns:b="using:Updatr.App.Behaviors"
+             xmlns:views="using:Updatr.App.Views"
              x:Class="Updatr.App.Views.UninstallView"
              x:DataType="vm:UninstallPageViewModel">
     <DockPanel Margin="20,16">
@@ -22,6 +23,8 @@
                         </StackPanel>
                     </DockPanel>
 
+                    <views:FilterBarView DockPanel.Dock="Top" DataContext="{Binding Filters}" Margin="0,0,0,6" />
+
                     <TextBlock DockPanel.Dock="Top" Margin="0,0,0,8" FontSize="12" Opacity="0.6" TextWrapping="Wrap"
                                Text="Click rows to select them. Each app's own uninstaller runs, one at a time; afterwards Updatr looks for what it left behind (see Leftovers)." />
 
@@ -39,13 +42,14 @@
                             <DataGridTextColumn x:DataType="vm:PackageRowViewModel" Header="Name" Binding="{Binding Name}" Width="2*" IsReadOnly="True" />
                             <DataGridTextColumn x:DataType="vm:PackageRowViewModel" Header="Publisher" Binding="{Binding Publisher}" Width="1.3*" IsReadOnly="True" />
                             <DataGridTextColumn x:DataType="vm:PackageRowViewModel" Header="Version" Binding="{Binding Installed}" Width="*" IsReadOnly="True" />
-                            <DataGridTextColumn x:DataType="vm:PackageRowViewModel" Header="Source" Binding="{Binding Catalog}" Width="*" IsReadOnly="True" />
+                            <DataGridTextColumn x:DataType="vm:PackageRowViewModel" Header="Kind" Binding="{Binding KindLabel}" Width="*" IsReadOnly="True" />
+                            <DataGridTextColumn x:DataType="vm:PackageRowViewModel" Header="Source" Binding="{Binding SourceKey}" Width="*" IsReadOnly="True" />
                             <DataGridTextColumn x:DataType="vm:PackageRowViewModel" Header="Id" Binding="{Binding Id}" Width="1.5*" IsReadOnly="True" />
                             <DataGridTemplateColumn Header="Activity" Width="2*" CanUserSort="False">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate x:DataType="vm:PackageRowViewModel">
-                                        <StackPanel VerticalAlignment="Center" Margin="8,0" ToolTip.Tip="{Binding Activity}">
-                                            <TextBlock Text="{Binding Activity}" TextTrimming="CharacterEllipsis"
+                                        <StackPanel VerticalAlignment="Center" Margin="8,0" ToolTip.Tip="{Binding ActivityOrNote}">
+                                            <TextBlock Text="{Binding ActivityOrNote}" TextTrimming="CharacterEllipsis"
                                                        Foreground="{Binding Kind, Converter={x:Static conv:RowStatusBrushConverter.Instance}}" />
                                             <ProgressBar Minimum="0" Maximum="1" Height="3" Value="{Binding Progress, FallbackValue=0}"
                                                          IsVisible="{Binding Progress, Converter={x:Static ObjectConverters.IsNotNull}}" />

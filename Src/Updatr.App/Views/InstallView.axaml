@@ -3,18 +3,15 @@
              xmlns:vm="using:Updatr.App.ViewModels"
              xmlns:conv="using:Updatr.App.Converters"
              xmlns:b="using:Updatr.App.Behaviors"
+             xmlns:views="using:Updatr.App.Views"
              x:Class="Updatr.App.Views.InstallView"
              x:DataType="vm:InstallPageViewModel">
-    <Grid ColumnDefinitions="130,*,350" Margin="20,16">
-        <!-- Categories. -->
-        <DockPanel Grid.Column="0" Margin="0,0,12,0">
-            <TextBlock DockPanel.Dock="Top" Text="Install" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,12" />
-            <ListBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" Background="Transparent" />
-        </DockPanel>
-
-        <!-- The catalog: check apps into the cart. -->
-        <DockPanel Grid.Column="1" Margin="0,0,16,0">
-            <TextBox DockPanel.Dock="Top" PlaceholderText="Search apps" Text="{Binding SearchText}" Margin="0,44,0,4" />
+    <Grid ColumnDefinitions="*,350" Margin="20,16">
+        <!-- The catalog: click apps into the cart. -->
+        <DockPanel Grid.Column="0" Margin="0,0,16,0">
+            <TextBlock DockPanel.Dock="Top" Text="Install" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,10" />
+            <views:FilterBarView DockPanel.Dock="Top" DataContext="{Binding Filters}" Margin="0,0,0,4" />
+            <TextBox DockPanel.Dock="Top" PlaceholderText="Search apps" Text="{Binding SearchText}" Margin="0,0,0,4" />
             <TextBlock DockPanel.Dock="Top" Text="Click an app to add it to the cart; click again to remove it." FontSize="12" Opacity="0.6" Margin="0,0,0,8" />
             <DataGrid ItemsSource="{Binding AppsView}" b:RowSelection.Enabled="True" IsReadOnly="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" CanUserSortColumns="True">
                 <DataGrid.Columns>
@@ -33,7 +30,7 @@
         </DockPanel>
 
         <!-- Templates and the cart. -->
-        <Border Grid.Column="2" BorderThickness="1,0,0,0" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" Padding="16,0,0,0">
+        <Border Grid.Column="1" BorderThickness="1,0,0,0" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" Padding="16,0,0,0">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top" Spacing="8">
                     <Border IsVisible="{Binding IsEditingTemplate}" Padding="10" CornerRadius="6" Background="#33D49A1A">

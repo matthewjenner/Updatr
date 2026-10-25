@@ -9,6 +9,9 @@ namespace Updatr.Core.Packages;
 /// <summary>An installed package and, if it is held, why.</summary>
 public sealed record ListedPackage(InstalledPackage Package, HoldMatch? Hold)
 {
+    /// <summary>What sort of package it is (app, game, runtime, ...), for filters.</summary>
+    public AppKind Kind { get; } = AppKinds.Classify(Package);
+
     public bool IsHeld => Hold?.Rule.Behavior == HoldBehavior.Hold;
 
     public bool IsStoreManaged => Hold?.Rule.Behavior == HoldBehavior.StoreManaged;
@@ -20,10 +23,11 @@ public sealed record ListedPackage(InstalledPackage Package, HoldMatch? Hold)
 /// <summary>A package was found while listing. Front ends add its row immediately.</summary>
 public sealed record PackageListed(ListedPackage Listed) : OperationEvent;
 
-/// <summary>What to list.</summary>
+/// <summary>What to list. Each filter is "any of these"; empty or null means no filter.</summary>
 /// <param name="UpdatesOnly">Only packages with an update available.</param>
-/// <param name="Source">Only this source; null for all.</param>
-public sealed record ListRequest(bool UpdatesOnly = false, string? Source = null);
+/// <param name="Sources">Only these sources (winget, npm, ...); sources not named are not even queried.</param>
+/// <param name="Kinds">Only these kinds (apps, games, ...).</param>
+public sealed record ListRequest(bool UpdatesOnly = false, IReadOnlyList<string>? Sources = null, IReadOnlyList<AppKind>? Kinds = null);
 
 /// <summary>Everything a run did, for the summary dialog and the CLI's last lines.</summary>
 public sealed record RunSummary(string Action, IReadOnlyList<ItemFinished> Items, TimeSpan Duration)
@@ -47,7 +51,7 @@ public sealed class ListPackages(IReadOnlyList<IPackageSource> sources, Func<Can
         Lock gate = new();
 
         await Task.WhenAll(sources
-            .Where(s => request.Source is null || string.Equals(s.Id, request.Source, StringComparison.OrdinalIgnoreCase))
+            .Where(s => request.Sources is not { Count: > 0 } sources || sources.Contains(s.Id, StringComparer.OrdinalIgnoreCase))
             .Select(async source =>
             {
                 sink.Report(new StepStarted($"Checking {source.Id}"));
@@ -58,6 +62,9 @@ public sealed class ListPackages(IReadOnlyList<IPackageSource> sources, Func<Can
                         continue;
 
                     ListedPackage listed = new(package, policy.Match(package.Source, package.Id));
+
+                    if (request.Kinds is { Count: > 0 } kinds && !kinds.Contains(listed.Kind))
+                        continue;
 
                     lock (gate)
                         all.Add(listed);

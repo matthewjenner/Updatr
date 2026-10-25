@@ -75,15 +75,23 @@ public static class CliApp
     private static Command ListCommand()
     {
         Option<bool> updates = new("--updates", "-u") { Description = "Only packages with an update available." };
-        Option<string?> source = new("--source") { Description = "Only this source (winget)." };
+        Option<string[]> source = new("--source") { Description = "Only these sources: winget, npm, pipx, dotnetTool, psGallery, vscode (repeatable).", AllowMultipleArgumentsPerToken = true };
+        Option<string[]> kind = new("--kind") { Description = "Only these kinds: apps, games, runtimes, drivers, windows, developer (repeatable).", AllowMultipleArgumentsPerToken = true };
 
         Command command = new("list", "List installed packages, their versions, available updates, and holds.");
         command.Options.Add(updates);
         command.Options.Add(source);
+        command.Options.Add(kind);
 
         command.SetAction((parse, cancellationToken) => RunAsync(parse, cancellationToken, async (host, sink) =>
         {
-            IReadOnlyList<ListedPackage> packages = await host.List.RunAsync(new ListRequest(parse.GetValue(updates), parse.GetValue(source)), sink, cancellationToken).ConfigureAwait(false);
+            List<AppKind> kinds = [];
+
+            foreach (string name in parse.GetValue(kind) ?? [])
+                kinds.Add(AppKinds.FromCliName(name) ?? throw new ArgumentException($"Unknown kind '{name}'. Use: apps, games, runtimes, drivers, windows, developer."));
+
+            ListRequest request = new(parse.GetValue(updates), parse.GetValue(source) is { Length: > 0 } sources ? sources : null, kinds.Count > 0 ? kinds : null);
+            IReadOnlyList<ListedPackage> packages = await host.List.RunAsync(request, sink, cancellationToken).ConfigureAwait(false);
             sink.Table(packages);
             return packages.Any(p => p.Package.CheckProblem is not null) ? ExitCodes.Failed : ExitCodes.Ok;
         }));

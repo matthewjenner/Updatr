@@ -29,6 +29,14 @@
             <Setter Property="Opacity" Value="0.6" />
         </Style>
 
+        <!-- Filter chips: rounded toggles; on = accent. -->
+        <Style Selector="ToggleButton.chip">
+            <Setter Property="Padding" Value="10,3" />
+            <Setter Property="Margin" Value="0,0,6,4" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+
         <!-- Confidence tags on leftovers. -->
         <Style Selector="TextBlock.tag">
             <Setter Property="FontSize" Value="11" />

@@ -29,6 +29,8 @@ public sealed partial class UninstallPageViewModel : PageViewModel
         _dialogs = dialogs;
         Leftovers = new LeftoversViewModel(host, dialogs);
         View = new DataGridCollectionView(Rows) { Filter = Matches };
+        Filters = new FilterBarViewModel(PackageFilters.KindGroup(), PackageFilters.SourceGroup());
+        Filters.Changed += View.Refresh;
         View.SortDescriptions.Add(DataGridSortDescription.FromPath(nameof(PackageRowViewModel.Name), System.ComponentModel.ListSortDirection.Ascending));
     }
 
@@ -39,6 +41,9 @@ public sealed partial class UninstallPageViewModel : PageViewModel
     public DataGridCollectionView View { get; }
 
     public LeftoversViewModel Leftovers { get; }
+
+    /// <summary>Kind and Source chips.</summary>
+    public FilterBarViewModel Filters { get; }
 
     /// <summary>0 = installed apps, 1 = leftovers.</summary>
     [ObservableProperty]
@@ -165,7 +170,14 @@ public sealed partial class UninstallPageViewModel : PageViewModel
 
                 if (!_byKey.ContainsKey(key))
                 {
-                    PackageRowViewModel row = new(listed.Listed);
+                    // Shown, but not selectable: what Updatr will not remove, with where to do it instead.
+                    string? blocked = listed.Listed.Package switch
+                    {
+                        { ManagedBy: { } launcher } => $"Managed by {launcher} - uninstall it there",
+                        { Id: "Microsoft.AppInstaller" } => "Updatr needs winget (App Installer)",
+                        _ => null,
+                    };
+                    PackageRowViewModel row = new(listed.Listed) { CanSelect = blocked is null, Note = blocked };
                     row.PropertyChanged += (_, e) =>
                     {
                         if (e.PropertyName == nameof(PackageRowViewModel.IsSelected))
@@ -202,6 +214,7 @@ public sealed partial class UninstallPageViewModel : PageViewModel
 
     private bool Matches(object item)
         => item is PackageRowViewModel row
+            && Filters.Matches(row)
             && (SearchText.Length == 0
                 || row.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase)
                 || row.Id.Contains(SearchText, StringComparison.OrdinalIgnoreCase)
@@ -211,6 +224,7 @@ public sealed partial class UninstallPageViewModel : PageViewModel
     {
         int selected = Rows.Count(r => r.IsSelected);
         Counts = string.Create(CultureInfo.CurrentCulture, $"{Rows.Count} installed - {selected} selected");
+        Filters.Recount([.. Rows]);
         UninstallText = selected == 0 ? "Uninstall selected" : $"Uninstall {selected} selected";
     }
 

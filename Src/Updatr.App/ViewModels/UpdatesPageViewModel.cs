@@ -29,6 +29,16 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
         _host = host;
         _dialogs = dialogs;
         View = new DataGridCollectionView(Rows) { Filter = Matches };
+
+        // Status starts on "something to do" - what "Updates only" used to show.
+        _status = new FilterGroupViewModel("Status",
+            [("update", "Update available"), ("fresh", "Needs fresh install"), ("problem", "Could not check"), ("held", "Held / self-updating"),
+             ("store", "Updates via Store"), ("launcher", "Managed by launcher"), ("current", "Up to date")],
+            r => ((PackageRowViewModel)r).StatusKey, "update", "fresh", "problem");
+        _kind = PackageFilters.KindGroup();
+        _source = PackageFilters.SourceGroup();
+        Filters = new FilterBarViewModel(_status, _kind, _source);
+        Filters.Changed += View.Refresh;
         View.SortDescriptions.Add(DataGridSortDescription.FromPath(nameof(PackageRowViewModel.Name), System.ComponentModel.ListSortDirection.Ascending));
     }
 
@@ -38,21 +48,15 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
 
     public DataGridCollectionView View { get; }
 
-    [ObservableProperty]
-    public partial bool ShowUpdatesOnly { get; set; } = true;
+    private readonly FilterGroupViewModel _status;
+    private readonly FilterGroupViewModel _kind;
+    private readonly FilterGroupViewModel _source;
+
+    /// <summary>Status, Kind, and Source chips.</summary>
+    public FilterBarViewModel Filters { get; }
 
     [ObservableProperty]
     public partial string SearchText { get; set; } = string.Empty;
-
-    /// <summary>Source filter choices: "All sources", then each source as the grid's Source column names it.</summary>
-    public IReadOnlyList<string> SourceChoices { get; } = [AllSources, "winget", "npm", "pipx", "dotnet tool", "PSGallery", "VS Code"];
-
-    private const string AllSources = "All sources";
-
-    [ObservableProperty]
-    public partial string SourceFilter { get; set; } = AllSources;
-
-    partial void OnSourceFilterChanged(string value) => View.Refresh();
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RefreshCommand), nameof(UpgradeCheckedCommand), nameof(UpgradeAllCommand), nameof(ReinstallCheckedCommand), nameof(HoldCheckedCommand), nameof(UnholdCheckedCommand), nameof(CancelCommand))]
@@ -68,8 +72,6 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
     public partial string Counts { get; set; } = string.Empty;
 
     private bool Idle => !IsBusy;
-
-    partial void OnShowUpdatesOnlyChanged(bool value) => View.Refresh();
 
     partial void OnSearchTextChanged(string value) => View.Refresh();
 
@@ -261,18 +263,8 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
         if (item is not PackageRowViewModel row)
             return false;
 
-        // "Updates only": something newer exists, the check failed, or this run touched the row.
-        // Launcher-managed games without a known update are just inventory, so they are hidden too.
-        if (ShowUpdatesOnly)
-        {
-            InstalledPackage p = row.Listed.Package;
-            bool relevant = p.HasUpdate || p.NewerVersionNeedsFreshInstall is not null || p.CheckProblem is not null || row.Outcome is not null;
-
-            if (!relevant)
-                return false;
-        }
-
-        if (SourceFilter != AllSources && !SourceMatches(row.Listed.Package, SourceFilter))
+        // A row this run touched stays visible whatever its new status, so its result can be read.
+        if (!(row.Outcome is not null || _status.Matches(row)) || !_kind.Matches(row) || !_source.Matches(row))
             return false;
 
         return SearchText.Length == 0
@@ -280,19 +272,13 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
             || row.Id.Contains(SearchText, StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>winget rows carry their catalog (winget / msstore) or launcher; the others carry their ecosystem's name.</summary>
-    private static bool SourceMatches(InstalledPackage package, string filter)
-        => filter == "winget"
-            ? package.Source == "winget"
-            : string.Equals(package.Catalog, filter, StringComparison.OrdinalIgnoreCase)
-              || (package.Catalog?.StartsWith(filter + " ", StringComparison.OrdinalIgnoreCase) ?? false);
-
     private void UpdateCounts()
     {
         int updates = Rows.Count(r => r.Listed.Package.HasUpdate && r.Listed.Package.ManagedBy is null);
         int held = Rows.Count(r => r.Listed.IsHeld || r.Listed.IsExplicitOnly);
         int launcher = Rows.Count(r => r.Listed.Package.ManagedBy is not null);
         Counts = string.Create(CultureInfo.CurrentCulture, $"{Rows.Count} installed - {updates} with updates - {held} held - {launcher} managed by game launchers");
+        Filters.Recount([.. Rows]);
     }
 
     private static string Describe(ProgressReported p)

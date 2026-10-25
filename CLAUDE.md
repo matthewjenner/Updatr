@@ -190,7 +190,12 @@ dotnet test                         # MTP runner (global.json)
   CLI command exists.
 - **Add an ecosystem source:** derive `ToolSource` (or implement `IPackageSource` if it is native),
   put its output parsers in `EcosystemParsers` with tests on real captured output, add it to
-  `UpdatrHost.Sources`, and its display name to the GUI's `SourceChoices`.
+  `UpdatrHost.Sources`, and its filter label to `AppKinds.SourceLabel` and `PackageFilters.Sources`.
+- **Sort a package into the right kind:** adjust the patterns in `AppKinds` (Core) and add the real
+  name to `AppKindsTests`. Kinds only drive filters and the Kind column, never what Updatr does.
+- **Add a filter to a list:** a `FilterGroupViewModel` (title, options, key-of-row) in the page's
+  `FilterBarViewModel`, a `<views:FilterBarView>` bound to it, and the same filter on the Core
+  request so the CLI has it too.
 - **Add an app or template to the catalog:** edit `catalog/apps.json` / `templates.json`, verify
   ids (`winget show --id <id> --exact`, `npm view`, Marketplace), set `provides` on apps that put a
   tool on PATH, run `dotnet test`, and try it with `UPDATR_CATALOG_DIR` before pushing.

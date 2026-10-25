@@ -3,21 +3,21 @@
              xmlns:vm="using:Updatr.App.ViewModels"
              xmlns:conv="using:Updatr.App.Converters"
              xmlns:b="using:Updatr.App.Behaviors"
+             xmlns:views="using:Updatr.App.Views"
              x:Class="Updatr.App.Views.UpdatesView"
              x:DataType="vm:UpdatesPageViewModel">
     <DockPanel Margin="20,16">
         <!-- Header: title, counts, filters. -->
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                <ComboBox ItemsSource="{Binding SourceChoices}" SelectedItem="{Binding SourceFilter}" Width="150" />
-                <TextBox PlaceholderText="Search name or id" Text="{Binding SearchText}" Width="240" />
-                <ToggleSwitch OnContent="Updates only" OffContent="Everything installed" IsChecked="{Binding ShowUpdatesOnly}" />
-            </StackPanel>
+            <TextBox DockPanel.Dock="Right" PlaceholderText="Search name or id" Text="{Binding SearchText}" Width="260" VerticalAlignment="Center" />
             <StackPanel>
                 <TextBlock Text="Updates" FontSize="24" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding Counts}" Opacity="0.6" />
             </StackPanel>
         </DockPanel>
+
+        <!-- Filters: any number of chips per group; groups combine. -->
+        <views:FilterBarView DockPanel.Dock="Top" DataContext="{Binding Filters}" Margin="0,0,0,6" />
 
         <!-- Actions. -->
         <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,10">
@@ -51,6 +51,7 @@
                 <DataGridTextColumn x:DataType="vm:PackageRowViewModel" Header="Installed" Binding="{Binding Installed}" Width="*" IsReadOnly="True" />
                 <DataGridTextColumn x:DataType="vm:PackageRowViewModel" Header="Available" Binding="{Binding Available}" Width="*" IsReadOnly="True" />
                 <DataGridTextColumn x:DataType="vm:PackageRowViewModel" Header="Source" Binding="{Binding Catalog}" Width="*" IsReadOnly="True" />
+                <DataGridTextColumn x:DataType="vm:PackageRowViewModel" Header="Kind" Binding="{Binding KindLabel}" Width="*" IsReadOnly="True" />
                 <DataGridTemplateColumn Header="Status" Width="1.4*" SortMemberPath="Status">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate x:DataType="vm:PackageRowViewModel">

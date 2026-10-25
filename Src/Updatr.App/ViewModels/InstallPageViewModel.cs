@@ -112,8 +112,6 @@ public sealed partial class CartRowViewModel(PlannedItem planned, AppCatalog cat
 /// </summary>
 public sealed partial class InstallPageViewModel : PageViewModel
 {
-    private const string AllCategories = "All";
-
     private readonly UpdatrHost _host;
     private readonly IDialogService _dialogs;
     private AppCatalog? _catalog;
@@ -135,17 +133,15 @@ public sealed partial class InstallPageViewModel : PageViewModel
 
     public DataGridCollectionView AppsView { get; }
 
-    public ObservableCollection<string> Categories { get; } = [AllCategories];
+    /// <summary>Category and Installed chips; built when the catalog loads (categories come from it).</summary>
+    [ObservableProperty]
+    public partial FilterBarViewModel? Filters { get; set; }
 
     public ObservableCollection<TemplateRowViewModel> Templates { get; } = [];
 
     public ObservableCollection<CartRowViewModel> CartRows { get; } = [];
 
     public ObservableCollection<string> SavedCarts { get; } = [];
-
-    /// <summary>Null (the list box clears its selection while categories are rebuilt) means All.</summary>
-    [ObservableProperty]
-    public partial string? SelectedCategory { get; set; } = AllCategories;
 
     [ObservableProperty]
     public partial string SearchText { get; set; } = string.Empty;
@@ -176,8 +172,6 @@ public sealed partial class InstallPageViewModel : PageViewModel
     public partial string BusyText { get; set; } = string.Empty;
 
     private bool CanInstall => !IsBusy;
-
-    partial void OnSelectedCategoryChanged(string? value) => AppsView.Refresh();
 
     partial void OnSearchTextChanged(string value) => AppsView.Refresh();
 
@@ -214,13 +208,14 @@ public sealed partial class InstallPageViewModel : PageViewModel
         foreach (CatalogApp app in _catalog.Apps.OrderBy(a => a.Category, StringComparer.Ordinal).ThenBy(a => a.Name, StringComparer.OrdinalIgnoreCase))
             Apps.Add(new CatalogRowViewModel(app, OnToggled));
 
-        Categories.Clear();
-        Categories.Add(AllCategories);
-
-        foreach (string category in _catalog.Apps.Select(a => a.Category).Distinct().Order(StringComparer.Ordinal))
-            Categories.Add(category);
-
-        SelectedCategory = AllCategories;
+        Filters = new FilterBarViewModel(
+            new FilterGroupViewModel("Category",
+                _catalog.Apps.Select(a => a.Category).Distinct().Order(StringComparer.Ordinal).Select(c => (c, char.ToUpperInvariant(c[0]) + c[1..])),
+                r => ((CatalogRowViewModel)r).App.Category),
+            new FilterGroupViewModel("Status", [("installed", "Installed"), ("missing", "Not installed")],
+                r => ((CatalogRowViewModel)r).Installed switch { "Installed" => "installed", "" => "missing", _ => null }));
+        Filters.Changed += AppsView.Refresh;
+        Filters.Recount([.. Apps]);
 
         await RefreshTemplatesAsync();
         await RefreshSavedCartsAsync();
@@ -238,6 +233,13 @@ public sealed partial class InstallPageViewModel : PageViewModel
         {
             bool installed = await _host.IsInstalledAsync(row.App, ct);
             Avalonia.Threading.Dispatcher.UIThread.Post(() => row.Installed = installed ? "Installed" : string.Empty);
+        });
+
+        // The Installed chips count what the checks found.
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            Filters?.Recount([.. Apps]);
+            AppsView.Refresh();
         });
     }
 
@@ -500,7 +502,7 @@ public sealed partial class InstallPageViewModel : PageViewModel
 
     private bool Matches(object item)
         => item is CatalogRowViewModel row
-            && (SelectedCategory is null || SelectedCategory == AllCategories || row.App.Category == SelectedCategory)
+            && (Filters?.Matches(row) ?? true)
             && (SearchText.Length == 0
                 || row.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase)
                 || row.Description.Contains(SearchText, StringComparison.OrdinalIgnoreCase));

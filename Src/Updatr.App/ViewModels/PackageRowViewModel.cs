@@ -23,7 +23,7 @@ public enum RowStatus
 public sealed partial class PackageRowViewModel(ListedPackage listed) : ObservableObject, ISelectableRow
 {
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Name), nameof(Id), nameof(Publisher), nameof(Installed), nameof(Available), nameof(Catalog), nameof(Status), nameof(StatusDetail), nameof(Kind), nameof(CanUpgrade), nameof(CanReinstall))]
+    [NotifyPropertyChangedFor(nameof(Name), nameof(Id), nameof(Publisher), nameof(KindLabel), nameof(KindKey), nameof(SourceKey), nameof(StatusKey), nameof(Installed), nameof(Available), nameof(Catalog), nameof(Status), nameof(StatusDetail), nameof(Kind), nameof(CanUpgrade), nameof(CanReinstall))]
     public partial ListedPackage Listed { get; set; } = listed;
 
     [ObservableProperty]
@@ -31,8 +31,36 @@ public sealed partial class PackageRowViewModel(ListedPackage listed) : Observab
 
     /// <summary>Live text while an action runs, then the outcome.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Kind))]
+    [NotifyPropertyChangedFor(nameof(Kind), nameof(ActivityOrNote))]
     public partial string? Activity { get; set; }
+
+    /// <summary>False for rows this page cannot act on (a launcher's game on Uninstall).</summary>
+    public bool CanSelect { get; init; } = true;
+
+    /// <summary>Why the row cannot be acted on here, shown until an action says something else.</summary>
+    public string? Note { get; init; }
+
+    public string? ActivityOrNote => Activity ?? Note;
+
+    /// <summary>"Games", "Runtimes &amp; SDKs", ... for the Kind column.</summary>
+    public string KindLabel => AppKinds.Label(Listed.Kind);
+
+    /// <summary>Filter keys.</summary>
+    public string KindKey => Listed.Kind.ToString();
+
+    public string SourceKey => AppKinds.SourceLabel(P);
+
+    /// <summary>The Updates screen's status, as a filter key (see <see cref="UpdatesPageViewModel"/>).</summary>
+    public string StatusKey => P switch
+    {
+        { ManagedBy: not null } => "launcher",
+        { CheckProblem: not null } => "problem",
+        _ when Listed.IsStoreManaged => "store",
+        _ when (Listed.IsHeld || Listed.IsExplicitOnly) && P.HasUpdate => "held",
+        { HasUpdate: true } => "update",
+        { NewerVersionNeedsFreshInstall: not null } => "fresh",
+        _ => "current",
+    };
 
     [ObservableProperty]
     public partial double? Progress { get; set; }

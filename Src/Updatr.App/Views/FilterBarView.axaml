@@ -1,0 +1,30 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Updatr.App.ViewModels"
+             x:Class="Updatr.App.Views.FilterBarView"
+             x:DataType="vm:FilterBarViewModel">
+    <!-- One line per group: its title, then chips. Any number of chips per group can be on. -->
+    <ItemsControl ItemsSource="{Binding Groups}">
+        <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:FilterGroupViewModel">
+                <DockPanel Margin="0,0,0,4">
+                    <TextBlock DockPanel.Dock="Left" Text="{Binding Title}" Width="70" Opacity="0.6" FontSize="12" VerticalAlignment="Center" />
+                    <Button DockPanel.Dock="Right" Content="Clear" Command="{Binding ClearCommand}" IsVisible="{Binding HasSelection}"
+                            Padding="8,1" FontSize="12" VerticalAlignment="Center" />
+                    <ItemsControl ItemsSource="{Binding Options}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:FilterOptionViewModel">
+                                <ToggleButton Classes="chip" Content="{Binding Text}" IsChecked="{Binding IsOn}" IsVisible="{Binding IsShown}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DockPanel>
+            </DataTemplate>
+        </ItemsControl.ItemTemplate>
+    </ItemsControl>
+</UserControl>
