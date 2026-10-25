@@ -121,6 +121,7 @@ public sealed class LeftoverScanner(string dataRoot) : ILeftoverScanner
             InstallLocation = NonEmpty(details?.InstallLocation) ?? NonEmpty(entry?.InstallLocation),
             UninstallerFolder = uninstallerFolder,
             UninstallKey = entry?.Key,
+            MissingUninstaller = uninstallerFolder is not null && Path.IsPathFullyQualified(uninstaller!) && !File.Exists(uninstaller) ? uninstaller : null,
         };
     }
 

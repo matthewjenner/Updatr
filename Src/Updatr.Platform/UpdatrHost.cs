@@ -70,8 +70,8 @@ public sealed class UpdatrHost : IAsyncDisposable
         Footprints footprints = new(Data, machine);
         LeftoverStore leftoverStore = new(Data, machine);
         LeftoverScanner scanner = new(Data.DisplayRoot);
-        LeftoverService leftovers = new(scanner, leftoverStore, footprints);
         Quarantine quarantine = new(Data.DisplayRoot, machine, Elevation);
+        LeftoverService leftovers = new(scanner, leftoverStore, footprints, quarantine);
         LeftoversList = new ListLeftovers(leftoverStore, scanner);
         LeftoversQuarantine = new QuarantineLeftovers(leftoverStore, quarantine);
         LeftoversDismiss = new DismissLeftovers(leftoverStore);
@@ -79,7 +79,7 @@ public sealed class UpdatrHost : IAsyncDisposable
         QuarantineRestore = new RestoreQuarantine(quarantine);
         QuarantinePurge = new PurgeQuarantine(quarantine);
 
-        PackageBatch batch = new(Sources, List, new InstallerGate(), HoldPolicyAsync, leftovers);
+        PackageBatch batch = new(Sources, List, new InstallerGate(), HoldPolicyAsync, leftovers, inUse: new InUseFinder(scanner));
         Upgrade = new UpgradePackages(batch);
         Reinstall = new ReinstallPackages(batch);
         Uninstall = new UninstallPackages(batch);

@@ -1,7 +1,10 @@
 using Updatr.Core.Leftovers;
+using Updatr.Core.Catalog;
 using Updatr.Core.Operations;
+using Updatr.Core.Packages;
 using Updatr.Core.Sources;
 using Updatr.Core.Tests.Catalog;
+using Updatr.Core.Tests.Packages;
 using Updatr.Core.Tests.Preflight;
 
 namespace Updatr.Core.Tests.Leftovers;
@@ -62,6 +65,40 @@ public sealed class LeftoverFlowTests
     }
 
     [Fact]
+    public async Task AnAppWhoseUninstallerIsGoneHasItsRegistrationQuarantinedInsteadOfRun()
+    {
+        // CrystalDiskInfo installed to F:\, which is now a different drive: winget fails with
+        // 0x800401F5 trying to start an uninstaller that is not there.
+        const string Key = @"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\CrystalDiskInfo_is1";
+        InstalledPackage ghost = new() { Source = "fake", Id = @"ARP\Machine\X64\CrystalDiskInfo_is1", Name = "CrystalDiskInfo", InstalledVersion = "9.9.2", IsManaged = false };
+        PackageBatchTests.FakeSource source = new([ghost]);
+        FakeQuarantine quarantine = new();
+        LeftoverService leftovers = new(new FakeScanner([]) { UninstallKey = Key, MissingUninstaller = @"F:\CrystalDiskInfo\unins000.exe" },
+            new LeftoverStore(new MemoryDataStore(), "pc"), quarantine: quarantine);
+        PackageBatch batch = new([source], new ListPackages([source], _ => Task.FromResult(new HoldPolicy([]))), new PackageBatchTests.IdleGate(),
+            _ => Task.FromResult(new HoldPolicy([])), leftovers);
+
+        RunSummary summary = await batch.RunAsync(PackageBatch.Action.Uninstall, new PackageSelection { Ids = [ghost.Id] }, new RecordingSink(), Ct);
+
+        source.Uninstalled.Should().BeEmpty();
+        quarantine.Moved.Should().Equal(Key);
+        summary.Items.Single().Outcome.Kind.Should().Be(OutcomeKind.Ok);
+        summary.Items.Single().Outcome.Detail.Should().Contain("unins000.exe").And.Contain("restorable");
+    }
+
+    [Fact]
+    public async Task AGhostWhoseRegistrationCannotBeMovedFails()
+    {
+        FakeQuarantine quarantine = new() { FailLocation = @"HKLM\SOFTWARE\X" };
+        LeftoverService service = new(new FakeScanner([]), new LeftoverStore(new MemoryDataStore(), "pc"), quarantine: quarantine);
+        LeftoverTarget target = new() { Package = Package.Key, Name = "App", UninstallKey = @"HKLM\SOFTWARE\X", MissingUninstaller = @"F:\App\uninstall.exe" };
+
+        PackageOutcome outcome = await service.RemoveOrphanAsync(target, scan: false, new RecordingSink(), "fake:App", Ct);
+
+        outcome.Kind.Should().Be(OutcomeKind.Failed);
+    }
+
+    [Fact]
     public async Task ItemsThatHaveGoneSinceTheScanAreDropped()
     {
         LeftoverStore store = new(new MemoryDataStore(), "pc");
@@ -89,6 +126,10 @@ public sealed class LeftoverFlowTests
     {
         public bool Throw { get; init; }
 
+        public string? UninstallKey { get; init; }
+
+        public string? MissingUninstaller { get; init; }
+
         public List<string> Described { get; } = [];
 
         public Task<LeftoverTarget?> DescribeAsync(InstalledPackage package, CancellationToken cancellationToken)
@@ -97,7 +138,10 @@ public sealed class LeftoverFlowTests
                 throw new InvalidOperationException("boom");
 
             Described.Add(package.Id);
-            return Task.FromResult<LeftoverTarget?>(new LeftoverTarget { Package = package.Key, Name = package.Name });
+            return Task.FromResult<LeftoverTarget?>(new LeftoverTarget
+            {
+                Package = package.Key, Name = package.Name, UninstallKey = UninstallKey, MissingUninstaller = MissingUninstaller,
+            });
         }
 
         public Task<IReadOnlyList<Leftover>> ScanAsync(LeftoverTarget target, CancellationToken cancellationToken) => Task.FromResult(items);

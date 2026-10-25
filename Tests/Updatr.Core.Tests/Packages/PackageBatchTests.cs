@@ -35,11 +35,13 @@ public sealed class PackageBatchTests
             NewerVersionNeedsFreshInstall = fresh,
         };
 
-    private static (PackageBatch Batch, FakeSource Source) Build(params InstalledPackage[] installed)
+    private static (PackageBatch Batch, FakeSource Source) Build(params InstalledPackage[] installed) => Build(null, installed);
+
+    private static (PackageBatch Batch, FakeSource Source) Build(IInUseFinder? inUse, params InstalledPackage[] installed)
     {
         FakeSource source = new(installed);
         ListPackages list = new([source], _ => Task.FromResult(Policy));
-        return (new PackageBatch([source], list, new IdleGate(), _ => Task.FromResult(Policy), verifyDelay: TimeSpan.Zero), source);
+        return (new PackageBatch([source], list, new IdleGate(), _ => Task.FromResult(Policy), verifyDelay: TimeSpan.Zero, inUse: inUse), source);
     }
 
     [Fact]
@@ -171,6 +173,31 @@ public sealed class PackageBatchTests
     }
 
     [Fact]
+    public async Task AnUpdateBlockedByARunningProgramNamesIt()
+    {
+        FakeInUse inUse = new([new BlockingProcess("ollama.exe", 7), new BlockingProcess("Code.exe", 8), new BlockingProcess("Code.exe", 9)]);
+        (PackageBatch batch, FakeSource source) = Build(inUse, Pkg("Microsoft.WindowsTerminal"), Pkg("OBSProject.OBSStudio"), Pkg("Zed.Zed"));
+        source.Results.Enqueue(PackageOutcome.Ok()); // Terminal: "OK", but staged
+        source.Results.Enqueue(PackageOutcome.FromCode(0x8A150101)); // OBS: "in use"
+        source.Staged.Add("Microsoft.WindowsTerminal");
+
+        RunSummary summary = await batch.RunAsync(PackageBatch.Action.Upgrade, new PackageSelection { All = true }, new RecordingSink(), Ct);
+
+        summary.Items.Single(i => i.ItemId == "fake:OBSProject.OBSStudio").Outcome.Detail.Should().EndWith("; in use by ollama.exe (pid 7), Code.exe (2 processes)");
+        summary.Items.Single(i => i.ItemId == "fake:Microsoft.WindowsTerminal").Outcome.Detail.Should().Contain("in use by ollama.exe");
+        summary.Items.Single(i => i.ItemId == "fake:Zed.Zed").Outcome.Detail.Should().BeEmpty();
+        inUse.Asked.Should().BeEquivalentTo("OBSProject.OBSStudio", "Microsoft.WindowsTerminal");
+    }
+
+    [Fact]
+    public void ManyBlockersStayOnOneLine()
+    {
+        BlockingProcess[] many = [new("a.exe", 1), new("b.exe", 2, "no window"), new("c.exe", 3), new("d.exe", 4), new("e.exe", 5)];
+
+        BlockingProcess.Describe(many).Should().Be("a.exe (pid 1), b.exe (pid 2; no window), c.exe (pid 3) and 2 more");
+    }
+
+    [Fact]
     public async Task UpgradeAllWithinAViewTouchesOnlyThatViewAndStillHonorsHolds()
     {
         InstalledPackage git = Pkg("Git.Git"), node = Pkg("OpenJS.NodeJS.LTS"), other = Pkg("Other.App");
@@ -221,7 +248,18 @@ public sealed class PackageBatchTests
         await act.Should().ThrowAsync<ArgumentException>();
     }
 
-    private sealed class FakeSource(InstalledPackage[] installed) : IPackageSource
+    private sealed class FakeInUse(IReadOnlyList<BlockingProcess> found) : IInUseFinder
+    {
+        public List<string> Asked { get; } = [];
+
+        public Task<IReadOnlyList<BlockingProcess>> FindAsync(InstalledPackage package, CancellationToken cancellationToken)
+        {
+            Asked.Add(package.Id);
+            return Task.FromResult(found);
+        }
+    }
+
+    internal sealed class FakeSource(InstalledPackage[] installed) : IPackageSource
     {
         public string Id => "fake";
 
@@ -276,7 +314,7 @@ public sealed class PackageBatchTests
         }
     }
 
-    private sealed class IdleGate : IInstallerGate
+    internal sealed class IdleGate : IInstallerGate
     {
         public Task WaitUntilIdleAsync(IOperationSink sink, string itemId, CancellationToken cancellationToken) => Task.CompletedTask;
     }

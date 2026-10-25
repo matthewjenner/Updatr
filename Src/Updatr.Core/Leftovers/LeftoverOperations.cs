@@ -54,7 +54,7 @@ public sealed class LeftoverStore(IDataStore store, string machineId)
 }
 
 /// <summary>Describe before an uninstall, scan after it. Used by the uninstall batch.</summary>
-public sealed class LeftoverService(ILeftoverScanner scanner, LeftoverStore store, IFootprintRecorder? footprints = null)
+public sealed class LeftoverService(ILeftoverScanner scanner, LeftoverStore store, IFootprintRecorder? footprints = null, IQuarantine? quarantine = null)
 {
     public LeftoverStore Store => store;
 
@@ -74,6 +74,44 @@ public sealed class LeftoverService(ILeftoverScanner scanner, LeftoverStore stor
         {
             return null; // Leftover scanning is a bonus; never fail an uninstall over it.
         }
+    }
+
+    /// <summary>
+    /// Uninstalls an app whose uninstaller is gone (see <see cref="LeftoverTarget.MissingUninstaller"/>):
+    /// its files went with it, so what is left is the registration that keeps it listed. Moves that
+    /// uninstall entry to quarantine - restorable, like any leftover - then scans for the rest.
+    /// </summary>
+    public async Task<PackageOutcome> RemoveOrphanAsync(LeftoverTarget target, bool scan, IOperationSink sink, string itemId, CancellationToken cancellationToken)
+    {
+        string gone = $"its uninstaller ({target.MissingUninstaller}) no longer exists, so there was nothing to run";
+
+        if (quarantine is null || target.UninstallKey is not { } key)
+            return PackageOutcome.Failed($"{gone}, and Updatr could not find its registration to remove");
+
+        sink.Report(new ProgressReported(itemId, Message: "Removing its registration"));
+        QuarantinedItem? moved;
+
+        try
+        {
+            Leftover entry = new("1", LeftoverKind.RegistryKey, key, Confidence.High, "The uninstall entry of an app whose files are gone",
+                NeedsAdmin: key.StartsWith("HKLM", StringComparison.OrdinalIgnoreCase));
+            moved = (await quarantine.MoveAsync(target.Name, [entry], sink, cancellationToken).ConfigureAwait(false)).Items.FirstOrDefault();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
+        {
+            return PackageOutcome.Failed($"{gone}; its registration could not be removed ({ex.Message})");
+        }
+
+        if (moved is not { Stored: true })
+            return PackageOutcome.Failed($"{gone}; its registration could not be removed ({moved?.Problem ?? "unknown reason"})");
+
+        PackageOutcome outcome = new(OutcomeKind.Ok, $"{gone}; removed its uninstall entry (restorable under Leftovers, Quarantine)");
+
+        if (!scan)
+            return outcome;
+
+        int found = await ScanAsync(target with { UninstallKey = null }, sink, itemId, CancellationToken.None).ConfigureAwait(false);
+        return found == 0 ? outcome : outcome with { Detail = $"{outcome.Detail}; {found} possible leftover(s) - review them under Leftovers" };
     }
 
     /// <summary>Scans and saves the findings for review. Returns how many were found.</summary>

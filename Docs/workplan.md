@@ -295,23 +295,31 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 - [x] Plain-English text for 0x80073D02 (app open) and 0x80190193 (vendor download link 403)
 - [x] Released 0.2.3
 - [x] Second run (from the FAT32 drive): per-package log lines show every route and result. OBS
-      failed with installer exit 6, which its manifest maps to "package in use" (likely the OBS
-      Virtual Camera loaded by the Camera Frame Server service). Installer and uninstaller exit
-      codes now show winget's interpretation when it has one, not just the number
+      failed with installer exit 6, which its manifest maps to "package in use". Installer and
+      uninstaller exit codes now show winget's interpretation when it has one, not just the number
 - [x] Upgrades are verified: after the installer reports success the package is looked up again
       (fresh connection); if the installed version did not move, the item is Pending ("applies when
       X restarts"), not Done. Found with Windows Terminal: a hidden Terminal (the default terminal)
       was hosting FlyByWire SimBridge's console, so Windows staged the update for when it closes
+- [x] Pending and "in use" results name what has the app open (Restart Manager over the install
+      folder, the uninstaller's folder, and known extra places). OBS: `ollama.exe` had OBS's
+      game-capture hook (`C:\ProgramData\obs-studio-hook`, loaded through OBS's Vulkan layer)
+      open - OBS's installer checks that folder too. A Terminal with no window is matched to the
+      background program it hosts by its console host's start time
+- [x] Uninstalling an app whose uninstaller is gone (CrystalDiskInfo registered on F:, now a thumb
+      drive; winget failed with 0x800401F5) quarantines its uninstall entry instead - restorable
 - [ ] Release 0.2.4
+- [ ] Merge the Updates and Uninstall pages: one "Installed apps" page with Upgrade and Uninstall
+      on the same selection (user request: finding an app twice, with two heavy listings, is the
+      same page twice)
 
 ## Backlog
 
-- Installs registered on a drive that is not connected (CrystalDiskInfo on F:): say so on the row
-  instead of running an installer that cannot work, and offer to quarantine the stale registration.
+- Installs whose uninstaller is gone: say so on the row when listing, before anyone tries.
 - Apps that stage an update and switch on next launch (itch): note "applies when itch next starts"
   instead of leaving the row looking failed.
-- Pending items: name the process holding the app (Windows Terminal hosting SimBridge's hidden
-  console) and offer "Close it and finish", with a confirmation - never kill silently.
+- Pending / in-use items: offer "Close it and finish" for the named program, with a confirmation -
+  never kill silently.
 - "Fresh install" action for rows that need it (uninstall + install, with a clear confirmation).
 
 - Duplicate rows for one app: winget lists a Store app twice (its MSIX entry and its msstore
@@ -397,6 +405,11 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
   connection per worker for the whole listing (was one per query), lookups serialized through one
   cached connection. A full listing takes about 50 s here with these settings; the load preceded three 0x153
   bugchecks (Known edges). Do not raise it back without a reason and a kernel dump in hand.
+- **2026-10-25** - "In use" names the program, found with Restart Manager (what installers ask),
+  never by guessing from window titles. It only reads; closing a program stays a user decision.
+- **2026-10-25** - An app whose registered uninstaller no longer exists is "uninstalled" by moving
+  its uninstall entry to quarantine. That is the one leftover moved without review: the user asked
+  for that app to go, the entry is all that is left of it, and quarantine can put it back.
 - **2026-10-25** - Many uninstallers return at once and finish in the background (SumatraPDF:
   the first scan listed its install folder and uninstall key, both gone seconds later). The scan
   now waits up to 60 s for the app's Uninstall key to go, and the review list re-checks every item.

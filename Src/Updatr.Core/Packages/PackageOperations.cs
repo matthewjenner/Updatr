@@ -150,7 +150,8 @@ public sealed class PackageBatch(
     IInstallerGate gate,
     Func<CancellationToken, Task<HoldPolicy>> holds,
     Leftovers.LeftoverService? leftovers = null,
-    TimeSpan? verifyDelay = null)
+    TimeSpan? verifyDelay = null,
+    IInUseFinder? inUse = null)
 {
     public enum Action
     {
@@ -167,6 +168,12 @@ public sealed class PackageBatch(
 
     /// <summary>Codes that mean "something else was installing" - worth one retry after waiting.</summary>
     private static readonly HashSet<uint> BusyCodes = [0x00000652, 0x8A150102];
+
+    /// <summary>
+    /// Codes that mean "a running program has the files open": winget's package / file / application
+    /// in use (OBS's exit 6 maps to one), MSIX "app is open", and a sharing violation.
+    /// </summary>
+    private static readonly HashSet<uint> InUseCodes = [0x8A150101, 0x8A150103, 0x8A150111, 0x80073D02, 0x80070020];
 
     public async Task<RunSummary> RunAsync(Action action, PackageSelection selection, IOperationSink sink, CancellationToken cancellationToken)
     {
@@ -202,12 +209,14 @@ public sealed class PackageBatch(
             }
 
             sink.Report(new StepStarted($"[{i + 1}/{targets.Count}] {verb} {package.Name}"));
-            PackageOutcome outcome = action == Action.Uninstall && leftovers is not null && !selection.SkipLeftovers
-                ? await UninstallWithScanAsync(package, sink, cancellationToken).ConfigureAwait(false)
+            PackageOutcome outcome = action == Action.Uninstall && leftovers is not null
+                ? await UninstallWithScanAsync(package, !selection.SkipLeftovers, sink, cancellationToken).ConfigureAwait(false)
                 : await RunOneAsync(action, package, sink, cancellationToken).ConfigureAwait(false);
 
             if (action == Action.Upgrade)
                 outcome = await VerifyUpgradeAsync(package, outcome, sink).ConfigureAwait(false);
+
+            outcome = await NameBlockersAsync(package, outcome, sink).ConfigureAwait(false);
             Finish(sink, finished, package, outcome);
         }
 
@@ -259,15 +268,48 @@ public sealed class PackageBatch(
     }
 
     /// <summary>
-    /// Captures the app's details first (the uninstaller erases its registration), uninstalls, then
-    /// scans for what it left behind and saves that for review. Nothing is removed here.
+    /// "In use" alone sends the user hunting - the program holding the files is often one they would
+    /// never guess (a hidden console in Windows Terminal; Ollama holding OBS's capture hook). When an
+    /// update is pending or failed as in use, names what has the files open.
     /// </summary>
-    private async Task<PackageOutcome> UninstallWithScanAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
+    private async Task<PackageOutcome> NameBlockersAsync(InstalledPackage package, PackageOutcome outcome, IOperationSink sink)
+    {
+        bool blocked = outcome.Kind == OutcomeKind.Pending
+            || (outcome.Kind == OutcomeKind.Failed && outcome.Code is { } code && InUseCodes.Contains(code.Code));
+
+        if (inUse is null || !blocked)
+            return outcome;
+
+        sink.Report(new ProgressReported(package.Key.ToString(), Message: "Looking for what has it open"));
+        IReadOnlyList<BlockingProcess> found;
+
+        try
+        {
+            found = await inUse.FindAsync(package, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return outcome; // Naming the culprit is a bonus; the outcome stands either way.
+        }
+
+        return found.Count == 0 ? outcome : outcome with { Detail = $"{outcome.Detail}; in use by {BlockingProcess.Describe(found)}" };
+    }
+
+    /// <summary>
+    /// Captures the app's details first (the uninstaller erases its registration), uninstalls, then
+    /// scans for what it left behind and saves that for review. Nothing is removed here - except
+    /// the registration of an app whose uninstaller is gone, which goes to quarantine instead.
+    /// </summary>
+    private async Task<PackageOutcome> UninstallWithScanAsync(InstalledPackage package, bool scan, IOperationSink sink, CancellationToken cancellationToken)
     {
         Leftovers.LeftoverTarget? target = await leftovers!.DescribeAsync(package, cancellationToken).ConfigureAwait(false);
+
+        if (target?.MissingUninstaller is not null)
+            return await leftovers.RemoveOrphanAsync(target, scan, sink, package.Key.ToString(), cancellationToken).ConfigureAwait(false);
+
         PackageOutcome outcome = await RunOneAsync(Action.Uninstall, package, sink, cancellationToken).ConfigureAwait(false);
 
-        if (target is null || outcome.Kind != OutcomeKind.Ok)
+        if (target is null || !scan || outcome.Kind != OutcomeKind.Ok)
             return outcome;
 
         int found = await leftovers.ScanAsync(target, sink, package.Key.ToString(), CancellationToken.None).ConfigureAwait(false);

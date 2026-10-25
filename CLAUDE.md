@@ -151,6 +151,10 @@ dotnet test                         # MTP runner (global.json)
   for outcomes must handle Pending.
 - **Uninstallers often finish in the background.** Never trust state right after one returns:
   the leftover scan waits for the Uninstall key to go, and the review list re-checks every item.
+- **"In use" is answered by Restart Manager** (`InUseFinder`), over the app's folders plus
+  `InUseFinder.ExtraFolders` for installers that check files elsewhere (OBS's capture hook loads
+  into any Vulkan app). `RM_UNIQUE_PROCESS` holds a FILETIME: two uints, not a long - a long pads
+  the struct and garbles every entry after the first.
 - **Leftovers are never deleted, only quarantined,** and only within `LeftoverSafety`. A new place
   to look must also pass `LeftoverRules.IsOfferableFolder` / `LeftoverSafety.Problem` and get tests
   in `LeftoverTests`.

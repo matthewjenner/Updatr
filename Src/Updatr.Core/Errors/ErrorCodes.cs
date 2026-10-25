@@ -116,6 +116,7 @@ public static class ErrorCodes
 
         // Seen in a real run (2026-10-25): a Store / MSIX app that was open, and a vendor link gone dead.
         Fail(0x80073D02, "the app is open - close it and retry", transient: true);                     // ERROR_PACKAGES_IN_USE (AppX deployment)
+        Fail(0x800401F5, "the installer or uninstaller program could not be found");                   // CO_E_APPNOTFOUND
         Fail(0x80190193, "the download server refused the file (HTTP 403) - the package's download link is broken at the vendor"); // BG_E_HTTP_ERROR_403 (Delivery Optimization)
 
         return map;

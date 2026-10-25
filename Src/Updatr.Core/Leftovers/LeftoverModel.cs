@@ -62,6 +62,12 @@ public sealed record LeftoverTarget
     /// <summary>The app's own Uninstall key (<c>HKLM\SOFTWARE\...\Uninstall\{id}</c>), if found.</summary>
     public string? UninstallKey { get; init; }
 
+    /// <summary>
+    /// The registered uninstaller, when its file is gone - deleted by hand, or on a drive whose
+    /// letter now belongs to another drive. No uninstaller can run; only the registration is left.
+    /// </summary>
+    public string? MissingUninstaller { get; init; }
+
     /// <summary>What Updatr recorded when it installed the app, if it did.</summary>
     public IReadOnlyList<FootprintItem> Footprint { get; init => field = value ?? []; } = [];
 }
