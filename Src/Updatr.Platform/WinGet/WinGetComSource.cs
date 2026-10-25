@@ -116,6 +116,18 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
     /// </summary>
     public async Task<PackageOutcome> UninstallAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
     {
+        try
+        {
+            return await UninstallCoreAsync(package, sink, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            ForgetLookupConnection();
+        }
+    }
+
+    private async Task<PackageOutcome> UninstallCoreAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
+    {
         string itemId = package.Key.ToString();
         bool triedElevated = false;
 
@@ -210,7 +222,7 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
                 ? new PackageOutcome(OutcomeKind.Ok, "Reboot required to finish", RebootRequired: true)
                 : PackageOutcome.Ok(),
             UninstallResultStatus.UninstallError when result.UninstallerErrorCode != 0
-                => Prefixed(PackageOutcome.FromCode(result.UninstallerErrorCode), "uninstaller: "),
+                => InstallerOutcome(result.UninstallerErrorCode, extended, "uninstaller"),
             _ when extended != 0 => Prefixed(PackageOutcome.FromCode(extended), $"{result.Status}: "),
             _ => PackageOutcome.Failed(result.Status.ToString()),
         };
@@ -299,6 +311,23 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
     }
 
     /// <summary>
+    /// The outcome of an installer's exit code. Package manifests map vendor exit codes to meanings
+    /// (OBS: 6 = "in use"); winget reports that as the extended code. When it decoded one Updatr
+    /// knows, that meaning wins over the bare number: "installer exit 6: a running application is
+    /// using the package", not "installer: 0x00000006".
+    /// </summary>
+    private static PackageOutcome InstallerOutcome(long exitCode, long extended, string what)
+    {
+        Core.Errors.ErrorCodeInfo interpreted = Core.Errors.ErrorCodes.Describe(extended);
+
+        if (extended != 0 && interpreted.Hint is not null)
+            return PackageOutcome.FromCode(extended) with { Detail = $"{what} exit {exitCode}: {interpreted.Hint}" };
+
+        PackageOutcome raw = PackageOutcome.FromCode(exitCode);
+        return raw with { Detail = $"{what}: {raw.Detail}" };
+    }
+
+    /// <summary>
     /// winget's installed-scope metadata. Phase 7 finding: per-machine installs report "System",
     /// not "Machine" (the manifest's word) - so read both.
     /// </summary>
@@ -327,7 +356,34 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
         return false;
     }
 
+    /// <summary>Drops the cached lookup connection: it may hold a snapshot of the installed state from before a change.</summary>
+    private void ForgetLookupConnection()
+    {
+        _lookupGate.Wait();
+
+        try
+        {
+            _lookupCatalog = null;
+        }
+        finally
+        {
+            _lookupGate.Release();
+        }
+    }
+
     private async Task<PackageOutcome> RunAsync(InstalledPackage package, bool reinstall, IOperationSink sink, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await RunCoreAsync(package, reinstall, sink, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            ForgetLookupConnection();
+        }
+    }
+
+    private async Task<PackageOutcome> RunCoreAsync(InstalledPackage package, bool reinstall, IOperationSink sink, CancellationToken cancellationToken)
     {
         string itemId = package.Key.ToString();
 
@@ -370,6 +426,18 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
     /// Machine-wide or elevation-needing installers go through the broker, like upgrades.
     /// </summary>
     public async Task<PackageOutcome> InstallNewAsync(string id, string catalogName, string itemId, IOperationSink sink)
+    {
+        try
+        {
+            return await InstallNewCoreAsync(id, catalogName, itemId, sink).ConfigureAwait(false);
+        }
+        finally
+        {
+            ForgetLookupConnection();
+        }
+    }
+
+    private async Task<PackageOutcome> InstallNewCoreAsync(string id, string catalogName, string itemId, IOperationSink sink)
     {
         if (elevation is not null && await Task.Run(() => NewInstallNeedsElevation(id, catalogName)).ConfigureAwait(false))
         {
@@ -794,7 +862,7 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
                 ? new PackageOutcome(OutcomeKind.Ok, "Reboot required to finish", RebootRequired: true)
                 : PackageOutcome.Ok(),
             InstallResultStatus.NoApplicableUpgrade => new PackageOutcome(OutcomeKind.AlreadyCurrent, "No applicable upgrade (already current)"),
-            InstallResultStatus.InstallError when result.InstallerErrorCode != 0 => Prefix(PackageOutcome.FromCode(result.InstallerErrorCode), "installer: "),
+            InstallResultStatus.InstallError when result.InstallerErrorCode != 0 => InstallerOutcome(result.InstallerErrorCode, extended, "installer"),
             _ when extended != 0 => Prefix(PackageOutcome.FromCode(extended), $"{result.Status}: "),
             _ => PackageOutcome.Failed(result.Status.ToString()),
         };

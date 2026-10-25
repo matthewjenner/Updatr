@@ -262,6 +262,7 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
                     OutcomeKind.Ok => done.Outcome.RebootRequired ? "Done - reboot needed" : "Done",
                     OutcomeKind.AlreadyCurrent => "Already current",
                     OutcomeKind.Skipped => "Skipped: " + done.Outcome.Detail,
+                    OutcomeKind.Pending => "Pending: " + done.Outcome.Detail,
                     _ => "Failed: " + done.Outcome.Detail,
                 };
                 break;

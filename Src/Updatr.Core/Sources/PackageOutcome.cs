@@ -22,6 +22,13 @@ public enum OutcomeKind
     /// failed. <see cref="PackageOutcome.Detail"/> says which.
     /// </summary>
     Skipped,
+
+    /// <summary>
+    /// The installer reported success but the installed version did not change: the update is
+    /// staged and applies when the app restarts (an open MSIX app such as Windows Terminal; itch).
+    /// Not a failure, not done yet.
+    /// </summary>
+    Pending,
 }
 
 /// <summary>

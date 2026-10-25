@@ -39,7 +39,7 @@ public sealed class PackageBatchTests
     {
         FakeSource source = new(installed);
         ListPackages list = new([source], _ => Task.FromResult(Policy));
-        return (new PackageBatch([source], list, new IdleGate(), _ => Task.FromResult(Policy)), source);
+        return (new PackageBatch([source], list, new IdleGate(), _ => Task.FromResult(Policy), verifyDelay: TimeSpan.Zero), source);
     }
 
     [Fact]
@@ -158,6 +158,19 @@ public sealed class PackageBatchTests
     }
 
     [Fact]
+    public async Task AnUpgradeThatLeavesTheOldVersionInPlaceIsPendingNotDone()
+    {
+        (PackageBatch batch, FakeSource source) = Build(Pkg("Microsoft.WindowsTerminal", available: "1.25"), Pkg("Git.Git"));
+        source.Staged.Add("Microsoft.WindowsTerminal");
+
+        RunSummary summary = await batch.RunAsync(PackageBatch.Action.Upgrade, new PackageSelection { All = true }, new RecordingSink(), Ct);
+
+        summary.Items.Single(i => i.ItemId == "fake:Microsoft.WindowsTerminal").Outcome.Kind.Should().Be(OutcomeKind.Pending);
+        summary.Items.Single(i => i.ItemId == "fake:Git.Git").Outcome.Kind.Should().Be(OutcomeKind.Ok);
+        summary.HasFailures.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task UpgradeAllWithinAViewTouchesOnlyThatViewAndStillHonorsHolds()
     {
         InstalledPackage git = Pkg("Git.Git"), node = Pkg("OpenJS.NodeJS.LTS"), other = Pkg("Other.App");
@@ -229,12 +242,21 @@ public sealed class PackageBatchTests
             }
         }
 
+        /// <summary>Ids whose upgrade "succeeds" but leaves the old version in place (staged until restart).</summary>
+        public HashSet<string> Staged { get; } = [];
+
+        private readonly Dictionary<string, string> _versions = installed.ToDictionary(p => p.Id, p => p.InstalledVersion);
+
         public Task<InstalledPackage?> FindInstalledAsync(string id, CancellationToken cancellationToken)
-            => Task.FromResult(installed.FirstOrDefault(p => p.Id == id));
+            => Task.FromResult(installed.FirstOrDefault(p => p.Id == id) is { } p ? p with { InstalledVersion = _versions[id] } : null);
 
         public Task<PackageOutcome> UpgradeAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
         {
             Upgraded.Add(package.Id);
+
+            if (!Staged.Contains(package.Id) && package.AvailableVersion is { } target)
+                _versions[package.Id] = target;
+
             OnUpgrade?.Invoke(package);
             return Task.FromResult(Results.Count > 0 ? Results.Dequeue() : PackageOutcome.Ok());
         }

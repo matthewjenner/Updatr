@@ -83,6 +83,7 @@ public class ConsoleSink(bool assumeYes) : IOperationSink
         Console.WriteLine();
         string text = string.Create(CultureInfo.InvariantCulture,
             $"{summary.Action}: {summary.Count(OutcomeKind.Ok)} done, {summary.Count(OutcomeKind.AlreadyCurrent)} already current, "
+            + $"{(summary.Count(OutcomeKind.Pending) > 0 ? $"{summary.Count(OutcomeKind.Pending)} pending an app restart, " : "")}"
             + $"{summary.Count(OutcomeKind.Skipped)} skipped, {summary.Count(OutcomeKind.Failed)} failed ({summary.Duration.TotalMinutes:0.0} min).");
         Line(summary.HasFailures ? ConsoleColor.Yellow : ConsoleColor.Green, text);
 
@@ -170,6 +171,7 @@ public class ConsoleSink(bool assumeYes) : IOperationSink
             OutcomeKind.Ok => ("[ OK ]", ConsoleColor.Green),
             OutcomeKind.AlreadyCurrent => ("[SAME]", ConsoleColor.Gray),
             OutcomeKind.Skipped => ("[SKIP]", ConsoleColor.DarkYellow),
+            OutcomeKind.Pending => ("[WAIT]", ConsoleColor.Yellow),
             _ => ("[FAIL]", ConsoleColor.Red),
         };
 
@@ -342,6 +344,7 @@ public sealed class JsonLinesSink(bool assumeYes) : ConsoleSink(assumeYes)
             ["ok"] = summary.Count(OutcomeKind.Ok),
             ["alreadyCurrent"] = summary.Count(OutcomeKind.AlreadyCurrent),
             ["skipped"] = summary.Count(OutcomeKind.Skipped),
+            ["pending"] = summary.Count(OutcomeKind.Pending),
             ["failed"] = summary.Count(OutcomeKind.Failed),
             ["rebootRequired"] = summary.RebootRequired,
         });

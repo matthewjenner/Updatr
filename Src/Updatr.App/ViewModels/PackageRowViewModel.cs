@@ -114,7 +114,7 @@ public sealed partial class PackageRowViewModel(ListedPackage listed) : Observab
     {
         OutcomeKind.Ok or OutcomeKind.AlreadyCurrent => RowStatus.Done,
         OutcomeKind.Failed => RowStatus.Failed,
-        OutcomeKind.Skipped => RowStatus.Held,
+        OutcomeKind.Skipped or OutcomeKind.Pending => RowStatus.Held,
         _ when Activity is not null => RowStatus.Running,
         _ when P.ManagedBy is not null || Listed.IsStoreManaged || P.NewerVersionNeedsFreshInstall is not null => RowStatus.Blocked,
         _ when P.CheckProblem is not null => RowStatus.Problem,

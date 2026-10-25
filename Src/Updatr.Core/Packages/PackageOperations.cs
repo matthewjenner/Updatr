@@ -149,7 +149,8 @@ public sealed class PackageBatch(
     ListPackages list,
     IInstallerGate gate,
     Func<CancellationToken, Task<HoldPolicy>> holds,
-    Leftovers.LeftoverService? leftovers = null)
+    Leftovers.LeftoverService? leftovers = null,
+    TimeSpan? verifyDelay = null)
 {
     public enum Action
     {
@@ -204,10 +205,57 @@ public sealed class PackageBatch(
             PackageOutcome outcome = action == Action.Uninstall && leftovers is not null && !selection.SkipLeftovers
                 ? await UninstallWithScanAsync(package, sink, cancellationToken).ConfigureAwait(false)
                 : await RunOneAsync(action, package, sink, cancellationToken).ConfigureAwait(false);
+
+            if (action == Action.Upgrade)
+                outcome = await VerifyUpgradeAsync(package, outcome, sink).ConfigureAwait(false);
             Finish(sink, finished, package, outcome);
         }
 
         return new RunSummary(verb, finished, timer.Elapsed);
+    }
+
+    /// <summary>
+    /// "The installer said OK" is not "the new version is installed". Looks the package up again and,
+    /// when the installed version has not moved, reports it as pending rather than done - the
+    /// update is staged and applies when the app restarts. Compares with the version before, not
+    /// the target: apps often report a version that differs in form from their package's.
+    /// </summary>
+    private async Task<PackageOutcome> VerifyUpgradeAsync(InstalledPackage before, PackageOutcome outcome, IOperationSink sink)
+    {
+        if (outcome.Kind != OutcomeKind.Ok || outcome.RebootRequired || before.HasUnknownVersion)
+            return outcome;
+
+        IPackageSource? source = sources.FirstOrDefault(s => s.Id == before.Source);
+
+        if (source is null)
+            return outcome;
+
+        sink.Report(new ProgressReported(before.Key.ToString(), Message: "Checking the new version"));
+
+        // Twice: some installers finish registering a few seconds after they return.
+        for (int attempt = 0; attempt < 2; attempt++)
+        {
+            if (attempt > 0)
+                await Task.Delay(verifyDelay ?? TimeSpan.FromSeconds(5), CancellationToken.None).ConfigureAwait(false);
+
+            InstalledPackage? after;
+
+            try
+            {
+                after = await source.FindInstalledAsync(before.Id, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                return outcome; // Cannot tell; trust the installer.
+            }
+
+            if (after is null || !string.Equals(after.InstalledVersion, before.InstalledVersion, StringComparison.OrdinalIgnoreCase))
+                return outcome;
+        }
+
+        return new PackageOutcome(OutcomeKind.Pending,
+            $"installed, but {before.InstalledVersion} is still the active version - it usually applies when {before.Name} restarts (close all its windows)",
+            Code: outcome.Code);
     }
 
     /// <summary>

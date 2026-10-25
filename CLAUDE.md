@@ -145,6 +145,10 @@ dotnet test                         # MTP runner (global.json)
   `for (int i = 0; i < list.Count; i++)`.
 - **A running exe can be renamed, not overwritten.** Self-update relies on it (`SelfUpdater.Swap`);
   keep the release file list there in step with `release_files` in `Scripts/publish.sh`.
+- **An installer's success does not mean the new version is active.** Open MSIX apps get their
+  update staged (winget still says OK); some apps switch versions on next start. `PackageBatch`
+  re-reads the version after an upgrade and reports `OutcomeKind.Pending`; any new front-end text
+  for outcomes must handle Pending.
 - **Uninstallers often finish in the background.** Never trust state right after one returns:
   the leftover scan waits for the Uninstall key to go, and the review list re-checks every item.
 - **Leftovers are never deleted, only quarantined,** and only within `LeftoverSafety`. A new place

@@ -293,7 +293,16 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
       when it is the same Windows user, so per-user files land in the right profile
 - [x] Run log records each package's route (elevated helper or not, and why) and its result
 - [x] Plain-English text for 0x80073D02 (app open) and 0x80190193 (vendor download link 403)
-- [ ] Release 0.2.3
+- [x] Released 0.2.3
+- [x] Second run (from the FAT32 drive): per-package log lines show every route and result. OBS
+      failed with installer exit 6, which its manifest maps to "package in use" (likely the OBS
+      Virtual Camera loaded by the Camera Frame Server service). Installer and uninstaller exit
+      codes now show winget's interpretation when it has one, not just the number
+- [x] Upgrades are verified: after the installer reports success the package is looked up again
+      (fresh connection); if the installed version did not move, the item is Pending ("applies when
+      X restarts"), not Done. Found with Windows Terminal: a hidden Terminal (the default terminal)
+      was hosting FlyByWire SimBridge's console, so Windows staged the update for when it closes
+- [ ] Release 0.2.4
 
 ## Backlog
 
@@ -301,6 +310,8 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
   instead of running an installer that cannot work, and offer to quarantine the stale registration.
 - Apps that stage an update and switch on next launch (itch): note "applies when itch next starts"
   instead of leaving the row looking failed.
+- Pending items: name the process holding the app (Windows Terminal hosting SimBridge's hidden
+  console) and offer "Close it and finish", with a confirmation - never kill silently.
 - "Fresh install" action for rows that need it (uninstall + install, with a clear confirmation).
 
 - Duplicate rows for one app: winget lists a Store app twice (its MSIX entry and its msstore
@@ -374,6 +385,11 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
   the source-generated deserializer assigns omitted init properties null, wiping defaults.
 - **2026-10-23** - Computed members on polymorphic source refs live in the base as a switch:
   `[JsonIgnore]` on an abstract member does not apply to its overrides, which leaked into JSON.
+- **2026-10-25** - An installer's "success" is not proof: winget reports success for an MSIX update
+  it could only stage (the app was open; Windows registers it when the app closes), and itch's
+  setup stages its new version for the next start. Upgrades re-read the installed version and
+  report Pending when it did not move. Compared with the old version, not the target, because
+  apps often report a differently formatted version than their package.
 - **2026-10-25** - Filters narrow actions too, not just the view: "upgrade all" acts on what is
   shown, and a selection hidden by a filter is never acted on. Otherwise a filtered view invites
   upgrading or uninstalling something that is not on screen.

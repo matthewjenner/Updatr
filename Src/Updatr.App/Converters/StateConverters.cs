@@ -73,6 +73,7 @@ public sealed class OutcomeTagConverter : IValueConverter
         Core.Sources.OutcomeKind.Ok => "OK",
         Core.Sources.OutcomeKind.AlreadyCurrent => "SAME",
         Core.Sources.OutcomeKind.Skipped => "SKIP",
+        Core.Sources.OutcomeKind.Pending => "WAIT",
         _ => "FAIL",
     };
 
@@ -88,7 +89,7 @@ public sealed class OutcomeBrushConverter : IValueConverter
     {
         Core.Sources.OutcomeKind.Ok => CheckStateBrushConverter.Pass,
         Core.Sources.OutcomeKind.AlreadyCurrent => CheckStateBrushConverter.Neutral,
-        Core.Sources.OutcomeKind.Skipped => CheckStateBrushConverter.Warn,
+        Core.Sources.OutcomeKind.Skipped or Core.Sources.OutcomeKind.Pending => CheckStateBrushConverter.Warn,
         _ => CheckStateBrushConverter.Fail,
     };
 

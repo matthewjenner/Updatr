@@ -494,6 +494,7 @@ public sealed partial class InstallPageViewModel : PageViewModel
                     OutcomeKind.Ok => done.Outcome.RebootRequired ? "Installed - reboot needed" : "Installed",
                     OutcomeKind.AlreadyCurrent => "Already installed",
                     OutcomeKind.Skipped => "Skipped: " + done.Outcome.Detail,
+                    OutcomeKind.Pending => "Pending: " + done.Outcome.Detail,
                     _ => "Failed: " + done.Outcome.Detail,
                 };
                 break;

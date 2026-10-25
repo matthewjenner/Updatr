@@ -215,6 +215,7 @@ public sealed partial class UninstallPageViewModel : PageViewModel
                     OutcomeKind.Ok => done.Outcome.RebootRequired ? "Removed - reboot needed" : "Removed",
                     OutcomeKind.AlreadyCurrent => done.Outcome.Detail,
                     OutcomeKind.Skipped => "Skipped: " + done.Outcome.Detail,
+                    OutcomeKind.Pending => "Pending: " + done.Outcome.Detail,
                     _ => "Failed: " + done.Outcome.Detail,
                 };
                 break;
