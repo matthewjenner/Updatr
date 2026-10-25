@@ -30,7 +30,11 @@ public sealed partial class UninstallPageViewModel : PageViewModel
         Leftovers = new LeftoversViewModel(host, dialogs);
         View = new DataGridCollectionView(Rows) { Filter = Matches };
         Filters = new FilterBarViewModel(PackageFilters.KindGroup(), PackageFilters.SourceGroup());
-        Filters.Changed += View.Refresh;
+        Filters.Changed += () =>
+        {
+            View.Refresh();
+            UpdateCounts();
+        };
         View.SortDescriptions.Add(DataGridSortDescription.FromPath(nameof(PackageRowViewModel.Name), System.ComponentModel.ListSortDirection.Ascending));
     }
 
@@ -64,7 +68,11 @@ public sealed partial class UninstallPageViewModel : PageViewModel
 
     private bool Idle => !IsBusy;
 
-    partial void OnSearchTextChanged(string value) => View.Refresh();
+    partial void OnSearchTextChanged(string value)
+    {
+        View.Refresh();
+        UpdateCounts();
+    }
 
     public void EnsureLoaded()
     {
@@ -87,7 +95,8 @@ public sealed partial class UninstallPageViewModel : PageViewModel
     [RelayCommand(CanExecute = nameof(Idle))]
     private async Task UninstallCheckedAsync()
     {
-        List<InstalledPackage> chosen = [.. Rows.Where(r => r.IsSelected).Select(r => r.Listed.Package)];
+        // Only what is on screen: a selection hidden by a filter is never uninstalled behind the user's back.
+        List<InstalledPackage> chosen = [.. Rows.Where(r => r.IsSelected && Matches(r)).Select(r => r.Listed.Package)];
 
         if (chosen.Count == 0)
         {
@@ -222,8 +231,9 @@ public sealed partial class UninstallPageViewModel : PageViewModel
 
     private void UpdateCounts()
     {
-        int selected = Rows.Count(r => r.IsSelected);
-        Counts = string.Create(CultureInfo.CurrentCulture, $"{Rows.Count} installed - {selected} selected");
+        int selected = Rows.Count(r => r.IsSelected && Matches(r));
+        int hidden = Rows.Count(r => r.IsSelected && !Matches(r));
+        Counts = string.Create(CultureInfo.CurrentCulture, $"{Rows.Count} installed - {selected} selected{(hidden > 0 ? $" ({hidden} more hidden by filters)" : "")}");
         Filters.Recount([.. Rows]);
         UninstallText = selected == 0 ? "Uninstall selected" : $"Uninstall {selected} selected";
     }

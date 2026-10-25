@@ -65,7 +65,8 @@ one JSON object per line.
 ```
 updatr-cli preflight                         check this machine
 updatr-cli list [--updates]                  installed packages and updates
-updatr-cli upgrade --all | <id>...           upgrade (holds respected by --all)
+updatr-cli upgrade --all | <id>...           upgrade (holds respected by --all;
+                                             narrow --all with --kind / --source)
 updatr-cli reinstall <id>...                 repair an install
 updatr-cli hold <id> | unhold <id>           keep a package out of "upgrade all"
 updatr-cli uninstall <id>...                 remove through the app's own uninstaller

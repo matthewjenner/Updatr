@@ -679,7 +679,9 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
         string? managedBy = LauncherDetector.ManagedBy(
             installed?.GetMetadata(PackageVersionMetadataField.StandardUninstallCommand),
             installed?.GetMetadata(PackageVersionMetadataField.InstalledLocation),
-            package.Id);
+            package.Id,
+            installed?.Publisher,
+            package.Name);
 
         // A newer version winget will not apply in place - almost always because the vendor switched
         // installer technology (Phase 3 finding: Audacity exe -> WiX, Wave Link MSI -> MSIX). The

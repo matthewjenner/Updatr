@@ -39,6 +39,20 @@ public sealed class LauncherDetectorTests
         LauncherDetector.ManagedBy(null, @"C:\Program Files\Epic Games\Fortnite").Should().Be("Epic Games");
     }
 
+    [Fact]
+    public void BattlestateGamesAreRecognizedByPublisherWhereverTheyAreInstalled()
+    {
+        // Real entries (2026-10-25): each game has its own Uninstall.exe in a folder the user chose.
+        LauncherDetector.ManagedBy(@"E:\games\Escape from Tarkov\Uninstall.exe", @"E:\games\Escape from Tarkov", null, "Battlestate Games", "Escape from Tarkov")
+            .Should().Be("Battlestate Games Launcher");
+        LauncherDetector.ManagedBy(@"E:\games\Escape from Tarkov Arena\Uninstall.exe", @"E:\games\Escape from Tarkov Arena", null, "Battlestate Games", "Escape from Tarkov: Arena")
+            .Should().Be("Battlestate Games Launcher");
+
+        // The launcher itself is not managed by itself.
+        LauncherDetector.ManagedBy("\"E:\\games\\BsgLauncher\\unins000.exe\"", @"E:\games\BsgLauncher\", null, "Battlestate Games", "Battlestate Games Launcher 15.1.0.4635")
+            .Should().BeNull();
+    }
+
     [Theory]
     [InlineData("\"C:\\Program Files\\Git\\unins000.exe\"", @"C:\Program Files\Git")]
     [InlineData("MsiExec.exe /X{12345678-1234-1234-1234-123456789012}", null)]

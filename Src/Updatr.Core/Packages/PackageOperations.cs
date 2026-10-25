@@ -97,6 +97,18 @@ public sealed record PackageSelection
 
     /// <summary>Uninstall only: do not look for leftovers afterwards.</summary>
     public bool SkipLeftovers { get; init; }
+
+    /// <summary>
+    /// With <see cref="All"/>: consider only these already-listed packages (the GUI's filtered
+    /// view) instead of listing everything again. The same rules apply - holds, Store, launchers.
+    /// </summary>
+    public IReadOnlyList<ListedPackage>? Within { get; init; }
+
+    /// <summary>With <see cref="All"/>: only these sources (winget, npm, ...).</summary>
+    public IReadOnlyList<string>? Sources { get; init; }
+
+    /// <summary>With <see cref="All"/>: only these kinds (apps, games, ...).</summary>
+    public IReadOnlyList<AppKind>? Kinds { get; init; }
 }
 
 /// <summary>Upgrades packages, one installer at a time.</summary>
@@ -262,7 +274,9 @@ public sealed class PackageBatch(
 
         if (selection.All)
         {
-            IReadOnlyList<ListedPackage> listed = await list.RunAsync(new ListRequest(UpdatesOnly: true), sink, cancellationToken).ConfigureAwait(false);
+            IReadOnlyList<ListedPackage> listed = selection.Within is { } within
+                ? [.. within.Where(l => l.Package.HasUpdate)]
+                : await list.RunAsync(new ListRequest(UpdatesOnly: true, selection.Sources, selection.Kinds), sink, cancellationToken).ConfigureAwait(false);
 
             foreach (ListedPackage item in listed)
             {

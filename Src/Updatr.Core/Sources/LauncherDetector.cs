@@ -27,6 +27,16 @@ public static class LauncherDetector
         ("Rockstar Games Launcher", [@"\Rockstar Games\Launcher\"], []),
     ];
 
+    /// <summary>
+    /// Launchers whose games carry nothing launcher-specific in their uninstall entry or folder (each
+    /// game has its own Uninstall.exe wherever the user put it), so the publisher is the signal.
+    /// The launcher's own entry is excluded by name.
+    /// </summary>
+    private static readonly (string Launcher, string Publisher, string SelfName)[] PublisherLaunchers =
+    [
+        ("Battlestate Games Launcher", "Battlestate Games", "Battlestate Games Launcher"),
+    ];
+
     /// <summary>Launchers' own uninstall entries, which must not be classed as launcher-managed.</summary>
     private static readonly string[] LauncherSelf =
     [
@@ -58,7 +68,9 @@ public static class LauncherDetector
     /// <param name="uninstallCommand">The registered uninstall command, if known.</param>
     /// <param name="installLocation">The install folder, if known.</param>
     /// <param name="packageId">The package's id, when a catalog knows it. A launcher's own id is never launcher-managed.</param>
-    public static string? ManagedBy(string? uninstallCommand, string? installLocation, string? packageId = null)
+    /// <param name="publisher">The publisher, for launchers recognized by it.</param>
+    /// <param name="name">The display name, to tell a publisher's launcher from its games.</param>
+    public static string? ManagedBy(string? uninstallCommand, string? installLocation, string? packageId = null, string? publisher = null, string? name = null)
     {
         string uninstall = uninstallCommand ?? string.Empty;
         string location = installLocation is null ? string.Empty : installLocation.TrimEnd('\\') + "\\";
@@ -70,6 +82,15 @@ public static class LauncherDetector
             || LauncherSelfLocationSuffixes.Any(self => location.EndsWith(self, StringComparison.OrdinalIgnoreCase)))
         {
             return null;
+        }
+
+        foreach ((string launcher, string launcherPublisher, string selfName) in PublisherLaunchers)
+        {
+            if (string.Equals(publisher?.Trim(), launcherPublisher, StringComparison.OrdinalIgnoreCase)
+                && !(name ?? string.Empty).StartsWith(selfName, StringComparison.OrdinalIgnoreCase))
+            {
+                return launcher;
+            }
         }
 
         foreach ((string launcher, string[] uninstallMarkers, string[] locationMarkers) in Launchers)

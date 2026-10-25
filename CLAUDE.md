@@ -207,7 +207,8 @@ dotnet test                         # MTP runner (global.json)
   status --json`, run `dotnet test`. A new action kind needs an `IDebloatTarget` and an entry in the
   broker's allow-list (`DebloatBrokerHandler.Allowed`).
 - **Recognize another launcher's games:** add its uninstall-command / install-folder markers to
-  `LauncherDetector.Launchers`, its own entries to `LauncherSelf` / `LauncherIds`, a test with a
+  `LauncherDetector.Launchers` (or, when its games carry no such marker, its publisher to
+  `PublisherLaunchers`, as Battlestate's), its own entries to `LauncherSelf` / `LauncherIds`, a test with a
   real uninstall string, and an `explicit` hold for the launcher's winget id in `holds.json`.
 - **Test self-update without touching `bin/`:** publish with `-p:VersionPrefix=<older>` into a
   scratch folder (copy the exes there) and run `updatr-cli self-update --yes` from it. Dev builds

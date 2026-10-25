@@ -38,7 +38,11 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
         _kind = PackageFilters.KindGroup();
         _source = PackageFilters.SourceGroup();
         Filters = new FilterBarViewModel(_status, _kind, _source);
-        Filters.Changed += View.Refresh;
+        Filters.Changed += () =>
+        {
+            View.Refresh();
+            UpdateCounts();
+        };
         View.SortDescriptions.Add(DataGridSortDescription.FromPath(nameof(PackageRowViewModel.Name), System.ComponentModel.ListSortDirection.Ascending));
     }
 
@@ -73,7 +77,15 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
 
     private bool Idle => !IsBusy;
 
-    partial void OnSearchTextChanged(string value) => View.Refresh();
+    partial void OnSearchTextChanged(string value)
+    {
+        View.Refresh();
+        UpdateCounts();
+    }
+
+    /// <summary>"Upgrade all shown (N)": what "upgrade all" would take from the rows on screen.</summary>
+    [ObservableProperty]
+    public partial string UpgradeAllText { get; set; } = "Upgrade all shown";
 
     /// <summary>Loads the list the first time the page is shown.</summary>
     public void EnsureLoaded()
@@ -102,9 +114,17 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
     private Task UpgradeCheckedAsync()
         => RunBatchAsync("Upgrading", (sink, ct) => _host.Upgrade.RunAsync(new PackageSelection { Packages = Checked() }, sink, ct));
 
+    /// <summary>
+    /// "Upgrade all" for what is on screen: the filters and search narrow it, and the usual rules
+    /// (holds, Store, launchers, unknown versions) still apply within it. With nothing filtered it
+    /// is every update, as before.
+    /// </summary>
     [RelayCommand(CanExecute = nameof(Idle))]
     private Task UpgradeAllAsync()
-        => RunBatchAsync("Upgrading everything", (sink, ct) => _host.Upgrade.RunAsync(new PackageSelection { All = true }, sink, ct));
+    {
+        List<ListedPackage> shown = [.. Shown().Select(r => r.Listed)];
+        return RunBatchAsync("Upgrading everything shown", (sink, ct) => _host.Upgrade.RunAsync(new PackageSelection { All = true, Within = shown }, sink, ct));
+    }
 
     [RelayCommand(CanExecute = nameof(Idle))]
     private Task ReinstallCheckedAsync()
@@ -123,11 +143,12 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
         BusyText = "Canceling - the installer that is running will finish first...";
     }
 
+    /// <summary>Selects the upgradable rows on screen; selections on hidden rows are left as they are.</summary>
     [RelayCommand]
     private void CheckUpdates()
     {
-        foreach (PackageRowViewModel row in Rows)
-            row.IsSelected = row.CanUpgrade && !row.Listed.IsHeld && !row.Listed.IsExplicitOnly;
+        foreach (PackageRowViewModel row in Shown())
+            row.IsSelected = UpgradesInAll(row);
     }
 
     [RelayCommand]
@@ -137,7 +158,14 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
             row.IsSelected = false;
     }
 
-    private List<InstalledPackage> Checked() => [.. Rows.Where(r => r.IsSelected).Select(r => r.Listed.Package)];
+    /// <summary>Selected rows that are on screen. Hidden selections are kept for later, never acted on.</summary>
+    private List<InstalledPackage> Checked() => [.. Shown().Where(r => r.IsSelected).Select(r => r.Listed.Package)];
+
+    private IEnumerable<PackageRowViewModel> Shown() => Rows.Where(Matches);
+
+    /// <summary>Whether "upgrade all" would take this row (mirrors PackageBatch's rules, for the button's count).</summary>
+    private static bool UpgradesInAll(PackageRowViewModel row)
+        => row.CanUpgrade && !row.Listed.IsHeld && !row.Listed.IsExplicitOnly && row.Listed.Package.CheckProblem is null && !row.Listed.Package.HasUnknownVersion;
 
     private async Task ChangeHoldsAsync(bool hold)
     {
@@ -251,6 +279,11 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
         else
         {
             PackageRowViewModel row = new(listed);
+            row.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(PackageRowViewModel.IsSelected))
+                    UpdateCounts();
+            };
             _byKey[key] = row;
             Rows.Add(row);
         }
@@ -277,7 +310,11 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
         int updates = Rows.Count(r => r.Listed.Package.HasUpdate && r.Listed.Package.ManagedBy is null);
         int held = Rows.Count(r => r.Listed.IsHeld || r.Listed.IsExplicitOnly);
         int launcher = Rows.Count(r => r.Listed.Package.ManagedBy is not null);
-        Counts = string.Create(CultureInfo.CurrentCulture, $"{Rows.Count} installed - {updates} with updates - {held} held - {launcher} managed by game launchers");
+        int selected = Rows.Count(r => r.IsSelected);
+        int hidden = Rows.Count(r => r.IsSelected && !Matches(r));
+        string selection = selected == 0 ? "" : hidden == 0 ? $" - {selected} selected" : $" - {selected - hidden} selected ({hidden} hidden by filters)";
+        Counts = string.Create(CultureInfo.CurrentCulture, $"{Rows.Count} installed - {updates} with updates - {held} held - {launcher} managed by game launchers{selection}");
+        UpgradeAllText = string.Create(CultureInfo.CurrentCulture, $"Upgrade all shown ({Shown().Count(UpgradesInAll)})");
         Filters.Recount([.. Rows]);
     }
 

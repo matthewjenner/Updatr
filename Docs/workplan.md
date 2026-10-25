@@ -272,18 +272,22 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
       Install (Category / Installed)
 - [x] CLI parity: `list --kind <k>... --source <s>...`; `--json` rows carry kind, publisher, managedBy
 - [x] Uninstall shows what it will not remove (launcher games, winget) with the reason; not selectable
+- [x] Actions follow the view: "Upgrade all shown (N)" upgrades only what the filters and search
+      show (holds still apply, no second listing); selection actions act only on visible selected
+      rows, and the count says how many more are hidden; CLI `upgrade --all --kind/--source`
+- [x] Battlestate Games launcher: its games (Escape from Tarkov, Arena) are launcher-managed,
+      recognized by publisher (each game has its own uninstaller wherever the user put it)
 - [x] Log page: columns with a centered, colored level; the log file centers the level too
 - [x] Widgets debloat item removes the Web Experience Pack (the policy key is UCPD-protected)
 - [x] winget COM load lowered after three 0x153 bugchecks (see Known edges)
 - [ ] **Manual:** look over the chips on Updates, Install, and Uninstall
-- [ ] Release 0.2.1 (version bumped)
+- [x] Released 0.2.1 (2026-10-25)
+- [ ] Release 0.2.2 (actions follow the view; Battlestate games)
 
 ## Backlog
 
 - Duplicate rows for one app: winget lists a Store app twice (its MSIX entry and its msstore
   entry, e.g. "AV1 Video Extension"). Merge them into one row.
-- Escape from Tarkov and other launcher games outside the known launchers show as apps; add the
-  Battlestate launcher to `LauncherDetector`.
 - NVIDIA App in the catalog - not in winget and no stable "latest" download link; needs a
   direct-URL resolver for NVIDIA's versioned URLs.
 - VS Code extensions show their id as the name on the Updates screen; use the Marketplace display
@@ -353,6 +357,9 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
   the source-generated deserializer assigns omitted init properties null, wiping defaults.
 - **2026-10-23** - Computed members on polymorphic source refs live in the base as a switch:
   `[JsonIgnore]` on an abstract member does not apply to its overrides, which leaked into JSON.
+- **2026-10-25** - Filters narrow actions too, not just the view: "upgrade all" acts on what is
+  shown, and a selection hidden by a filter is never acted on. Otherwise a filtered view invites
+  upgrading or uninstalling something that is not on screen.
 - **2026-10-25** - winget COM load is kept low on purpose: 2 listing workers (was 8), one catalog
   connection per worker for the whole listing (was one per query), lookups serialized through one
   cached connection. A full listing takes about 50 s here with these settings; the load preceded three 0x153

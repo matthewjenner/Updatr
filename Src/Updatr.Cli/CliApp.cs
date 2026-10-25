@@ -85,12 +85,7 @@ public static class CliApp
 
         command.SetAction((parse, cancellationToken) => RunAsync(parse, cancellationToken, async (host, sink) =>
         {
-            List<AppKind> kinds = [];
-
-            foreach (string name in parse.GetValue(kind) ?? [])
-                kinds.Add(AppKinds.FromCliName(name) ?? throw new ArgumentException($"Unknown kind '{name}'. Use: apps, games, runtimes, drivers, windows, developer."));
-
-            ListRequest request = new(parse.GetValue(updates), parse.GetValue(source) is { Length: > 0 } sources ? sources : null, kinds.Count > 0 ? kinds : null);
+            ListRequest request = new(parse.GetValue(updates), parse.GetValue(source) is { Length: > 0 } sources ? sources : null, ParseKinds(parse.GetValue(kind)));
             IReadOnlyList<ListedPackage> packages = await host.List.RunAsync(request, sink, cancellationToken).ConfigureAwait(false);
             sink.Table(packages);
             return packages.Any(p => p.Package.CheckProblem is not null) ? ExitCodes.Failed : ExitCodes.Ok;
@@ -105,12 +100,16 @@ public static class CliApp
         Option<bool> all = new("--all", "-a") { Description = "Upgrade everything with an update, except held packages." };
         Option<bool> includeHeld = new("--include-held") { Description = "With --all: include held packages too." };
         Option<bool> includeUnknown = new("--include-unknown") { Description = "With --all: include packages whose installed version is unknown." };
+        Option<string[]> allSources = new("--source") { Description = "With --all: only these sources (repeatable).", AllowMultipleArgumentsPerToken = true };
+        Option<string[]> allKinds = new("--kind") { Description = "With --all: only these kinds - apps, games, runtimes, drivers, windows, developer (repeatable).", AllowMultipleArgumentsPerToken = true };
 
         Command command = new("upgrade", "Upgrade named packages, or all of them with --all. One installer at a time.");
         command.Arguments.Add(ids);
         command.Options.Add(all);
         command.Options.Add(includeHeld);
         command.Options.Add(includeUnknown);
+        command.Options.Add(allSources);
+        command.Options.Add(allKinds);
 
         command.SetAction((parse, cancellationToken) => RunAsync(parse, cancellationToken, async (host, sink) =>
         {
@@ -129,6 +128,8 @@ public static class CliApp
                 All = everything,
                 IncludeHeld = parse.GetValue(includeHeld),
                 IncludeUnknown = parse.GetValue(includeUnknown),
+                Sources = parse.GetValue(allSources) is { Length: > 0 } sources ? sources : null,
+                Kinds = ParseKinds(parse.GetValue(allKinds)),
             };
 
             RunSummary summary = await host.Upgrade.RunAsync(selection, sink, cancellationToken).ConfigureAwait(false);
@@ -137,6 +138,15 @@ public static class CliApp
         }));
 
         return command;
+    }
+
+    /// <summary>"--kind games --kind runtimes" as kinds; null when none were given.</summary>
+    private static IReadOnlyList<AppKind>? ParseKinds(string[]? names)
+    {
+        if (names is not { Length: > 0 })
+            return null;
+
+        return [.. names.Select(n => AppKinds.FromCliName(n) ?? throw new ArgumentException($"Unknown kind '{n}'. Use: apps, games, runtimes, drivers, windows, developer."))];
     }
 
     private static Command ReinstallCommand()

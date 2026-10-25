@@ -158,6 +158,32 @@ public sealed class PackageBatchTests
     }
 
     [Fact]
+    public async Task UpgradeAllWithinAViewTouchesOnlyThatViewAndStillHonorsHolds()
+    {
+        InstalledPackage git = Pkg("Git.Git"), node = Pkg("OpenJS.NodeJS.LTS"), other = Pkg("Other.App");
+        (PackageBatch batch, FakeSource source) = Build(git, node, other);
+        ListedPackage[] shown = [new(git, null), new(node, Policy.Match("fake", node.Id))];
+
+        await batch.RunAsync(PackageBatch.Action.Upgrade, new PackageSelection { All = true, Within = shown }, new RecordingSink(), Ct);
+
+        // Other.App has an update but is not on screen; Node is on screen but held.
+        source.Upgraded.Should().Equal("Git.Git");
+    }
+
+    [Fact]
+    public async Task UpgradeAllCanBeNarrowedByKind()
+    {
+        (PackageBatch batch, FakeSource source) = Build(Pkg("Git.Git"));
+
+        // FakeSource is not winget, so its packages are developer packages.
+        await batch.RunAsync(PackageBatch.Action.Upgrade, new PackageSelection { All = true, Kinds = [AppKind.Game] }, new RecordingSink(), Ct);
+        source.Upgraded.Should().BeEmpty();
+
+        await batch.RunAsync(PackageBatch.Action.Upgrade, new PackageSelection { All = true, Kinds = [AppKind.Developer] }, new RecordingSink(), Ct);
+        source.Upgraded.Should().Equal("Git.Git");
+    }
+
+    [Fact]
     public async Task UninstallTakesAppsNoCatalogKnowsButNeverLauncherGamesOrWinget()
     {
         (PackageBatch batch, FakeSource source) = Build(

@@ -22,8 +22,8 @@
         <!-- Actions. -->
         <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,10">
             <Button Content="Refresh" Command="{Binding RefreshCommand}" Margin="0,0,8,6" />
-            <Button Content="Upgrade all" Command="{Binding UpgradeAllCommand}" Classes="accent" Margin="0,0,8,6"
-                    ToolTip.Tip="Everything with an update, except held, self-updating, Store-managed, and launcher-managed apps." />
+            <Button Content="{Binding UpgradeAllText}" Command="{Binding UpgradeAllCommand}" Classes="accent" Margin="0,0,8,6"
+                    ToolTip.Tip="Every update on screen (filters and search apply), except held, self-updating, Store-managed, and launcher-managed apps." />
             <Button Content="Upgrade selected" Command="{Binding UpgradeCheckedCommand}" Margin="0,0,8,6" />
             <Button Content="Reinstall selected" Command="{Binding ReinstallCheckedCommand}" Margin="0,0,8,6" />
             <Button Content="Hold selected" Command="{Binding HoldCheckedCommand}" Margin="0,0,8,6" />
