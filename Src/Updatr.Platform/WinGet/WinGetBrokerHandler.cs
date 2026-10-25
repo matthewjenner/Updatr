@@ -6,7 +6,7 @@ using Updatr.Platform.Elevation;
 
 namespace Updatr.Platform.WinGet;
 
-/// <summary>Runs a winget upgrade/reinstall inside the elevated broker.</summary>
+/// <summary>Runs a winget upgrade, reinstall, install, or uninstall inside the elevated broker.</summary>
 public sealed class WinGetBrokerHandler : IBrokerHandler
 {
     public string Type => WinGetComSource.BrokerRunType;
@@ -17,9 +17,12 @@ public sealed class WinGetBrokerHandler : IBrokerHandler
         bool reinstall = payload?["reinstall"]?.GetValue<bool>() == true;
         bool unknownVersion = payload?["unknownVersion"]?.GetValue<bool>() == true;
 
-        PackageOutcome outcome = payload?["mode"]?.GetValue<string>() == "install"
-            ? await WinGetComSource.RunInstallLocalAsync(id, payload?["catalog"]?.GetValue<string>() ?? "winget", id, new EmittingSink(emit)).ConfigureAwait(false)
-            : await WinGetComSource.RunLocalAsync(id, reinstall, unknownVersion, id, new EmittingSink(emit)).ConfigureAwait(false);
+        PackageOutcome outcome = payload?["mode"]?.GetValue<string>() switch
+        {
+            "install" => await WinGetComSource.RunInstallLocalAsync(id, payload?["catalog"]?.GetValue<string>() ?? "winget", id, new EmittingSink(emit)).ConfigureAwait(false),
+            "uninstall" => await WinGetComSource.RunUninstallLocalAsync(id, id, new EmittingSink(emit)).ConfigureAwait(false),
+            _ => await WinGetComSource.RunLocalAsync(id, reinstall, unknownVersion, id, new EmittingSink(emit)).ConfigureAwait(false),
+        };
         return BrokerOutcome.ToJson(outcome);
     }
 

@@ -16,7 +16,7 @@ namespace Updatr.App.ViewModels;
 public sealed record DebloatHeaderViewModel(string Title, string? Subtitle);
 
 /// <summary>One debloat item: its live state, whether it is picked, and the last run's result.</summary>
-public sealed partial class DebloatItemRowViewModel(DebloatItemStatus status) : ObservableObject
+public sealed partial class DebloatItemRowViewModel(DebloatItemStatus status) : ObservableObject, Behaviors.ISelectableRow
 {
     public DebloatItemStatus Status { get; } = status;
 
@@ -64,7 +64,7 @@ public sealed partial class DebloatItemRowViewModel(DebloatItemStatus status) : 
 }
 
 /// <summary>A Store app no rule knows: remove it, or keep it so it stops being flagged.</summary>
-public sealed partial class UnrecognizedRowViewModel(UnrecognizedApp app, DebloatPageViewModel page) : ObservableObject
+public sealed partial class UnrecognizedRowViewModel(UnrecognizedApp app, DebloatPageViewModel page) : ObservableObject, Behaviors.ISelectableRow
 {
     public UnrecognizedApp App { get; } = app;
 
@@ -73,6 +73,8 @@ public sealed partial class UnrecognizedRowViewModel(UnrecognizedApp app, Debloa
     public string Detail => $"{App.App.Name}{(App.App.Publisher is { } p ? " - " + p : "")}{(App.IsNew ? " - new since last run" : "")}";
 
     public bool IsKept => App.Kept;
+
+    public bool CanSelect => !App.Kept;
 
     [ObservableProperty]
     public partial bool IsSelected { get; set; }

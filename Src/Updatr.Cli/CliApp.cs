@@ -5,6 +5,7 @@ using Updatr.Platform;
 using Updatr.Core.Packages;
 using Updatr.Core.Sources;
 using Updatr.Platform.Elevation;
+using Updatr.Platform.Update;
 using Updatr.Platform.WinGet;
 
 namespace Updatr.Cli;
@@ -53,6 +54,7 @@ public static class CliApp
         root.Subcommands.Add(ListCommand());
         root.Subcommands.Add(UpgradeCommand());
         root.Subcommands.Add(ReinstallCommand());
+        root.Subcommands.Add(UninstallCommand());
         root.Subcommands.Add(HoldCommand("hold", "Hold packages: upgrade --all leaves them alone."));
         root.Subcommands.Add(HoldCommand("unhold", "Release holds - yours, and the catalog's on the named packages."));
         root.Subcommands.Add(WinGetCommand());
@@ -62,6 +64,7 @@ public static class CliApp
 
         root.Subcommands.Add(DebloatCommands.Command());
         root.Subcommands.Add(AdminCommand());
+        root.Subcommands.Add(SelfUpdateCommand());
         return root;
     }
 
@@ -140,6 +143,22 @@ public static class CliApp
         return command;
     }
 
+    private static Command UninstallCommand()
+    {
+        Argument<string[]> ids = new("ids") { Description = "Package ids (see: list). Apps no catalog knows can be removed too.", Arity = ArgumentArity.OneOrMore };
+        Command command = new("uninstall", "Remove packages through each app's own uninstaller. Leftover files are not touched.");
+        command.Arguments.Add(ids);
+
+        command.SetAction((parse, cancellationToken) => RunAsync(parse, cancellationToken, async (host, sink) =>
+        {
+            RunSummary summary = await host.Uninstall.RunAsync(new PackageSelection { Ids = parse.GetValue(ids) }, sink, cancellationToken).ConfigureAwait(false);
+            sink.Summary(summary);
+            return summary.HasFailures ? ExitCodes.Failed : ExitCodes.Ok;
+        }));
+
+        return command;
+    }
+
     private static Command HoldCommand(string name, string description)
     {
         Argument<string[]> ids = new("ids") { Description = "Package ids.", Arity = ArgumentArity.OneOrMore };
@@ -181,6 +200,21 @@ public static class CliApp
         Command winget = new("winget", "winget itself.");
         winget.Subcommands.Add(repair);
         return winget;
+    }
+
+    private static Command SelfUpdateCommand()
+    {
+        Option<bool> force = new("--force") { Description = "Download and reinstall the latest release even when already on it." };
+        Command command = new("self-update", "Update Updatr on this drive from the latest GitHub release (checksum-verified).") { force };
+
+        command.SetAction((parse, cancellationToken) => RunAsync(parse, cancellationToken, async (host, sink) =>
+        {
+            SelfUpdateResult result = await host.SelfUpdate.RunAsync(parse.GetValue(force), sink, cancellationToken).ConfigureAwait(false);
+            sink.Result(!result.Failed, result.Summary);
+            return result.Failed ? ExitCodes.Failed : ExitCodes.Ok;
+        }));
+
+        return command;
     }
 
     private static Command AdminCommand()

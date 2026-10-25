@@ -157,6 +157,31 @@ public sealed class PackageBatchTests
         summary.Count(OutcomeKind.Skipped).Should().Be(2);
     }
 
+    [Fact]
+    public async Task UninstallTakesAppsNoCatalogKnowsButNeverLauncherGamesOrWinget()
+    {
+        (PackageBatch batch, FakeSource source) = Build(
+            Pkg(@"ARP\Machine\X64\SomeTool", available: null, managed: false),
+            Pkg("Steam App 730", managedBy: "Steam"),
+            Pkg("Microsoft.AppInstaller"));
+
+        RunSummary summary = await batch.RunAsync(PackageBatch.Action.Uninstall,
+            new PackageSelection { Ids = [@"ARP\Machine\X64\SomeTool", "Steam App 730", "Microsoft.AppInstaller"] }, new RecordingSink(), Ct);
+
+        source.Uninstalled.Should().Equal(@"ARP\Machine\X64\SomeTool");
+        summary.Items.Where(i => i.Outcome.Kind == OutcomeKind.Skipped).Select(i => i.DisplayName).Should().BeEquivalentTo("Steam App 730", "Microsoft.AppInstaller");
+    }
+
+    [Fact]
+    public async Task UninstallAllIsRefused()
+    {
+        (PackageBatch batch, _) = Build(Pkg("Git.Git"));
+
+        Func<Task> act = () => new UninstallPackages(batch).RunAsync(new PackageSelection { All = true }, new RecordingSink(), Ct);
+
+        await act.Should().ThrowAsync<ArgumentException>();
+    }
+
     private sealed class FakeSource(InstalledPackage[] installed) : IPackageSource
     {
         public string Id => "fake";
@@ -191,6 +216,14 @@ public sealed class PackageBatchTests
         public Task<PackageOutcome> ReinstallAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
         {
             Reinstalled.Add(package.Id);
+            return Task.FromResult(PackageOutcome.Ok());
+        }
+
+        public List<string> Uninstalled { get; } = [];
+
+        public Task<PackageOutcome> UninstallAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
+        {
+            Uninstalled.Add(package.Id);
             return Task.FromResult(PackageOutcome.Ok());
         }
     }

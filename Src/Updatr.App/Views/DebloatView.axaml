@@ -2,8 +2,32 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Updatr.App.ViewModels"
              xmlns:conv="using:Updatr.App.Converters"
+             xmlns:b="using:Updatr.App.Behaviors"
              x:Class="Updatr.App.Views.DebloatView"
              x:DataType="vm:DebloatPageViewModel">
+    <UserControl.Styles>
+        <!-- Click-to-select rows: the highlight is the selection. -->
+        <Style Selector="Border.pick">
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="Margin" Value="0,1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Border.pick:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListLowBrush}" />
+        </Style>
+        <Style Selector="Border.pick.selected">
+            <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListAccentLowBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SystemControlHighlightAccentBrush}" />
+            <Setter Property="BorderThickness" Value="3,0,0,0" />
+        </Style>
+        <Style Selector="Border.pick.locked">
+            <Setter Property="Cursor" Value="Arrow" />
+            <Setter Property="Opacity" Value="0.6" />
+        </Style>
+    </UserControl.Styles>
+
     <Grid ColumnDefinitions="*,340" Margin="20,16">
         <!-- Items: picked ones are applied; state comes from the live machine. -->
         <DockPanel Grid.Column="0" Margin="0,0,16,0">
@@ -15,7 +39,7 @@
                     <Button Content="Select recommended" Command="{Binding SelectRecommendedCommand}" />
                     <Button Content="Clear" Command="{Binding ClearSelectionCommand}" />
                     <Button Content="Check again" Command="{Binding RefreshCommand}" />
-                    <CheckBox Content="Only what changed since the last run" IsChecked="{Binding ShowOnlyChanged}" Margin="8,0,0,0" />
+                    <ToggleSwitch OnContent="Only what changed since the last run" OffContent="Everything" IsChecked="{Binding ShowOnlyChanged}" Margin="8,0,0,0" />
                 </StackPanel>
                 <StackPanel Spacing="4" IsVisible="{Binding BusyText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -37,11 +61,10 @@
                         </DataTemplate>
 
                         <DataTemplate DataType="vm:DebloatItemRowViewModel">
-                            <Border Padding="0,6" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
-                                    ToolTip.Tip="{Binding Details}">
-                                <Grid ColumnDefinitions="36,*,170">
-                                    <CheckBox IsChecked="{Binding IsSelected}" IsEnabled="{Binding CanSelect}" VerticalAlignment="Top" />
-                                    <StackPanel Grid.Column="1" Spacing="2">
+                            <Border Classes="pick" Classes.selected="{Binding IsSelected}" Classes.locked="{Binding !CanSelect}"
+                                    b:RowSelection.ToggleOnClick="True" ToolTip.Tip="{Binding Details}">
+                                <Grid ColumnDefinitions="*,170">
+                                    <StackPanel Spacing="2">
                                         <TextBlock Text="{Binding Title}" />
                                         <TextBlock Text="{Binding Description}" FontSize="12" Opacity="0.65" TextWrapping="Wrap" />
                                         <TextBlock Text="{Binding Warning}" FontSize="12" Foreground="#D49A1A" TextWrapping="Wrap"
@@ -50,7 +73,7 @@
                                                    IsVisible="{Binding Activity, Converter={x:Static ObjectConverters.IsNotNull}}"
                                                    Foreground="{Binding Outcome, Converter={x:Static conv:OutcomeBrushConverter.Instance}}" />
                                     </StackPanel>
-                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Top">
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Top">
                                         <Ellipse Width="9" Height="9" VerticalAlignment="Center"
                                                  Fill="{Binding Tone, Converter={x:Static conv:CheckStateBrushConverter.Instance}}" />
                                         <TextBlock Text="{Binding StateText}" FontSize="12" VerticalAlignment="Center" />
@@ -60,15 +83,14 @@
                         </DataTemplate>
 
                         <DataTemplate DataType="vm:UnrecognizedRowViewModel">
-                            <Border Padding="0,6" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
-                                <Grid ColumnDefinitions="36,*,170">
-                                    <CheckBox IsChecked="{Binding IsSelected}" IsEnabled="{Binding !IsKept}" VerticalAlignment="Top"
-                                              ToolTip.Tip="Remove this app" />
-                                    <StackPanel Grid.Column="1" Spacing="2">
+                            <Border Classes="pick" Classes.selected="{Binding IsSelected}" Classes.locked="{Binding IsKept}"
+                                    b:RowSelection.ToggleOnClick="True">
+                                <Grid ColumnDefinitions="*,170">
+                                    <StackPanel Spacing="2">
                                         <TextBlock Text="{Binding Name}" />
                                         <TextBlock Text="{Binding Detail}" FontSize="12" Opacity="0.65" TextWrapping="Wrap" />
                                     </StackPanel>
-                                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
                                         <Button Content="Keep" Command="{Binding KeepCommand}" Padding="8,2" IsVisible="{Binding !IsKept}"
                                                 ToolTip.Tip="Stop flagging this app" />
                                         <Button Content="Kept - undo" Command="{Binding KeepCommand}" Padding="8,2" IsVisible="{Binding IsKept}" />

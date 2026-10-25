@@ -65,6 +65,10 @@ dotnet test                         # MTP runner (global.json)
 ## Conventions
 
 - **MVVM:** ViewModels never reference Views. `[ObservableProperty]` / `[RelayCommand]`.
+- **No checkboxes for picking items.** Rows implement `ISelectableRow`; grids use
+  `b:RowSelection.Enabled="True"` (click toggles, highlight mirrors `IsSelected`), other lists a
+  `Border` with `b:RowSelection.ToggleOnClick="True"` and `Classes.selected`. On/off settings use
+  `ToggleSwitch`.
 - **Async everywhere, cancelable:** every operation takes a `CancellationToken`. No `.Result`,
   `.Wait()`, or `Thread.Sleep` on any path the UI waits on.
 - **Threading:** operation events reach the GUI through its sink, which marshals with
@@ -134,6 +138,13 @@ dotnet test                         # MTP runner (global.json)
   `FileNotFoundException`). Match `Exception.HResult` (see `ScheduledTaskTarget`).
 - **A `= true` default on a JSON model bool is lost** when the field is omitted (the deserializer
   assigns false). Name such flags negatively, default false (`AppxAction.KeepProvisioned`).
+- **winget's installed scope says "System" for per-machine installs,** not "Machine". Parse it
+  with `WinGetComSource.ParseScope`, never a string compare.
+- **Index WinRT lists, never enumerate them.** `foreach` / LINQ over a CsWinRT `IReadOnlyList`
+  from the WinGet API throws `InvalidCastException` ("No such interface supported"); use
+  `for (int i = 0; i < list.Count; i++)`.
+- **A running exe can be renamed, not overwritten.** Self-update relies on it (`SelfUpdater.Swap`);
+  keep the release file list there in step with `release_files` in `Scripts/publish.sh`.
 - **Do not trim.** WinRT.Runtime and the Windows SDK projection are not trim-safe (IL2104). Publish
   is single-file + compressed, untrimmed.
 - **Version 0.0.0 never releases.** CI builds, tests, and packages it, but the release step is
@@ -184,6 +195,9 @@ dotnet test                         # MTP runner (global.json)
 - **Recognize another launcher's games:** add its uninstall-command / install-folder markers to
   `LauncherDetector.Launchers`, its own entries to `LauncherSelf` / `LauncherIds`, a test with a
   real uninstall string, and an `explicit` hold for the launcher's winget id in `holds.json`.
+- **Test self-update without touching `bin/`:** publish with `-p:VersionPrefix=<older>` into a
+  scratch folder (copy the exes there) and run `updatr-cli self-update --yes` from it. Dev builds
+  refuse by design.
 - **Add a convention test:** walk files with `RepositoryFiles.Authored()` (everything a person
   wrote) or `RepositoryFiles.Source()` (what ships), so new folders and extensions are covered by
   every convention at once.

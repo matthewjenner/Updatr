@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Updatr.App.ViewModels"
              xmlns:conv="using:Updatr.App.Converters"
+             xmlns:b="using:Updatr.App.Behaviors"
              x:Class="Updatr.App.Views.InstallView"
              x:DataType="vm:InstallPageViewModel">
     <Grid ColumnDefinitions="130,*,350" Margin="20,16">
@@ -13,16 +14,10 @@
 
         <!-- The catalog: check apps into the cart. -->
         <DockPanel Grid.Column="1" Margin="0,0,16,0">
-            <TextBox DockPanel.Dock="Top" PlaceholderText="Search apps" Text="{Binding SearchText}" Margin="0,44,0,8" />
-            <DataGrid ItemsSource="{Binding AppsView}" IsReadOnly="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" CanUserSortColumns="True">
+            <TextBox DockPanel.Dock="Top" PlaceholderText="Search apps" Text="{Binding SearchText}" Margin="0,44,0,4" />
+            <TextBlock DockPanel.Dock="Top" Text="Click an app to add it to the cart; click again to remove it." FontSize="12" Opacity="0.6" Margin="0,0,0,8" />
+            <DataGrid ItemsSource="{Binding AppsView}" b:RowSelection.Enabled="True" IsReadOnly="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" CanUserSortColumns="True">
                 <DataGrid.Columns>
-                    <DataGridTemplateColumn Width="40" CanUserSort="False">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate x:DataType="vm:CatalogRowViewModel">
-                                <CheckBox IsChecked="{Binding InCart}" HorizontalAlignment="Center" />
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
                     <DataGridTextColumn x:DataType="vm:CatalogRowViewModel" Header="App" Binding="{Binding Name}" Width="1.5*" MinWidth="140" IsReadOnly="True" />
                     <DataGridTemplateColumn Header="What it is" Width="2*" SortMemberPath="Description">
                         <DataGridTemplateColumn.CellTemplate>

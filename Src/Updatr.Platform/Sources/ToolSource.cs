@@ -69,12 +69,17 @@ public abstract class ToolSource(IProcessRunner processes, string program) : IPa
     public Task<PackageOutcome> ReinstallAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
         => RunActionAsync(package, ReinstallArguments(package), sink, package.Key.ToString());
 
+    public Task<PackageOutcome> UninstallAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
+        => RunActionAsync(package, UninstallArguments(package), sink, package.Key.ToString());
+
     /// <summary>Lists installed packages with their available updates.</summary>
     protected abstract Task<IReadOnlyList<InstalledPackage>> ListAsync(IOperationSink sink, CancellationToken cancellationToken);
 
     protected abstract IReadOnlyList<string> UpgradeArguments(InstalledPackage package);
 
     protected abstract IReadOnlyList<string> ReinstallArguments(InstalledPackage package);
+
+    protected abstract IReadOnlyList<string> UninstallArguments(InstalledPackage package);
 
     /// <summary>The package name a catalog source names, when the source is this ecosystem's; else null.</summary>
     protected abstract string? PackageNameOf(PackageSourceRef source);

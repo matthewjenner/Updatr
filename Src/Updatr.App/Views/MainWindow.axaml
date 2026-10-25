@@ -21,6 +21,9 @@
         <DataTemplate DataType="vm:DebloatPageViewModel">
             <views:DebloatView />
         </DataTemplate>
+        <DataTemplate DataType="vm:UninstallPageViewModel">
+            <views:UninstallView />
+        </DataTemplate>
 
         <DataTemplate DataType="vm:PlaceholderPageViewModel">
             <StackPanel Margin="32" Spacing="10" MaxWidth="640" HorizontalAlignment="Left">
@@ -60,6 +63,14 @@
                     <StackPanel Spacing="4">
                         <TextBlock Text="This run's log" FontWeight="SemiBold" />
                         <SelectableTextBlock Text="{Binding LogFile}" Opacity="0.85" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="{Binding VersionText}" FontWeight="SemiBold" />
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Button Content="Check for an update" Command="{Binding SelfUpdateCommand}" />
+                            <TextBlock Text="{Binding UpdateResult}" VerticalAlignment="Center" TextWrapping="Wrap" Opacity="0.85" />
+                        </StackPanel>
                     </StackPanel>
 
                     <StackPanel Spacing="4">

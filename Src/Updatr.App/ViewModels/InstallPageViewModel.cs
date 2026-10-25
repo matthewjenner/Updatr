@@ -13,7 +13,7 @@ using Updatr.Platform;
 namespace Updatr.App.ViewModels;
 
 /// <summary>A catalog app in the picker.</summary>
-public sealed partial class CatalogRowViewModel(CatalogApp app, Action<CatalogRowViewModel, bool> toggled) : ObservableObject
+public sealed partial class CatalogRowViewModel(CatalogApp app, Action<CatalogRowViewModel, bool> toggled) : ObservableObject, Behaviors.ISelectableRow
 {
     public CatalogApp App { get; } = app;
 
@@ -23,23 +23,24 @@ public sealed partial class CatalogRowViewModel(CatalogApp app, Action<CatalogRo
 
     public string Sources => string.Join(", ", App.Sources.Select(s => s.SourceId));
 
+    /// <summary>In the cart. Selecting the row adds it; deselecting removes it.</summary>
     [ObservableProperty]
-    public partial bool InCart { get; set; }
+    public partial bool IsSelected { get; set; }
 
     [ObservableProperty]
     public partial string Installed { get; set; } = string.Empty;
 
     private bool _syncing;
 
-    /// <summary>Sets the checkbox from the cart without echoing back as a user click.</summary>
+    /// <summary>Sets the selection from the cart without echoing back as a user click.</summary>
     public void Sync(bool inCart)
     {
         _syncing = true;
-        InCart = inCart;
+        IsSelected = inCart;
         _syncing = false;
     }
 
-    partial void OnInCartChanged(bool value)
+    partial void OnIsSelectedChanged(bool value)
     {
         if (!_syncing)
             toggled(this, value);

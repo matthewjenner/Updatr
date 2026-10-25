@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Updatr.App.ViewModels"
              xmlns:conv="using:Updatr.App.Converters"
+             xmlns:b="using:Updatr.App.Behaviors"
              x:Class="Updatr.App.Views.UpdatesView"
              x:DataType="vm:UpdatesPageViewModel">
     <DockPanel Margin="20,16">
@@ -10,7 +11,7 @@
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                 <ComboBox ItemsSource="{Binding SourceChoices}" SelectedItem="{Binding SourceFilter}" Width="150" />
                 <TextBox PlaceholderText="Search name or id" Text="{Binding SearchText}" Width="240" />
-                <CheckBox Content="Updates only" IsChecked="{Binding ShowUpdatesOnly}" />
+                <ToggleSwitch OnContent="Updates only" OffContent="Everything installed" IsChecked="{Binding ShowUpdatesOnly}" />
             </StackPanel>
             <StackPanel>
                 <TextBlock Text="Updates" FontSize="24" FontWeight="SemiBold" />
@@ -23,12 +24,12 @@
             <Button Content="Refresh" Command="{Binding RefreshCommand}" Margin="0,0,8,6" />
             <Button Content="Upgrade all" Command="{Binding UpgradeAllCommand}" Classes="accent" Margin="0,0,8,6"
                     ToolTip.Tip="Everything with an update, except held, self-updating, Store-managed, and launcher-managed apps." />
-            <Button Content="Upgrade checked" Command="{Binding UpgradeCheckedCommand}" Margin="0,0,8,6" />
-            <Button Content="Reinstall checked" Command="{Binding ReinstallCheckedCommand}" Margin="0,0,8,6" />
-            <Button Content="Hold checked" Command="{Binding HoldCheckedCommand}" Margin="0,0,8,6" />
-            <Button Content="Release checked" Command="{Binding UnholdCheckedCommand}" Margin="0,0,8,6" />
-            <Button Content="Check all updates" Command="{Binding CheckUpdatesCommand}" Margin="16,0,8,6" />
-            <Button Content="Clear checks" Command="{Binding ClearChecksCommand}" Margin="0,0,8,6" />
+            <Button Content="Upgrade selected" Command="{Binding UpgradeCheckedCommand}" Margin="0,0,8,6" />
+            <Button Content="Reinstall selected" Command="{Binding ReinstallCheckedCommand}" Margin="0,0,8,6" />
+            <Button Content="Hold selected" Command="{Binding HoldCheckedCommand}" Margin="0,0,8,6" />
+            <Button Content="Release selected" Command="{Binding UnholdCheckedCommand}" Margin="0,0,8,6" />
+            <Button Content="Select all updates" Command="{Binding CheckUpdatesCommand}" Margin="16,0,8,6" />
+            <Button Content="Clear selection" Command="{Binding ClearChecksCommand}" Margin="0,0,8,6" />
         </WrapPanel>
 
         <!-- Status line: what is running, with a cancel. -->
@@ -42,16 +43,9 @@
             </StackPanel>
         </DockPanel>
 
-        <DataGrid ItemsSource="{Binding View}" IsReadOnly="False" CanUserReorderColumns="True" CanUserResizeColumns="True"
-                  CanUserSortColumns="True" GridLinesVisibility="Horizontal" SelectionMode="Extended" HeadersVisibility="Column">
+        <DataGrid ItemsSource="{Binding View}" b:RowSelection.Enabled="True" IsReadOnly="False" CanUserReorderColumns="True" CanUserResizeColumns="True"
+                  CanUserSortColumns="True" GridLinesVisibility="Horizontal" HeadersVisibility="Column">
             <DataGrid.Columns>
-                <DataGridTemplateColumn Width="40" CanUserSort="False">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate x:DataType="vm:PackageRowViewModel">
-                            <CheckBox IsChecked="{Binding IsChecked}" HorizontalAlignment="Center" />
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
                 <DataGridTextColumn x:DataType="vm:PackageRowViewModel" Header="Name" Binding="{Binding Name}" Width="2*" IsReadOnly="True" />
                 <DataGridTextColumn x:DataType="vm:PackageRowViewModel" Header="Id" Binding="{Binding Id}" Width="2*" IsReadOnly="True" />
                 <DataGridTextColumn x:DataType="vm:PackageRowViewModel" Header="Installed" Binding="{Binding Installed}" Width="*" IsReadOnly="True" />

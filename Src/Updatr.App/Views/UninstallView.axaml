@@ -1,0 +1,58 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Updatr.App.ViewModels"
+             xmlns:conv="using:Updatr.App.Converters"
+             xmlns:b="using:Updatr.App.Behaviors"
+             x:Class="Updatr.App.Views.UninstallView"
+             x:DataType="vm:UninstallPageViewModel">
+    <DockPanel Margin="20,16">
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+            <TextBox DockPanel.Dock="Right" PlaceholderText="Search name, id, or publisher" Text="{Binding SearchText}" Width="280" VerticalAlignment="Center" />
+            <StackPanel>
+                <TextBlock Text="Uninstall" FontSize="24" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Counts}" Opacity="0.6" />
+            </StackPanel>
+        </DockPanel>
+
+        <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,10">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="{Binding UninstallText}" Command="{Binding UninstallCheckedCommand}" Classes="accent" />
+                <Button Content="Clear selection" Command="{Binding ClearSelectionCommand}" />
+                <Button Content="Refresh" Command="{Binding RefreshCommand}" />
+            </StackPanel>
+            <TextBlock Text="Click rows to select them. Each app's own uninstaller runs, one at a time. Leftover files and settings are not touched yet; cleanup arrives in 0.2."
+                       FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0" IsVisible="{Binding BusyText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+            <Button DockPanel.Dock="Right" Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}" Margin="10,0,0,0" />
+            <StackPanel Spacing="4">
+                <TextBlock Text="{Binding BusyText}" TextTrimming="CharacterEllipsis" />
+                <ProgressBar IsIndeterminate="True" Height="4" IsVisible="{Binding IsBusy}" />
+            </StackPanel>
+        </DockPanel>
+
+        <DataGrid ItemsSource="{Binding View}" b:RowSelection.Enabled="True" IsReadOnly="False" CanUserResizeColumns="True" CanUserSortColumns="True"
+                  GridLinesVisibility="Horizontal" HeadersVisibility="Column">
+            <DataGrid.Columns>
+                <DataGridTextColumn x:DataType="vm:PackageRowViewModel" Header="Name" Binding="{Binding Name}" Width="2*" IsReadOnly="True" />
+                <DataGridTextColumn x:DataType="vm:PackageRowViewModel" Header="Publisher" Binding="{Binding Publisher}" Width="1.3*" IsReadOnly="True" />
+                <DataGridTextColumn x:DataType="vm:PackageRowViewModel" Header="Version" Binding="{Binding Installed}" Width="*" IsReadOnly="True" />
+                <DataGridTextColumn x:DataType="vm:PackageRowViewModel" Header="Source" Binding="{Binding Catalog}" Width="*" IsReadOnly="True" />
+                <DataGridTextColumn x:DataType="vm:PackageRowViewModel" Header="Id" Binding="{Binding Id}" Width="1.5*" IsReadOnly="True" />
+                <DataGridTemplateColumn Header="Activity" Width="2*" CanUserSort="False">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="vm:PackageRowViewModel">
+                            <StackPanel VerticalAlignment="Center" Margin="8,0" ToolTip.Tip="{Binding Activity}">
+                                <TextBlock Text="{Binding Activity}" TextTrimming="CharacterEllipsis"
+                                           Foreground="{Binding Kind, Converter={x:Static conv:RowStatusBrushConverter.Instance}}" />
+                                <ProgressBar Minimum="0" Maximum="1" Height="3" Value="{Binding Progress, FallbackValue=0}"
+                                             IsVisible="{Binding Progress, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</UserControl>

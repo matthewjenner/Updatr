@@ -29,6 +29,12 @@ public interface IPackageSource
 
     /// <summary>Installs the same package again over itself (repair a broken install).</summary>
     Task<PackageOutcome> ReinstallAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Removes the package through its own uninstaller (winget, the registered uninstall command,
+    /// or the ecosystem's tool). Leftovers are not touched here.
+    /// </summary>
+    Task<PackageOutcome> UninstallAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken);
 }
 
 /// <summary>Waits until no other installer is running, so Updatr never collides with one (MSI error 1618).</summary>

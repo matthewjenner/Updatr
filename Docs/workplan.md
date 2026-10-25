@@ -8,12 +8,12 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Current state
 
-- **Phase:** 6 complete - Debloat. 0.0.4 ships on push (GUI screen still to be looked over).
-  Still open (not blocking): winget repair on a clean / LTSC VM.
+- **Phase:** 7 complete - uninstall (basic) and self-update. 0.1.0 ships on push after the manual
+  uninstall check. Still open (not blocking): winget repair on a clean / LTSC VM.
 - **Last updated:** 2026-10-24
-- **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (291/291).
-  Version 0.0.4 (0.0.3 released 2026-10-24).
-- **Next:** Phase 7 (Uninstall basic + self-update -> 0.1.0).
+- **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (303/303).
+  Version 0.1.0 (0.0.4 released 2026-10-24).
+- **Next:** Phase 8 (leftover cleanup -> 0.2.0).
 
 ## Versioning
 
@@ -208,12 +208,29 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Phase 7 - Uninstall (basic) and self-update -> 0.1.0
 
-- [ ] Installed-apps list across sources + Uninstall-key reader
-- [ ] Uninstall single / batch via each app's own uninstaller
-- [ ] Self-update (download, verify, swap, relaunch)
-- [ ] CLI: `uninstall`, `self-update`
-- [ ] README: usage, unblocking unsigned binaries, known issues
-- [ ] Release 0.1.0
+- [x] Installed-apps list across sources: the existing `list` (winget's local catalog already
+      covers every Uninstall-key and MSIX entry, catalog or not); the Uninstall-key reader moves
+      to Phase 8, where leftover scanning needs install locations
+- [x] Uninstall single / batch via each app's own uninstaller: winget COM `UninstallPackageAsync`
+      (registered quiet uninstaller, machine-wide through the broker), `winget uninstall` on the
+      CLI fallback, npm / pipx / dotnet tool / VS Code through their tools, PSGallery by removing
+      the module folder (all-users through the broker, root-checked); launcher games and winget
+      itself are refused
+- [x] Self-update: latest release -> zip for this architecture -> SHA256SUMS check -> stage in
+      temp -> rename the running files to `*.old`, copy the new ones (all or nothing) -> restart
+      (GUI) / "run again" (CLI); `*.old` cleaned on a later start; dev builds refuse
+- [x] CLI: `uninstall <id>...`, `self-update [--force]`
+- [x] GUI: Uninstall screen; Settings > Check for an update, with restart
+- [x] README: getting started, unblocking unsigned binaries, screens, CLI, safety, known issues
+- [x] Verified: a published copy run as v0.0.3 updated itself to the real v0.0.4 release while
+      running; uninstall resolution (unknown id, protected winget, confirmation) on this machine
+- [x] First manual uninstall (Everything) failed with 1603: it ran unelevated (scope "System" not
+      recognized). Fixed; detection confirmed True for it
+- [x] Manual: Everything uninstalled from the Uninstall screen through one UAC prompt
+- [x] Feedback: no checkboxes anywhere - rows are picked by clicking them (highlighted), filters
+      are toggle switches (`Behaviors/RowSelection`); the selected count now updates live
+- [ ] **Manual:** look over the selection change on Updates, Install, Debloat, and Uninstall
+- [ ] Release 0.1.0 (version bumped; ships on push)
 
 ## Phase 8 - Leftover cleanup -> 0.2.0
 
@@ -226,6 +243,11 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Backlog
 
+- **Uninstall / Updates list organization (polish):** 464 rows with nothing telling a Windows
+  component from a game, a runtime, a driver panel, or a launcher's item. Add kind tags and
+  filters (Windows / Microsoft, games + launcher, runtimes and redistributables, drivers and
+  hardware tools, apps), group or filter by them, and say up front what cannot be removed from
+  here. User feedback 2026-10-24.
 - NVIDIA App in the catalog - not in winget and no stable "latest" download link; needs a
   direct-URL resolver for NVIDIA's versioned URLs.
 - VS Code extensions show their id as the name on the Updates screen; use the Marketplace display
@@ -289,6 +311,19 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
   the source-generated deserializer assigns omitted init properties null, wiping defaults.
 - **2026-10-23** - Computed members on polymorphic source refs live in the base as a switch:
   `[JsonIgnore]` on an abstract member does not apply to its overrides, which leaked into JSON.
+- **2026-10-24** - winget reports a per-machine install's scope as "System", not "Machine" (found
+  when Everything's MSI uninstall ran unelevated and failed with 1603). Both now mean machine. This
+  likely explains Phase 3's "installed scope is rarely reported". Also: MSI product codes are
+  checked against HKLM's Uninstall key, and an uninstaller failing with a permission code (1603,
+  1625, 1730, access denied) is retried once through the broker.
+- **2026-10-24** - Uninstall goes through winget's COM API for everything winget lists, including
+  apps no catalog knows (its local catalog wraps every Uninstall-key entry and runs the registered
+  quiet uninstaller). A separate Uninstall-key reader would duplicate that; it is deferred to the
+  leftover scanner, which needs install locations anyway.
+- **2026-10-24** - Self-update replaces files by renaming the running ones (allowed on NTFS and
+  FAT) rather than a helper process that waits for exit: no extra exe, no race, and a failure part
+  way puts everything back. Integrity is the release's SHA256SUMS.txt (corruption, not tampering -
+  the binaries are unsigned); revisit with code signing.
 - **2026-10-24** - Edge is not removed. Microsoft supports uninstalling it only in the EEA (via
   Settings); elsewhere removal needs unsupported setup.exe flags, breaks WebView2-based apps and
   Windows features, and Windows Update reinstalls it. Debloat offers Edge policies instead (no

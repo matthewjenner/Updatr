@@ -136,7 +136,8 @@ Removes ads and junk, and re-runs cleanly after Windows feature updates.
 ### Uninstall
 
 - **v0.1:** list installed apps across sources, uninstall one or many through each app's own
-  uninstaller (winget, the registered uninstall command, or the ecosystem tool).
+  uninstaller (winget - which runs the registered quiet uninstall command for any app it lists -
+  or the ecosystem tool). Game launchers' games and winget itself are refused.
 - **v0.2 (fast follow) - leftover cleanup:** after the uninstaller runs, scan for leftovers
   (install folder, AppData/ProgramData folders, Software and Uninstall registry keys, services,
   scheduled tasks, shortcuts, firewall rules). Each is shown with a confidence level, **nothing

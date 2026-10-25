@@ -125,17 +125,17 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
     private void CheckUpdates()
     {
         foreach (PackageRowViewModel row in Rows)
-            row.IsChecked = row.CanUpgrade && !row.Listed.IsHeld && !row.Listed.IsExplicitOnly;
+            row.IsSelected = row.CanUpgrade && !row.Listed.IsHeld && !row.Listed.IsExplicitOnly;
     }
 
     [RelayCommand]
     private void ClearChecks()
     {
         foreach (PackageRowViewModel row in Rows)
-            row.IsChecked = false;
+            row.IsSelected = false;
     }
 
-    private List<InstalledPackage> Checked() => [.. Rows.Where(r => r.IsChecked).Select(r => r.Listed.Package)];
+    private List<InstalledPackage> Checked() => [.. Rows.Where(r => r.IsSelected).Select(r => r.Listed.Package)];
 
     private async Task ChangeHoldsAsync(bool hold)
     {

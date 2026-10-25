@@ -43,7 +43,15 @@ public partial class App : Application
     {
         _host = host;
         MainWindow main = new();
-        main.DataContext = new MainWindowViewModel(host, report, runner, main);
+        MainWindowViewModel vm = new(host, report, runner, main);
+        main.DataContext = vm;
+
+        // After a self-update: start the new exe (same arguments), then close this one normally.
+        vm.Settings.RestartRequested += () =>
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Environment.ProcessPath!, desktop.Args ?? []) { UseShellExecute = false });
+            desktop.Shutdown();
+        };
 
         // Swap MainWindow before closing the splash, or closing it would end the app.
         desktop.MainWindow = main;

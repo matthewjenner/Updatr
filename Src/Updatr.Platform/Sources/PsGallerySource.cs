@@ -77,6 +77,61 @@ public sealed class PsGallerySource(HttpClient http, ElevationService? elevation
     public Task<PackageOutcome> ReinstallAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
         => InstallAsync(package, package.InstalledVersion, sink);
 
+    /// <summary>Removes every version of the module, like <c>Uninstall-Module -AllVersions</c>.</summary>
+    public async Task<PackageOutcome> UninstallAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
+    {
+        InstalledModule? module = FindModules().FirstOrDefault(m => string.Equals(m.Name, package.Id, StringComparison.OrdinalIgnoreCase));
+
+        if (module is null)
+            return new PackageOutcome(OutcomeKind.AlreadyCurrent, "Not installed any more");
+
+        if (!module.AllUsers)
+            return RemoveFrom(module.Name, module.Root);
+
+        BrokerClient? broker = elevation is null ? null : await elevation.GetBrokerAsync(CancellationToken.None).ConfigureAwait(false);
+
+        if (broker is null)
+            return PackageOutcome.Skipped("Installed for all users - needs administrator access, which was declined");
+
+        try
+        {
+            JsonNode? reply = await broker.SendAsync(BrokerInstallType,
+                new JsonObject { ["action"] = "uninstall", ["name"] = module.Name, ["root"] = module.Root }, null, CancellationToken.None).ConfigureAwait(false);
+            return reply?["ok"]?.GetValue<bool>() == true ? PackageOutcome.Ok() : PackageOutcome.Failed(reply?["detail"]?.GetValue<string>() ?? "failed");
+        }
+        catch (BrokerException ex)
+        {
+            return PackageOutcome.Failed($"The elevated helper failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>Deletes <c>root\name</c>. Also what the broker runs for all-users modules.</summary>
+    public static PackageOutcome RemoveFrom(string name, string root)
+    {
+        if (!EcosystemParsers.IsSafePackageName(name))
+            return PackageOutcome.Failed("Unexpected characters in the module name");
+
+        string folder = Path.GetFullPath(Path.Combine(root, name));
+
+        // The name is validated, but check the result too: never delete anything but a direct child of the root.
+        if (!string.Equals(Path.GetDirectoryName(folder), Path.GetFullPath(root).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
+            return PackageOutcome.Failed($"'{name}' does not resolve to a module folder");
+
+        try
+        {
+            Directory.Delete(folder, recursive: true);
+            return PackageOutcome.Ok();
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return new PackageOutcome(OutcomeKind.AlreadyCurrent, "Not installed any more");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return PackageOutcome.Failed($"Could not remove {folder}: {ex.Message} (is PowerShell using the module?)");
+        }
+    }
+
     private async Task<PackageOutcome> InstallAsync(InstalledPackage package, string version, IOperationSink sink)
     {
         InstalledModule? module = FindModules().FirstOrDefault(m => string.Equals(m.Name, package.Id, StringComparison.OrdinalIgnoreCase));
@@ -289,7 +344,7 @@ public sealed class PsGallerySource(HttpClient http, ElevationService? elevation
     private sealed record InstalledModule(string Name, string Version, string Root, bool AllUsers);
 }
 
-/// <summary>Installs an all-users gallery module inside the elevated broker. Only known module roots are accepted.</summary>
+/// <summary>Installs or removes an all-users gallery module inside the elevated broker. Only known module roots are accepted.</summary>
 public sealed class PsGalleryBrokerHandler : IBrokerHandler
 {
     public string Type => PsGallerySource.BrokerInstallType;
@@ -297,8 +352,9 @@ public sealed class PsGalleryBrokerHandler : IBrokerHandler
     public async Task<JsonNode?> HandleAsync(JsonNode? payload, Func<JsonNode, Task> emit, CancellationToken cancellationToken)
     {
         string name = payload?["name"]?.GetValue<string>() ?? throw new ArgumentException("Missing module name.");
-        string version = payload?["version"]?.GetValue<string>() ?? throw new ArgumentException("Missing version.");
         string root = payload?["root"]?.GetValue<string>() ?? throw new ArgumentException("Missing root.");
+        bool uninstall = payload?["action"]?.GetValue<string>() == "uninstall";
+        string version = uninstall ? string.Empty : payload?["version"]?.GetValue<string>() ?? throw new ArgumentException("Missing version.");
 
         // The broker writes as administrator: refuse anything but the all-users module folders.
         bool known = PsGallerySource.ModuleRoots().Any(r => r.AllUsers && string.Equals(Path.GetFullPath(r.Root), Path.GetFullPath(root), StringComparison.OrdinalIgnoreCase));
@@ -306,7 +362,9 @@ public sealed class PsGalleryBrokerHandler : IBrokerHandler
         if (!known)
             throw new ArgumentException($"'{root}' is not an all-users PowerShell module folder.");
 
-        PackageOutcome outcome = await PsGallerySource.InstallIntoAsync(Net.UpdatrHttp.Client, name, version, root, new SilentSink(), name).ConfigureAwait(false);
+        PackageOutcome outcome = uninstall
+            ? PsGallerySource.RemoveFrom(name, root)
+            : await PsGallerySource.InstallIntoAsync(Net.UpdatrHttp.Client, name, version, root, new SilentSink(), name).ConfigureAwait(false);
         return new JsonObject { ["ok"] = outcome.Kind == OutcomeKind.Ok, ["detail"] = outcome.Detail };
     }
 

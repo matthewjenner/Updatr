@@ -47,8 +47,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
         Updates = new UpdatesPageViewModel(host, dialogs);
         Install = new InstallPageViewModel(host, dialogs);
         Debloat = new DebloatPageViewModel(host, dialogs);
+        Uninstall = new UninstallPageViewModel(host, dialogs);
 
-        Settings = new SettingsPageViewModel(host, preflight);
+        Settings = new SettingsPageViewModel(host, preflight, dialogs);
         Settings.ChecksRerun += ApplyReport;
 
         Navigation =
@@ -56,7 +57,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
             new NavItem("Updates", Updates),
             new NavItem("Install", Install),
             new NavItem("Debloat", Debloat),
-            new NavItem("Uninstall", new PlaceholderPageViewModel("Uninstall", "Remove apps through their own uninstallers, with leftover cleanup to follow.", "Phase 7")),
+            new NavItem("Uninstall", Uninstall),
             new NavItem("Log", new LogPageViewModel()),
             new NavItem("Settings", Settings),
         ];
@@ -81,6 +82,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     public DebloatPageViewModel Debloat { get; }
 
+    public UninstallPageViewModel Uninstall { get; }
+
     public ObservableCollection<BannerViewModel> Banners { get; } = [];
 
     [ObservableProperty]
@@ -97,6 +100,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
             install.EnsureLoaded();
         else if (value?.Page is DebloatPageViewModel debloat)
             debloat.EnsureLoaded();
+        else if (value?.Page is UninstallPageViewModel uninstall)
+            uninstall.EnsureLoaded();
     }
 
     private BannerViewModel? _dataBanner;
@@ -114,7 +119,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         }
 
         if (report.Context.NewerVersion is { } newer)
-            Banners.Add(new BannerViewModel(BannerSeverity.Info, $"Updatr v{newer} is available."));
+            Banners.Add(new BannerViewModel(BannerSeverity.Info, $"Updatr v{newer} is available - update it from Settings."));
 
         if (_dataBanner is not null)
             Banners.Add(_dataBanner);

@@ -338,6 +338,20 @@ User templates and carts use the same shape and live in `Updatr.data\`.
   from the registry.
 - `UPDATR_CATALOG_DIR` points the catalog loader at a local folder ahead of GitHub (development).
 
+## Uninstall and self-update (Phase 7)
+
+- `IPackageSource.UninstallAsync` on every source; `PackageBatch` runs it (`uninstall`) with the
+  same gate, busy retry, and cancel as upgrades. Explicit ids only; launcher games and winget
+  (App Installer) are refused.
+- winget: `UninstallPackageAsync` (silent). Elevation from the local id (`ARP\Machine\...`),
+  installed scope, or an install location under Program Files / Windows -> broker
+  (`winget-run`, `mode: uninstall`).
+- `SelfUpdater` (`self-update`, Platform): GitHub latest release -> `Updatr-<v>-<rid>.zip` +
+  `SHA256SUMS.txt` (names from `Scripts/publish.sh`) -> host temp -> `Swap`: rename each live
+  release file to `*.old` (a running exe can be renamed, not overwritten), copy the new one, roll
+  back on any failure. `CleanUpOld` runs at host start. Refuses version 0.0.0 and non-single-file
+  builds.
+
 ## Portable data folder
 
 ```

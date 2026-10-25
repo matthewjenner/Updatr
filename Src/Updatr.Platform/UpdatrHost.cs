@@ -17,6 +17,7 @@ using Updatr.Platform.Net;
 using Updatr.Platform.Preflight;
 using Updatr.Platform.Processes;
 using Updatr.Platform.Sources;
+using Updatr.Platform.Update;
 using Updatr.Platform.Windows;
 using Updatr.Platform.WinGet;
 
@@ -64,9 +65,11 @@ public sealed class UpdatrHost : IAsyncDisposable
         PackageBatch batch = new(Sources, List, new InstallerGate(), HoldPolicyAsync);
         Upgrade = new UpgradePackages(batch);
         Reinstall = new ReinstallPackages(batch);
+        Uninstall = new UninstallPackages(batch);
         Hold = new HoldPackages(Holds);
         Unhold = new UnholdPackages(Holds, async ct => (await GetCatalogAsync(ct).ConfigureAwait(false)).Catalog.Holds);
         RepairWinGet = new RepairWinGet(Http, WinGet);
+        SelfUpdate = new SelfUpdater(Http);
 
         // Phase 5: carts, templates, installs.
         Func<CancellationToken, Task<AppCatalog>> catalog = async ct => (await GetCatalogAsync(ct).ConfigureAwait(false)).Catalog;
@@ -181,11 +184,15 @@ public sealed class UpdatrHost : IAsyncDisposable
 
     public ReinstallPackages Reinstall { get; }
 
+    public UninstallPackages Uninstall { get; }
+
     public HoldPackages Hold { get; }
 
     public UnholdPackages Unhold { get; }
 
     public RepairWinGet RepairWinGet { get; }
+
+    public SelfUpdater SelfUpdate { get; }
 
     private CatalogLoadResult? _catalog;
 
@@ -242,6 +249,7 @@ public sealed class UpdatrHost : IAsyncDisposable
     public static async Task<UpdatrHost> StartAsync(HostOptions options, CancellationToken cancellationToken)
     {
         UpdatrHost host = new(options);
+        SelfUpdater.CleanUpOld(AppLocations.ExeDirectory);
         await RunLogWriter.PruneAsync(host.Data, cancellationToken).ConfigureAwait(false);
         return host;
     }

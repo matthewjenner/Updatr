@@ -137,6 +137,11 @@ public static class DiagLog
         => Emit(LogCategory.Debloat, problem is null ? LogLevel.Info : LogLevel.Warning,
             problem is null ? "Restore point created before debloat" : $"No restore point before debloat: {problem}");
 
+    // ---- Update -------------------------------------------------------------------------
+
+    public static void SelfUpdated(string from, string to)
+        => Emit(LogCategory.Update, LogLevel.Info, $"Self-update: replaced v{from} with v{to} on the drive");
+
     // ---- Plumbing -----------------------------------------------------------------------
 
     private static string YesNo(bool value) => value ? "yes" : "no";

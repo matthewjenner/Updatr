@@ -65,6 +65,200 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
     public Task<PackageOutcome> ReinstallAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
         => RunAsync(package, reinstall: true, sink, cancellationToken);
 
+    /// <summary>
+    /// Uninstalls through winget, which runs the app's registered (quiet) uninstaller - also for
+    /// apps no winget catalog knows. Machine-wide installs go through the broker, like upgrades.
+    /// </summary>
+    public async Task<PackageOutcome> UninstallAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
+    {
+        string itemId = package.Key.ToString();
+        bool triedElevated = false;
+
+        if (elevation is not null && await Task.Run(() => RemovalNeedsElevation(package.Id), CancellationToken.None).ConfigureAwait(false))
+        {
+            triedElevated = true;
+
+            if (await UninstallInBrokerAsync(package, sink, cancellationToken).ConfigureAwait(false) is { } elevated)
+                return elevated;
+        }
+
+        PackageOutcome outcome = await Task.Run(() => RunUninstallLocalAsync(package.Id, itemId, sink), CancellationToken.None).ConfigureAwait(false);
+
+        // winget often cannot say where an app was installed. A permission failure from the
+        // uninstaller (Phase 7: a per-machine MSI reporting no scope gave 1603) means it needed
+        // administrator rights after all - try once more through the broker.
+        if (!triedElevated && elevation is not null && !Windows.WindowsInfo.IsElevated && outcome.Code?.Code is { } code && PermissionCodes.Contains(code))
+        {
+            sink.Report(new LogLine(LogLevel.Info, $"{package.Name}: the uninstaller needs administrator access; retrying elevated", itemId));
+
+            if (await UninstallInBrokerAsync(package, sink, cancellationToken).ConfigureAwait(false) is { } elevated)
+                return elevated;
+        }
+
+        return outcome;
+    }
+
+    /// <summary>Uninstaller results that mean "not allowed" rather than "broken": MSI 1603 / 1625 / 1730, access denied.</summary>
+    private static readonly HashSet<uint> PermissionCodes = [1603, 1625, 1730, 0x80070005];
+
+    /// <summary>The broker's outcome, or null when elevation was declined or the uninstaller refuses to run elevated.</summary>
+    private async Task<PackageOutcome?> UninstallInBrokerAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
+    {
+        string itemId = package.Key.ToString();
+        BrokerClient? broker = await elevation!.GetBrokerAsync(cancellationToken).ConfigureAwait(false);
+
+        if (broker is null)
+        {
+            sink.Report(new LogLine(LogLevel.Warning, $"{package.Name}: administrator access was declined; the uninstaller may ask for it itself", itemId));
+            return null;
+        }
+
+        try
+        {
+            PackageOutcome elevated = BrokerOutcome.FromJson(await broker.SendAsync(BrokerRunType, new JsonObject { ["id"] = package.Id, ["mode"] = "uninstall" },
+                e => sink.Report(BrokerProgress.FromJson(e, itemId)), CancellationToken.None).ConfigureAwait(false));
+
+            return elevated.Code?.Code == ProhibitsElevation ? null : elevated;
+        }
+        catch (BrokerException ex)
+        {
+            return PackageOutcome.Failed($"The elevated helper failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>Uninstalls in this process. Also what the broker runs for "uninstall".</summary>
+    public static async Task<PackageOutcome> RunUninstallLocalAsync(string id, string itemId, IOperationSink sink)
+    {
+        PackageManager manager;
+
+        try
+        {
+            manager = WinGetRuntime.CreatePackageManager();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.Runtime.InteropServices.COMException)
+        {
+            return PackageOutcome.Failed($"winget is not available: {ex.Message}");
+        }
+
+        CatalogPackage? package = FindCatalogPackage(manager, id, out FindPackagesResultStatus status);
+
+        if (status != FindPackagesResultStatus.Ok)
+            return PackageOutcome.Failed($"winget could not look up this package ({status}); its index may have a broken entry for it");
+
+        if (package is null)
+            return new PackageOutcome(OutcomeKind.AlreadyCurrent, "Not installed any more");
+
+        var operation = manager.UninstallPackageAsync(package, new UninstallOptions { PackageUninstallMode = PackageUninstallMode.Silent });
+        operation.Progress = (_, progress) => sink.Report(progress.State switch
+        {
+            PackageUninstallProgressState.Uninstalling => new ProgressReported(itemId, progress.UninstallationProgress > 0 ? progress.UninstallationProgress : null, Message: "Uninstalling"),
+            PackageUninstallProgressState.PostUninstall => new ProgressReported(itemId, 1, Message: "Finishing"),
+            _ => new ProgressReported(itemId, null, Message: "Queued"),
+        });
+
+        UninstallResult result = await operation.AsTask().ConfigureAwait(false);
+        long extended = result.ExtendedErrorCode?.HResult ?? 0;
+
+        return result.Status switch
+        {
+            UninstallResultStatus.Ok => result.RebootRequired
+                ? new PackageOutcome(OutcomeKind.Ok, "Reboot required to finish", RebootRequired: true)
+                : PackageOutcome.Ok(),
+            UninstallResultStatus.UninstallError when result.UninstallerErrorCode != 0
+                => Prefixed(PackageOutcome.FromCode(result.UninstallerErrorCode), "uninstaller: "),
+            _ when extended != 0 => Prefixed(PackageOutcome.FromCode(extended), $"{result.Status}: "),
+            _ => PackageOutcome.Failed(result.Status.ToString()),
+        };
+
+        static PackageOutcome Prefixed(PackageOutcome outcome, string prefix) => outcome with { Detail = prefix + outcome.Detail };
+    }
+
+    /// <summary>
+    /// Whether removing it should run elevated: a machine-scope install, a machine uninstall
+    /// registration (by local id or by MSI product code under HKLM), or an install folder or
+    /// uninstaller under Program Files / Windows. Per-user and Store apps never do.
+    /// </summary>
+    private static bool RemovalNeedsElevation(string id)
+    {
+        if (id.StartsWith(@"ARP\Machine\", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (id.StartsWith(@"ARP\User\", StringComparison.OrdinalIgnoreCase) || id.StartsWith(@"MSIX\", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        try
+        {
+            PackageVersionInfo? installed = FindCatalogPackage(WinGetRuntime.CreatePackageManager(), id, out _)?.InstalledVersion;
+
+            if (installed is null)
+                return false;
+
+            string scope = installed.GetMetadata(PackageVersionMetadataField.InstalledScope) ?? string.Empty;
+
+            if (scope.Length > 0)
+                return ParseScope(scope) == InstallScope.Machine;
+
+            // MSI installs: the product code's registration says which hive it lives in.
+            // Index, never enumerate: CsWinRT's IEnumerable view of these lists fails to cast.
+            IReadOnlyList<string> codes = installed.ProductCodes;
+
+            for (int i = 0; i < codes.Count; i++)
+            {
+                if (MachineUninstallEntryExists(codes[i]))
+                    return true;
+            }
+
+            string[] machineRoots =
+            [
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+            ];
+
+            string location = installed.GetMetadata(PackageVersionMetadataField.InstalledLocation) ?? string.Empty;
+            string uninstaller = (installed.GetMetadata(PackageVersionMetadataField.StandardUninstallCommand) ?? string.Empty).TrimStart('"');
+
+            // An uninstaller under Program Files is a machine install; msiexec lives under Windows
+            // for every MSI, so the uninstall command only counts when it is not msiexec.
+            return (location.Length > 0 && machineRoots.Any(r => r.Length > 0 && location.StartsWith(r, StringComparison.OrdinalIgnoreCase)))
+                || (!uninstaller.Contains("msiexec", StringComparison.OrdinalIgnoreCase)
+                    && machineRoots.Take(2).Any(r => r.Length > 0 && uninstaller.StartsWith(r, StringComparison.OrdinalIgnoreCase)));
+        }
+        catch (Exception ex) when (ex is PackageSourceException or System.Runtime.InteropServices.COMException or InvalidOperationException or InvalidCastException)
+        {
+            return false; // The uninstall itself will report the real problem.
+        }
+    }
+
+    /// <summary>
+    /// winget's installed-scope metadata. Phase 7 finding: per-machine installs report "System",
+    /// not "Machine" (the manifest's word) - so read both.
+    /// </summary>
+    internal static InstallScope ParseScope(string? scope) => scope?.Trim().ToLowerInvariant() switch
+    {
+        "machine" or "system" => InstallScope.Machine,
+        "user" => InstallScope.User,
+        _ => InstallScope.Unknown,
+    };
+
+    /// <summary>An Uninstall entry for this product code under HKLM (64- or 32-bit view).</summary>
+    private static bool MachineUninstallEntryExists(string productCode)
+    {
+        if (productCode.Length == 0 || productCode.IndexOfAny(['\\', '/']) >= 0)
+            return false;
+
+        foreach (Microsoft.Win32.RegistryView view in new[] { Microsoft.Win32.RegistryView.Registry64, Microsoft.Win32.RegistryView.Registry32 })
+        {
+            using Microsoft.Win32.RegistryKey root = Microsoft.Win32.RegistryKey.OpenBaseKey(Microsoft.Win32.RegistryHive.LocalMachine, view);
+            using Microsoft.Win32.RegistryKey? entry = root.OpenSubKey($@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{productCode}");
+
+            if (entry is not null)
+                return true;
+        }
+
+        return false;
+    }
+
     private async Task<PackageOutcome> RunAsync(InstalledPackage package, bool reinstall, IOperationSink sink, CancellationToken cancellationToken)
     {
         string itemId = package.Key.ToString();
@@ -432,9 +626,7 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
             AvailableVersion = package.IsUpdateAvailable ? offered?.Version : null,
             Catalog = offered?.PackageCatalog?.Info?.Name,
             Publisher = installed?.Publisher,
-            Scope = scope.Equals("Machine", StringComparison.OrdinalIgnoreCase) ? InstallScope.Machine
-                : scope.Equals("User", StringComparison.OrdinalIgnoreCase) ? InstallScope.User
-                : InstallScope.Unknown,
+            Scope = ParseScope(scope),
             RunsElevated = package.IsUpdateAvailable && NeedsElevation(scope, offered),
             IsManaged = offered is not null,
         };
@@ -449,10 +641,12 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
     /// </summary>
     private static bool NeedsElevation(string installedScope, PackageVersionInfo? offered)
     {
-        if (installedScope.Equals("Machine", StringComparison.OrdinalIgnoreCase))
+        InstallScope parsed = ParseScope(installedScope);
+
+        if (parsed == InstallScope.Machine)
             return true;
 
-        if (installedScope.Equals("User", StringComparison.OrdinalIgnoreCase) || offered is null)
+        if (parsed == InstallScope.User || offered is null)
             return false;
 
         try

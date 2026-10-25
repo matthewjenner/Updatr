@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Updatr.App.Behaviors;
 using Updatr.Core.Operations;
 using Updatr.Core.Packages;
 using Updatr.Core.Sources;
@@ -19,14 +20,14 @@ public enum RowStatus
 }
 
 /// <summary>One installed package in the Updates grid.</summary>
-public sealed partial class PackageRowViewModel(ListedPackage listed) : ObservableObject
+public sealed partial class PackageRowViewModel(ListedPackage listed) : ObservableObject, ISelectableRow
 {
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Name), nameof(Id), nameof(Installed), nameof(Available), nameof(Catalog), nameof(Status), nameof(StatusDetail), nameof(Kind), nameof(CanUpgrade), nameof(CanReinstall))]
+    [NotifyPropertyChangedFor(nameof(Name), nameof(Id), nameof(Publisher), nameof(Installed), nameof(Available), nameof(Catalog), nameof(Status), nameof(StatusDetail), nameof(Kind), nameof(CanUpgrade), nameof(CanReinstall))]
     public partial ListedPackage Listed { get; set; } = listed;
 
     [ObservableProperty]
-    public partial bool IsChecked { get; set; }
+    public partial bool IsSelected { get; set; }
 
     /// <summary>Live text while an action runs, then the outcome.</summary>
     [ObservableProperty]
@@ -47,6 +48,8 @@ public sealed partial class PackageRowViewModel(ListedPackage listed) : Observab
     public string Name => P.Name;
 
     public string Id => P.Id;
+
+    public string Publisher => P.Publisher ?? string.Empty;
 
     public string Installed => P.InstalledVersion;
 

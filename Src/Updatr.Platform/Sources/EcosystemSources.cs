@@ -33,6 +33,8 @@ public sealed class NpmSource(IProcessRunner processes) : ToolSource(processes, 
     protected override IReadOnlyList<string> UpgradeArguments(InstalledPackage package) => ["install", "-g", $"{package.Id}@latest"];
 
     protected override IReadOnlyList<string> ReinstallArguments(InstalledPackage package) => ["install", "-g", $"{package.Id}@{package.InstalledVersion}", "--force"];
+
+    protected override IReadOnlyList<string> UninstallArguments(InstalledPackage package) => ["uninstall", "-g", package.Id];
 }
 
 /// <summary>Python applications installed with pipx. Latest versions come from PyPI.</summary>
@@ -60,6 +62,8 @@ public sealed class PipxSource(IProcessRunner processes, HttpClient http) : Tool
     protected override IReadOnlyList<string> UpgradeArguments(InstalledPackage package) => ["upgrade", package.Id];
 
     protected override IReadOnlyList<string> ReinstallArguments(InstalledPackage package) => ["reinstall", package.Id];
+
+    protected override IReadOnlyList<string> UninstallArguments(InstalledPackage package) => ["uninstall", package.Id];
 }
 
 /// <summary>.NET global tools. Latest versions come from nuget.org; tools from other feeds are listed without update info.</summary>
@@ -97,6 +101,8 @@ public sealed class DotnetToolSource(IProcessRunner processes, HttpClient http) 
 
     protected override IReadOnlyList<string> ReinstallArguments(InstalledPackage package)
         => ["tool", "update", "-g", package.Id, "--version", package.InstalledVersion, "--allow-downgrade"];
+
+    protected override IReadOnlyList<string> UninstallArguments(InstalledPackage package) => ["tool", "uninstall", "-g", package.Id];
 }
 
 /// <summary>VS Code extensions. Latest versions come from the Marketplace, for this machine's platform.</summary>
@@ -179,4 +185,6 @@ public sealed class VsCodeExtensionSource(IProcessRunner processes, HttpClient h
     protected override IReadOnlyList<string> UpgradeArguments(InstalledPackage package) => ["--install-extension", package.Id, "--force"];
 
     protected override IReadOnlyList<string> ReinstallArguments(InstalledPackage package) => ["--install-extension", $"{package.Id}@{package.InstalledVersion}", "--force"];
+
+    protected override IReadOnlyList<string> UninstallArguments(InstalledPackage package) => ["--uninstall-extension", package.Id];
 }

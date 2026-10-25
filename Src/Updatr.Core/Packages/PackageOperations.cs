@@ -107,8 +107,18 @@ public sealed class ReinstallPackages(PackageBatch batch) : IOperation<PackageSe
             : batch.RunAsync(PackageBatch.Action.Reinstall, request, sink, cancellationToken);
 }
 
+/// <summary>Removes packages through their own uninstallers, one at a time.</summary>
+[Operation("uninstall")]
+public sealed class UninstallPackages(PackageBatch batch) : IOperation<PackageSelection, RunSummary>
+{
+    public Task<RunSummary> RunAsync(PackageSelection request, IOperationSink sink, CancellationToken cancellationToken)
+        => request.All
+            ? throw new ArgumentException("Uninstall needs specific packages, not --all.")
+            : batch.RunAsync(PackageBatch.Action.Uninstall, request, sink, cancellationToken);
+}
+
 /// <summary>
-/// The shared batch runner behind upgrade and reinstall: resolve the selection, confirm, then run
+/// The shared batch runner behind upgrade, reinstall, and uninstall: resolve the selection, confirm, then run
 /// each package in turn - waiting out other installers, retrying once when the system was busy,
 /// and stopping cleanly between packages on cancel.
 /// </summary>
@@ -118,7 +128,14 @@ public sealed class PackageBatch(IReadOnlyList<IPackageSource> sources, ListPack
     {
         Upgrade,
         Reinstall,
+        Uninstall,
     }
+
+    /// <summary>
+    /// What Updatr itself stands on. Removing winget mid-run would strand the rest of the batch and
+    /// every later run on this machine.
+    /// </summary>
+    private static readonly HashSet<string> Protected = new(StringComparer.OrdinalIgnoreCase) { "Microsoft.AppInstaller", "Microsoft.DesktopAppInstaller" };
 
     /// <summary>Codes that mean "something else was installing" - worth one retry after waiting.</summary>
     private static readonly HashSet<uint> BusyCodes = [0x00000652, 0x8A150102];
@@ -126,7 +143,7 @@ public sealed class PackageBatch(IReadOnlyList<IPackageSource> sources, ListPack
     public async Task<RunSummary> RunAsync(Action action, PackageSelection selection, IOperationSink sink, CancellationToken cancellationToken)
     {
         Stopwatch timer = Stopwatch.StartNew();
-        string verb = action == Action.Upgrade ? "Upgrade" : "Reinstall";
+        string verb = action.ToString();
         List<ItemFinished> finished = [];
         List<InstalledPackage> targets = await ResolveAsync(action, selection, sink, finished, cancellationToken).ConfigureAwait(false);
 
@@ -134,6 +151,9 @@ public sealed class PackageBatch(IReadOnlyList<IPackageSource> sources, ListPack
             return new RunSummary(verb, finished, timer.Elapsed);
 
         string names = string.Join("\n", targets.Select(p => $"  {p.Name} ({p.Id}) {p.InstalledVersion}{(action == Action.Upgrade && p.AvailableVersion is not null ? " -> " + p.AvailableVersion : "")}"));
+
+        if (action == Action.Uninstall)
+            names += "\n\nEach app's own uninstaller runs. Leftover files and settings are not touched.";
 
         if (!await sink.ConfirmAsync(new Confirmation($"{verb} {targets.Count} package(s)?", names), cancellationToken).ConfigureAwait(false))
         {
@@ -180,9 +200,12 @@ public sealed class PackageBatch(IReadOnlyList<IPackageSource> sources, ListPack
             }
 
             // Not passed the cancellation token: an installer that has started is allowed to finish.
-            PackageOutcome outcome = action == Action.Upgrade
-                ? await source.UpgradeAsync(package, sink, CancellationToken.None).ConfigureAwait(false)
-                : await source.ReinstallAsync(package, sink, CancellationToken.None).ConfigureAwait(false);
+            PackageOutcome outcome = action switch
+            {
+                Action.Upgrade => await source.UpgradeAsync(package, sink, CancellationToken.None).ConfigureAwait(false),
+                Action.Reinstall => await source.ReinstallAsync(package, sink, CancellationToken.None).ConfigureAwait(false),
+                _ => await source.UninstallAsync(package, sink, CancellationToken.None).ConfigureAwait(false),
+            };
 
             if (attempt == 1 && outcome.Code is { } code && BusyCodes.Contains(code.Code) && !cancellationToken.IsCancellationRequested)
             {
@@ -261,6 +284,20 @@ public sealed class PackageBatch(IReadOnlyList<IPackageSource> sources, ListPack
         // Named explicitly = the user means it: holds do not apply, but impossible or unsafe cases still skip.
         foreach (InstalledPackage p in explicitly)
         {
+            if (action == Action.Uninstall)
+            {
+                // Anything installed can be removed - catalog or not - except what a launcher owns
+                // (its uninstall goes through the launcher) and what Updatr needs.
+                if (p.ManagedBy is { } owner)
+                    Finish(sink, finished, p, PackageOutcome.Skipped($"Managed by {owner} - uninstall it there"));
+                else if (Protected.Contains(p.Id))
+                    Finish(sink, finished, p, PackageOutcome.Skipped("Updatr needs winget (App Installer); it is not removed"));
+                else
+                    chosen.Add(p);
+
+                continue;
+            }
+
             if (p.ManagedBy is { } launcher)
                 Finish(sink, finished, p, PackageOutcome.Skipped($"Managed by {launcher} - update it there; changing it outside the launcher risks a broken install"));
             else if (policy.Match(p.Source, p.Id) is { Rule.Behavior: HoldBehavior.StoreManaged })

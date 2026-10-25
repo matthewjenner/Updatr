@@ -46,6 +46,9 @@ public sealed class WinGetSource(ElevationService? elevation, IProcessRunner pro
     public Task<PackageOutcome> ReinstallAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
         => _unavailable is { } reason ? Task.FromResult(PackageOutcome.Failed(reason)) : Chosen().ReinstallAsync(package, sink, cancellationToken);
 
+    public Task<PackageOutcome> UninstallAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
+        => _unavailable is { } reason ? Task.FromResult(PackageOutcome.Failed(reason)) : Chosen().UninstallAsync(package, sink, cancellationToken);
+
     /// <summary>Installs a package that is not installed yet - COM when available, else winget.exe.</summary>
     public async Task<PackageOutcome> InstallNewAsync(Core.Catalog.WingetSourceRef source, string itemId, Core.Operations.IOperationSink sink, IProcessRunner runner)
     {

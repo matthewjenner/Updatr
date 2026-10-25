@@ -66,6 +66,9 @@ public sealed class WinGetCliSource(IProcessRunner processes, string wingetPath)
     public Task<PackageOutcome> ReinstallAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
         => RunAsync(["install", "--id", package.Id, "--exact", "--force", "--silent", "--accept-package-agreements", .. Common], package, sink);
 
+    public Task<PackageOutcome> UninstallAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
+        => RunAsync(["uninstall", "--id", package.Id, "--exact", "--silent", .. Common], package, sink);
+
     private async Task<PackageOutcome> RunAsync(string[] arguments, InstalledPackage package, IOperationSink sink)
     {
         sink.Report(new ProgressReported(package.Key.ToString(), null, Message: "Running winget"));

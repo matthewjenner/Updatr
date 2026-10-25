@@ -1,6 +1,9 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Updatr.App.Services;
+using Updatr.Core;
 using Updatr.Core.Catalog;
+using Updatr.Core.Operations;
 using Updatr.Core.Preflight;
 using Updatr.Platform;
 
@@ -10,10 +13,12 @@ namespace Updatr.App.ViewModels;
 public sealed partial class SettingsPageViewModel : PageViewModel
 {
     private readonly UpdatrHost _host;
+    private readonly IDialogService _dialogs;
 
-    public SettingsPageViewModel(UpdatrHost host, PreflightRunner preflight)
+    public SettingsPageViewModel(UpdatrHost host, PreflightRunner preflight, IDialogService dialogs)
     {
         _host = host;
+        _dialogs = dialogs;
         Preflight = preflight;
         Preflight.FixHandler = async row =>
         {
@@ -23,6 +28,9 @@ public sealed partial class SettingsPageViewModel : PageViewModel
         };
         Describe(preflight.Report);
     }
+
+    /// <summary>Raised when the user wants to restart into a version self-update just put on the drive.</summary>
+    public event Action? RestartRequested;
 
     /// <summary>Raised on the UI thread after "Run checks again" completes.</summary>
     public event Action<PreflightReport>? ChecksRerun;
@@ -46,6 +54,48 @@ public sealed partial class SettingsPageViewModel : PageViewModel
     public partial bool IsTestingAdmin { get; set; }
 
     private bool CanTestAdmin => !IsTestingAdmin;
+
+    public string VersionText => $"Updatr v{ProductInfo.Version}";
+
+    [ObservableProperty]
+    public partial string UpdateResult { get; set; } = "Updates come from the latest GitHub release and are checked against its published checksums.";
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SelfUpdateCommand))]
+    public partial bool IsUpdating { get; set; }
+
+    private bool CanSelfUpdate => !IsUpdating;
+
+    [RelayCommand(CanExecute = nameof(CanSelfUpdate))]
+    private async Task SelfUpdateAsync()
+    {
+        IsUpdating = true;
+        UpdateResult = "Checking...";
+
+        try
+        {
+            GuiSink sink = new(e =>
+            {
+                if (e is StepStarted step)
+                    UpdateResult = step.Step + "...";
+            }, _dialogs.ConfirmAsync);
+
+            Platform.Update.SelfUpdateResult result = await Task.Run(() => _host.SelfUpdate.RunAsync(false, sink, CancellationToken.None));
+            UpdateResult = result.Summary;
+
+            if (result.Updated && await _dialogs.ConfirmAsync(new Confirmation($"Restart into v{result.Version} now?", "Updatr closes and starts again from the drive.")))
+                RestartRequested?.Invoke();
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Core.Diagnostics.DiagLog.UnhandledException("Self-update", ex);
+            UpdateResult = $"Failed: {ex.Message}";
+        }
+        finally
+        {
+            IsUpdating = false;
+        }
+    }
 
     [RelayCommand(CanExecute = nameof(CanTestAdmin))]
     private async Task TestAdminAsync()
