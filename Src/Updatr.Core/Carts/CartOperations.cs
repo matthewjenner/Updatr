@@ -58,7 +58,8 @@ public sealed class InstallApps(
     CartStore carts,
     IReadOnlyList<IAppInstaller> installers,
     IInstallerGate gate,
-    IToolEnvironment tools) : IOperation<InstallRequest, RunSummary>
+    IToolEnvironment tools,
+    Leftovers.IFootprintRecorder? footprints = null) : IOperation<InstallRequest, RunSummary>
 {
     public async Task<RunSummary> RunAsync(InstallRequest request, IOperationSink sink, CancellationToken cancellationToken)
     {
@@ -142,8 +143,37 @@ public sealed class InstallApps(
             return PackageOutcome.Failed(ex.Message);
         }
 
+        // winget installs are snapshotted before and after, so a later uninstall knows exactly what
+        // this install created (its "footprint"). Other sources leave nothing a scan would look for.
+        object? before = item.Source is WingetSourceRef ? await TryAsync(() => footprints?.BeforeAsync(CancellationToken.None)).ConfigureAwait(false) : null;
+
         // Not canceled mid-way: an installer that has started is allowed to finish.
-        return await installer.InstallAsync(item.Source, item.App.Id, sink, CancellationToken.None).ConfigureAwait(false);
+        PackageOutcome outcome = await installer.InstallAsync(item.Source, item.App.Id, sink, CancellationToken.None).ConfigureAwait(false);
+
+        if (before is not null && outcome.Kind == OutcomeKind.Ok && item.Source is WingetSourceRef winget)
+        {
+            sink.Report(new ProgressReported(item.App.Id, Message: "Recording what the install added"));
+            await TryAsync(async () =>
+            {
+                await footprints!.AfterAsync(before, new PackageKey("winget", winget.Id), CancellationToken.None).ConfigureAwait(false);
+                return (object?)null;
+            }).ConfigureAwait(false);
+        }
+
+        return outcome;
+    }
+
+    /// <summary>Footprints are a bonus: a failed snapshot never fails the install.</summary>
+    private static async Task<object?> TryAsync(Func<Task<object?>?> action)
+    {
+        try
+        {
+            return action() is { } task ? await task.ConfigureAwait(false) : null;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return null;
+        }
     }
 
     private static void Finish(IOperationSink sink, List<ItemFinished> finished, PlannedItem item, PackageOutcome outcome)

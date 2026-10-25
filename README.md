@@ -10,7 +10,8 @@ A portable Windows machine manager you can run from a thumb drive.
   packages, VS Code for extensions) are added automatically.
 - **Debloat** Windows: remove ads, sponsored apps, and junk, and re-run safely after feature
   updates to catch whatever Windows put back. Every change is backed up and can be reverted.
-- **Uninstall** apps through their own uninstallers.
+- **Uninstall** apps through their own uninstallers, then clean up what they leave behind -
+  moved into a quarantine you can restore from, never deleted outright.
 
 Works on a fresh or slim install: no .NET, no PowerShell 7, and no winget required - Updatr
 checks what is missing on startup and offers to fix it.
@@ -48,7 +49,11 @@ beside the exe, so they travel with the drive. Nothing is stored on the machine 
   baseline privacy) are pre-selected; optional ones (Copilot, OneDrive, Xbox, Edge nags, ...) are
   yours to pick. Store apps Updatr does not recognize are listed for review, never removed on
   their own. History lets you revert any item.
-- **Uninstall** - everything installed, removable through its own uninstaller.
+- **Uninstall** - everything installed, removable through its own uninstaller. Afterwards the
+  **Leftovers** tab lists what the uninstaller left (folders, settings keys, services, tasks,
+  shortcuts, firewall rules), each with a confidence level and the reason. Nothing is selected for
+  you; what you pick is zipped or saved into quarantine on the drive and can be restored until you
+  purge it.
 - **Settings** - where your data is, the run log, admin test, and **Check for an update**
   (downloads the latest release, verifies its checksum, and replaces the files on the drive).
 
@@ -64,6 +69,8 @@ updatr-cli upgrade --all | <id>...           upgrade (holds respected by --all)
 updatr-cli reinstall <id>...                 repair an install
 updatr-cli hold <id> | unhold <id>           keep a package out of "upgrade all"
 updatr-cli uninstall <id>...                 remove through the app's own uninstaller
+updatr-cli leftovers list | quarantine <scan> --item <n> | dismiss <scan>
+updatr-cli quarantine list | restore <entry> | purge <entry>
 updatr-cli catalog list                      apps Updatr can install
 updatr-cli install <app>... [-t <template>] [-c <cart>]
 updatr-cli cart list | show | save | remove | delete
@@ -101,8 +108,9 @@ Exit codes: 0 success, 1 something failed, 2 usage error, 130 canceled.
   its WebView. The Edge item turns off its nags and background running instead.
 - **Removed Store apps** come back from the Microsoft Store on revert, where the Store still
   offers them.
-- **Uninstall leaves leftovers** (settings folders, registry keys). Leftover cleanup, with
-  quarantine instead of deletion, is planned for 0.2.
+- **Leftovers are found by name and by what points into the app's folder.** Updatr never offers
+  anything another installed app uses, but read the reason before picking a low-confidence item.
+  Apps Updatr installed itself are tracked exactly (a before/after snapshot).
 - **ARM64** builds are published but not yet tested on ARM hardware.
 - **LTSC:** winget is installed for you, but Microsoft Store apps stay unavailable without the
   Store.

@@ -8,11 +8,11 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Current state
 
-- **Phase:** 7 complete - uninstall (basic) and self-update. 0.1.0 released 2026-10-25. Still open (not blocking): winget repair on a clean / LTSC VM.
+- **Phase:** 8 code complete - leftover cleanup with quarantine. 0.2.0 after a manual look. Still open (not blocking): winget repair on a clean / LTSC VM.
 - **Last updated:** 2026-10-24
 - **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (303/303).
-  Version 0.1.0 (released 2026-10-25).
-- **Next:** Phase 8 (leftover cleanup -> 0.2.0).
+  Version 0.2.0 (0.1.0 released 2026-10-25).
+- **Next:** polish pass (Uninstall / Updates list kinds and filters, see Backlog).
 
 ## Versioning
 
@@ -233,10 +233,33 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Phase 8 - Leftover cleanup -> 0.2.0
 
-- [ ] Leftover scanner (files, registry, services, tasks, shortcuts, firewall rules)
-- [ ] Confidence levels, nothing pre-checked
-- [ ] Quarantine (zip + .reg), restore, purge
-- [ ] Install footprints for Updatr-installed apps
+- [x] Leftover scanner: folders (install folder, Program Files / ProgramData / AppData /
+      LocalAppData / Programs, by name and publisher\name), registry keys (HKCU / HKLM / WOW6432Node,
+      the app's own Uninstall entry), services and scheduled tasks that run the app's programs,
+      shortcuts into it (Start menus recursively, desktops top level), firewall rules for its programs
+- [x] App described before the uninstaller runs (winget details + Uninstall registration), scan
+      after it succeeds; waits up to 60 s for uninstallers that finish in the background; items
+      that vanish later are dropped when the list is read
+- [x] Confidence High / Medium / Low with a reason per item; nothing pre-selected
+- [x] Never offered: Windows, shared or generic names, anything another installed app owns (or a
+      folder around it), shared publisher folders, Updatr itself and its data folder, Microsoft
+      tasks, svchost services, keys outside SOFTWARE or more than two levels down
+- [x] Quarantine (`Updatr.data\quarantine\<machine>\<entry>\`): folders and shortcuts zipped,
+      registry keys as JSON + `.reg`, services / tasks / firewall rules with full definitions; each
+      stored and read back before the original is removed; restore never overwrites; purge
+- [x] Machine-wide items through the broker (`leftover-run`), re-checked against the same
+      allow-list and confined to the host's quarantine folder
+- [x] Install footprints: before/after snapshot around Updatr's winget installs, per machine
+      (`footprints\<machine>\`); what remains is listed as High on uninstall
+- [x] CLI: `uninstall [--no-leftovers]`, `leftovers list | quarantine <scan> --item <n> | --high |
+      dismiss`, `quarantine list | restore | purge`
+- [x] GUI: Uninstall > Leftovers tab (per app, click to pick, confidence colors) with quarantine
+      list (restore / purge); switches there after an uninstall that left something
+- [x] Verified on this machine: dry scans of Firefox / Audacity / Discord (accurate, nothing
+      foreign); SumatraPDF per-user install -> uninstall -> leftovers -> quarantine -> restore ->
+      quarantine -> purge; machine left clean
+- [ ] **Manual:** look over Uninstall > Leftovers, and one machine-wide uninstall (UAC) to see the
+      broker quarantine path; then release 0.2.0 (version bumped)
 
 ---
 
@@ -310,6 +333,14 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
   the source-generated deserializer assigns omitted init properties null, wiping defaults.
 - **2026-10-23** - Computed members on polymorphic source refs live in the base as a switch:
   `[JsonIgnore]` on an abstract member does not apply to its overrides, which leaked into JSON.
+- **2026-10-25** - Many uninstallers return at once and finish in the background (SumatraPDF:
+  the first scan listed its install folder and uninstall key, both gone seconds later). The scan
+  now waits up to 60 s for the app's Uninstall key to go, and the review list re-checks every item.
+- **2026-10-25** - Leftovers and quarantine are per machine (`<COMPUTERNAME>-<MachineGuid prefix>`)
+  inside the drive's data folder: a scan or a quarantined folder only means something on the PC it
+  came from, and the drive visits many. Install footprints likewise.
+- **2026-10-25** - Quarantine keeps whole folders as zips on the drive; a folder bigger than the
+  drive's free space is left in place with that reason rather than half-copied.
 - **2026-10-24** - winget reports a per-machine install's scope as "System", not "Machine" (found
   when Everything's MSI uninstall ran unelevated and failed with 1603). Both now mean machine. This
   likely explains Phase 3's "installed scope is rarely reported". Also: MSI product codes are

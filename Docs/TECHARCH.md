@@ -352,6 +352,20 @@ User templates and carts use the same shape and live in `Updatr.data\`.
   back on any failure. `CleanUpOld` runs at host start. Refuses version 0.0.0 and non-single-file
   builds.
 
+## Leftovers and quarantine (Phase 8)
+
+- Core `Leftovers/`: `LeftoverTarget` (captured before uninstall), `Leftover` (kind, location,
+  confidence, reason), `LeftoverScan` (saved for review in `leftovers\<machine>\`),
+  `LeftoverService` (describe -> uninstall -> scan, wired into `PackageBatch`'s uninstall), and the
+  operations `leftovers list|quarantine|dismiss`, `quarantine list|restore|purge`.
+- Platform `Leftovers/`: `LeftoverScanner` (enumeration), `LeftoverRules` (names, confidence,
+  what may be offered - unit tested), `LeftoverSafety` (the last check before any move, also in
+  the broker), `QuarantineEngine` (store-then-remove, restore-without-overwrite),
+  `Quarantine` (local or broker), `Footprints` (install snapshots), readers for services
+  (registry), tasks (Task Scheduler COM, indexed), firewall (HNetCfg COM), shortcuts (ShellLink).
+- Broker `leftover-run`: `move` / `restore` / `purge`, only for entries inside the host's
+  quarantine folder (`BrokerHost.DataRoot`), every item re-checked by `LeftoverSafety`.
+
 ## Portable data folder
 
 ```

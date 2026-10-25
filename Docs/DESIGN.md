@@ -179,7 +179,9 @@ updatr-cli cart list | show <name> | save <name> | merge <name>...
 updatr-cli template list | show <name>
 updatr-cli debloat status [--changed] | apply [--recommended] [--item <id>...] [--app <name>...]
 updatr-cli debloat revert <id>... | history | keep <name>... | unkeep <name>...
-updatr-cli uninstall <id>...
+updatr-cli uninstall <id>... [--no-leftovers]
+updatr-cli leftovers list | quarantine <scan> --item <n>... | --high | dismiss <scan>
+updatr-cli quarantine list | restore <entry> | purge <entry>
 updatr-cli self-update
 ```
 

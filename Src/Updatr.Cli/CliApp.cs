@@ -63,6 +63,10 @@ public static class CliApp
             root.Subcommands.Add(command);
 
         root.Subcommands.Add(DebloatCommands.Command());
+
+        foreach (Command command in LeftoverCommands.All())
+            root.Subcommands.Add(command);
+
         root.Subcommands.Add(AdminCommand());
         root.Subcommands.Add(SelfUpdateCommand());
         return root;
@@ -146,12 +150,14 @@ public static class CliApp
     private static Command UninstallCommand()
     {
         Argument<string[]> ids = new("ids") { Description = "Package ids (see: list). Apps no catalog knows can be removed too.", Arity = ArgumentArity.OneOrMore };
-        Command command = new("uninstall", "Remove packages through each app's own uninstaller. Leftover files are not touched.");
+        Option<bool> noLeftovers = new("--no-leftovers") { Description = "Do not look for leftovers afterwards." };
+        Command command = new("uninstall", "Remove packages through each app's own uninstaller, then list what it left behind for review (see: leftovers).");
         command.Arguments.Add(ids);
+        command.Options.Add(noLeftovers);
 
         command.SetAction((parse, cancellationToken) => RunAsync(parse, cancellationToken, async (host, sink) =>
         {
-            RunSummary summary = await host.Uninstall.RunAsync(new PackageSelection { Ids = parse.GetValue(ids) }, sink, cancellationToken).ConfigureAwait(false);
+            RunSummary summary = await host.Uninstall.RunAsync(new PackageSelection { Ids = parse.GetValue(ids), SkipLeftovers = parse.GetValue(noLeftovers) }, sink, cancellationToken).ConfigureAwait(false);
             sink.Summary(summary);
             return summary.HasFailures ? ExitCodes.Failed : ExitCodes.Ok;
         }));

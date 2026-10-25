@@ -87,6 +87,9 @@ public sealed record PackageSelection
 
     /// <summary>With <see cref="All"/>: include packages whose installed version is unknown.</summary>
     public bool IncludeUnknown { get; init; }
+
+    /// <summary>Uninstall only: do not look for leftovers afterwards.</summary>
+    public bool SkipLeftovers { get; init; }
 }
 
 /// <summary>Upgrades packages, one installer at a time.</summary>
@@ -122,7 +125,12 @@ public sealed class UninstallPackages(PackageBatch batch) : IOperation<PackageSe
 /// each package in turn - waiting out other installers, retrying once when the system was busy,
 /// and stopping cleanly between packages on cancel.
 /// </summary>
-public sealed class PackageBatch(IReadOnlyList<IPackageSource> sources, ListPackages list, IInstallerGate gate, Func<CancellationToken, Task<HoldPolicy>> holds)
+public sealed class PackageBatch(
+    IReadOnlyList<IPackageSource> sources,
+    ListPackages list,
+    IInstallerGate gate,
+    Func<CancellationToken, Task<HoldPolicy>> holds,
+    Leftovers.LeftoverService? leftovers = null)
 {
     public enum Action
     {
@@ -174,11 +182,34 @@ public sealed class PackageBatch(IReadOnlyList<IPackageSource> sources, ListPack
             }
 
             sink.Report(new StepStarted($"[{i + 1}/{targets.Count}] {verb} {package.Name}"));
-            PackageOutcome outcome = await RunOneAsync(action, package, sink, cancellationToken).ConfigureAwait(false);
+            PackageOutcome outcome = action == Action.Uninstall && leftovers is not null && !selection.SkipLeftovers
+                ? await UninstallWithScanAsync(package, sink, cancellationToken).ConfigureAwait(false)
+                : await RunOneAsync(action, package, sink, cancellationToken).ConfigureAwait(false);
             Finish(sink, finished, package, outcome);
         }
 
         return new RunSummary(verb, finished, timer.Elapsed);
+    }
+
+    /// <summary>
+    /// Captures the app's details first (the uninstaller erases its registration), uninstalls, then
+    /// scans for what it left behind and saves that for review. Nothing is removed here.
+    /// </summary>
+    private async Task<PackageOutcome> UninstallWithScanAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
+    {
+        Leftovers.LeftoverTarget? target = await leftovers!.DescribeAsync(package, cancellationToken).ConfigureAwait(false);
+        PackageOutcome outcome = await RunOneAsync(Action.Uninstall, package, sink, cancellationToken).ConfigureAwait(false);
+
+        if (target is null || outcome.Kind != OutcomeKind.Ok)
+            return outcome;
+
+        int found = await leftovers.ScanAsync(target, sink, package.Key.ToString(), CancellationToken.None).ConfigureAwait(false);
+
+        if (found == 0)
+            return outcome;
+
+        string note = $"{found} possible leftover(s) - review them under Leftovers";
+        return outcome with { Detail = outcome.Detail.Length == 0 ? note : $"{outcome.Detail}; {note}" };
     }
 
     private async Task<PackageOutcome> RunOneAsync(Action action, InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)

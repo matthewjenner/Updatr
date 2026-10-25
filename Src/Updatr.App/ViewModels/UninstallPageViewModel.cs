@@ -27,6 +27,7 @@ public sealed partial class UninstallPageViewModel : PageViewModel
     {
         _host = host;
         _dialogs = dialogs;
+        Leftovers = new LeftoversViewModel(host, dialogs);
         View = new DataGridCollectionView(Rows) { Filter = Matches };
         View.SortDescriptions.Add(DataGridSortDescription.FromPath(nameof(PackageRowViewModel.Name), System.ComponentModel.ListSortDirection.Ascending));
     }
@@ -36,6 +37,12 @@ public sealed partial class UninstallPageViewModel : PageViewModel
     public ObservableCollection<PackageRowViewModel> Rows { get; } = [];
 
     public DataGridCollectionView View { get; }
+
+    public LeftoversViewModel Leftovers { get; }
+
+    /// <summary>0 = installed apps, 1 = leftovers.</summary>
+    [ObservableProperty]
+    public partial int SelectedTab { get; set; }
 
     [ObservableProperty]
     public partial string SearchText { get; set; } = string.Empty;
@@ -61,6 +68,7 @@ public sealed partial class UninstallPageViewModel : PageViewModel
 
         _loaded = true;
         RefreshCommand.Execute(null);
+        _ = Leftovers.RefreshAsync();
     }
 
     [RelayCommand(CanExecute = nameof(Idle))]
@@ -101,6 +109,13 @@ public sealed partial class UninstallPageViewModel : PageViewModel
             }
 
             UpdateCounts();
+
+            // Something was left behind: show it now, while the user is thinking about that app.
+            int before = Leftovers.Scans.Count;
+            await Leftovers.RefreshAsync();
+
+            if (Leftovers.Scans.Count > before)
+                SelectedTab = 1;
         }
     }
 

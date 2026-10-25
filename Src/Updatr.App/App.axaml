@@ -7,5 +7,34 @@
     <Application.Styles>
         <FluentTheme />
         <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+
+        <!-- Click-to-select rows (Debloat, Leftovers): the highlight is the selection. -->
+        <Style Selector="Border.pick">
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="Margin" Value="0,1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Border.pick:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListLowBrush}" />
+        </Style>
+        <Style Selector="Border.pick.selected">
+            <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListAccentLowBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SystemControlHighlightAccentBrush}" />
+            <Setter Property="BorderThickness" Value="3,0,0,0" />
+        </Style>
+        <Style Selector="Border.pick.locked">
+            <Setter Property="Cursor" Value="Arrow" />
+            <Setter Property="Opacity" Value="0.6" />
+        </Style>
+
+        <!-- Confidence tags on leftovers. -->
+        <Style Selector="TextBlock.tag">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Width" Value="56" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+        </Style>
     </Application.Styles>
 </Application>

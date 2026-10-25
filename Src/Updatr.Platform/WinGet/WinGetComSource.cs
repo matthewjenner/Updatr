@@ -230,6 +230,29 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
         }
     }
 
+    /// <summary>What winget knows about an installed package, for the leftover scan. Null when not found.</summary>
+    public static InstalledDetails? Describe(string id)
+    {
+        CatalogPackage? package = FindCatalogPackage(WinGetRuntime.CreatePackageManager(), id, out _);
+
+        if (package?.InstalledVersion is not { } installed)
+            return null;
+
+        // Index, never enumerate (CsWinRT list views fail to cast).
+        IReadOnlyList<string> codes = installed.ProductCodes;
+        List<string> productCodes = [];
+
+        for (int i = 0; i < codes.Count; i++)
+            productCodes.Add(codes[i]);
+
+        return new InstalledDetails(
+            package.Name,
+            installed.Publisher,
+            installed.GetMetadata(PackageVersionMetadataField.InstalledLocation),
+            installed.GetMetadata(PackageVersionMetadataField.StandardUninstallCommand),
+            productCodes);
+    }
+
     /// <summary>
     /// winget's installed-scope metadata. Phase 7 finding: per-machine installs report "System",
     /// not "Machine" (the manifest's word) - so read both.
@@ -747,3 +770,7 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
 
 /// <summary>A source could not answer at all (as opposed to one package failing).</summary>
 public sealed class PackageSourceException(string message) : Exception(message);
+
+/// <summary>An installed package as winget's local catalog describes it.</summary>
+/// <param name="ProductCodes">MSI product codes, or the Uninstall subkey names for other installers.</param>
+public sealed record InstalledDetails(string Name, string? Publisher, string? InstallLocation, string? UninstallCommand, IReadOnlyList<string> ProductCodes);

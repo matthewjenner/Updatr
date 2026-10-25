@@ -5,29 +5,6 @@
              xmlns:b="using:Updatr.App.Behaviors"
              x:Class="Updatr.App.Views.DebloatView"
              x:DataType="vm:DebloatPageViewModel">
-    <UserControl.Styles>
-        <!-- Click-to-select rows: the highlight is the selection. -->
-        <Style Selector="Border.pick">
-            <Setter Property="Padding" Value="10,7" />
-            <Setter Property="Margin" Value="0,1" />
-            <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Cursor" Value="Hand" />
-        </Style>
-        <Style Selector="Border.pick:pointerover">
-            <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListLowBrush}" />
-        </Style>
-        <Style Selector="Border.pick.selected">
-            <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListAccentLowBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource SystemControlHighlightAccentBrush}" />
-            <Setter Property="BorderThickness" Value="3,0,0,0" />
-        </Style>
-        <Style Selector="Border.pick.locked">
-            <Setter Property="Cursor" Value="Arrow" />
-            <Setter Property="Opacity" Value="0.6" />
-        </Style>
-    </UserControl.Styles>
-
     <Grid ColumnDefinitions="*,340" Margin="20,16">
         <!-- Items: picked ones are applied; state comes from the live machine. -->
         <DockPanel Grid.Column="0" Margin="0,0,16,0">

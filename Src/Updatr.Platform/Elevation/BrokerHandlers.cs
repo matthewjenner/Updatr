@@ -30,6 +30,7 @@ public static class BrokerHandlers
         new DirectUrl.DirectUrlBrokerHandler(),
         new Debloat.DebloatBrokerHandler(),
         new Debloat.RestorePointBrokerHandler(),
+        new Leftovers.LeftoverBrokerHandler(),
     ];
 }
 

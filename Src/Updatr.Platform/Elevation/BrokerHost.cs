@@ -15,6 +15,9 @@ public static class BrokerHost
     public const string ParentSwitch = "--parent";
     public const string DataDirSwitch = "--data-dir";
 
+    /// <summary>The host's data folder, when this process is a broker started with one. Handlers that write there check against it.</summary>
+    public static string? DataRoot { get; private set; }
+
     /// <summary>Returns the exit code if <paramref name="args"/> asked for broker mode, otherwise null.</summary>
     public static int? TryRun(string[] args)
     {
@@ -36,6 +39,7 @@ public static class BrokerHost
 
         // The broker's own log goes beside the host's, so elevated work is on the drive too.
         int dataIndex = Array.IndexOf(args, DataDirSwitch);
+        DataRoot = dataIndex >= 0 && dataIndex + 1 < args.Length ? Path.GetFullPath(args[dataIndex + 1]) : null;
         RunLogWriter? log = dataIndex >= 0 && dataIndex + 1 < args.Length
             ? new RunLogWriter(new PortableDataStore(args[dataIndex + 1]), "broker")
             : null;

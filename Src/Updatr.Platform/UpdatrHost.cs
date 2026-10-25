@@ -4,6 +4,7 @@ using Updatr.Core.Abstractions;
 using Updatr.Core.Carts;
 using Updatr.Core.Catalog;
 using Updatr.Core.Debloat;
+using Updatr.Core.Leftovers;
 using Updatr.Core.Packages;
 using Updatr.Core.Sources;
 using Updatr.Core.Diagnostics;
@@ -11,6 +12,7 @@ using Updatr.Core.Preflight;
 using Updatr.Platform.Catalog;
 using Updatr.Platform.Data;
 using Updatr.Platform.Debloat;
+using Updatr.Platform.Leftovers;
 using Updatr.Platform.DirectUrl;
 using Updatr.Platform.Elevation;
 using Updatr.Platform.Net;
@@ -62,7 +64,22 @@ public sealed class UpdatrHost : IAsyncDisposable
         VsCodeExtensionSource vscode = new(Processes, Http);
         Sources = [WinGet, npm, pipx, dotnetTools, gallery, vscode];
         List = new ListPackages(Sources, HoldPolicyAsync);
-        PackageBatch batch = new(Sources, List, new InstallerGate(), HoldPolicyAsync);
+
+        // Phase 8: leftovers after uninstall, quarantine, install footprints - all per machine.
+        string machine = MachineIdentity.Id;
+        Footprints footprints = new(Data, machine);
+        LeftoverStore leftoverStore = new(Data, machine);
+        LeftoverScanner scanner = new(Data.DisplayRoot);
+        LeftoverService leftovers = new(scanner, leftoverStore, footprints);
+        Quarantine quarantine = new(Data.DisplayRoot, machine, Elevation);
+        LeftoversList = new ListLeftovers(leftoverStore, scanner);
+        LeftoversQuarantine = new QuarantineLeftovers(leftoverStore, quarantine);
+        LeftoversDismiss = new DismissLeftovers(leftoverStore);
+        QuarantineList = new ListQuarantine(quarantine);
+        QuarantineRestore = new RestoreQuarantine(quarantine);
+        QuarantinePurge = new PurgeQuarantine(quarantine);
+
+        PackageBatch batch = new(Sources, List, new InstallerGate(), HoldPolicyAsync, leftovers);
         Upgrade = new UpgradePackages(batch);
         Reinstall = new ReinstallPackages(batch);
         Uninstall = new UninstallPackages(batch);
@@ -86,7 +103,7 @@ public sealed class UpdatrHost : IAsyncDisposable
             new PsGalleryAppInstaller(Http, gallery),
             new DirectUrlAppInstaller(new DirectUrlInstaller(Http, Processes, Elevation)),
         ];
-        Install = new InstallApps(catalog, Templates, Carts, installers, new InstallerGate(), Tools);
+        Install = new InstallApps(catalog, Templates, Carts, installers, new InstallerGate(), Tools, footprints);
         CatalogList = new ListCatalog(catalog);
         CartList = new ListCarts(Carts);
         CartShow = new ShowCart(Carts);
@@ -111,6 +128,18 @@ public sealed class UpdatrHost : IAsyncDisposable
         DebloatKeep = new KeepApps(debloatStore);
         DebloatUnkeep = new UnkeepApps(debloatStore);
     }
+
+    public ListLeftovers LeftoversList { get; }
+
+    public QuarantineLeftovers LeftoversQuarantine { get; }
+
+    public DismissLeftovers LeftoversDismiss { get; }
+
+    public ListQuarantine QuarantineList { get; }
+
+    public RestoreQuarantine QuarantineRestore { get; }
+
+    public PurgeQuarantine QuarantinePurge { get; }
 
     public DebloatStatus DebloatStatus { get; }
 

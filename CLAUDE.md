@@ -145,6 +145,11 @@ dotnet test                         # MTP runner (global.json)
   `for (int i = 0; i < list.Count; i++)`.
 - **A running exe can be renamed, not overwritten.** Self-update relies on it (`SelfUpdater.Swap`);
   keep the release file list there in step with `release_files` in `Scripts/publish.sh`.
+- **Uninstallers often finish in the background.** Never trust state right after one returns:
+  the leftover scan waits for the Uninstall key to go, and the review list re-checks every item.
+- **Leftovers are never deleted, only quarantined,** and only within `LeftoverSafety`. A new place
+  to look must also pass `LeftoverRules.IsOfferableFolder` / `LeftoverSafety.Problem` and get tests
+  in `LeftoverTests`.
 - **Do not trim.** WinRT.Runtime and the Windows SDK projection are not trim-safe (IL2104). Publish
   is single-file + compressed, untrimmed.
 - **Version 0.0.0 never releases.** CI builds, tests, and packages it, but the release step is
