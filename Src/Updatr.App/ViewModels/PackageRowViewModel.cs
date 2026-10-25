@@ -19,7 +19,7 @@ public enum RowStatus
     Failed,
 }
 
-/// <summary>One installed package in the Updates grid.</summary>
+/// <summary>One installed package in the Apps grid.</summary>
 public sealed partial class PackageRowViewModel(ListedPackage listed) : ObservableObject, ISelectableRow
 {
     [ObservableProperty]
@@ -31,16 +31,8 @@ public sealed partial class PackageRowViewModel(ListedPackage listed) : Observab
 
     /// <summary>Live text while an action runs, then the outcome.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Kind), nameof(ActivityOrNote))]
+    [NotifyPropertyChangedFor(nameof(Kind))]
     public partial string? Activity { get; set; }
-
-    /// <summary>False for rows this page cannot act on (a launcher's game on Uninstall).</summary>
-    public bool CanSelect { get; init; } = true;
-
-    /// <summary>Why the row cannot be acted on here, shown until an action says something else.</summary>
-    public string? Note { get; init; }
-
-    public string? ActivityOrNote => Activity ?? Note;
 
     /// <summary>"Games", "Runtimes &amp; SDKs", ... for the Kind column.</summary>
     public string KindLabel => AppKinds.Label(Listed.Kind);
@@ -50,7 +42,7 @@ public sealed partial class PackageRowViewModel(ListedPackage listed) : Observab
 
     public string SourceKey => AppKinds.SourceLabel(P);
 
-    /// <summary>The Updates screen's status, as a filter key (see <see cref="UpdatesPageViewModel"/>).</summary>
+    /// <summary>The row's status, as a filter key (see <see cref="AppsPageViewModel"/>).</summary>
     public string StatusKey => P switch
     {
         { ManagedBy: not null } => "launcher",

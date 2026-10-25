@@ -2,9 +2,9 @@ using Avalonia.Controls;
 
 namespace Updatr.App.Views;
 
-public partial class UninstallView : UserControl
+public partial class AppsView : UserControl
 {
-    public UninstallView()
+    public AppsView()
     {
         InitializeComponent();
     }

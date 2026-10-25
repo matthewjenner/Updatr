@@ -44,20 +44,18 @@ public sealed partial class MainWindowViewModel : ObservableObject
     {
         Host = host;
         host.UseCatalog(report.Context.Catalog);
-        Updates = new UpdatesPageViewModel(host, dialogs);
+        Apps = new AppsPageViewModel(host, dialogs);
         Install = new InstallPageViewModel(host, dialogs);
         Debloat = new DebloatPageViewModel(host, dialogs);
-        Uninstall = new UninstallPageViewModel(host, dialogs);
 
         Settings = new SettingsPageViewModel(host, preflight, dialogs);
         Settings.ChecksRerun += ApplyReport;
 
         Navigation =
         [
-            new NavItem("Updates", Updates),
+            new NavItem("Apps", Apps),
             new NavItem("Install", Install),
             new NavItem("Debloat", Debloat),
-            new NavItem("Uninstall", Uninstall),
             new NavItem("Log", new LogPageViewModel()),
             new NavItem("Settings", Settings),
         ];
@@ -76,13 +74,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     public SettingsPageViewModel Settings { get; }
 
-    public UpdatesPageViewModel Updates { get; }
+    public AppsPageViewModel Apps { get; }
 
     public InstallPageViewModel Install { get; }
 
     public DebloatPageViewModel Debloat { get; }
-
-    public UninstallPageViewModel Uninstall { get; }
 
     public ObservableCollection<BannerViewModel> Banners { get; } = [];
 
@@ -94,14 +90,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     partial void OnSelectedNavChanged(NavItem? value)
     {
-        if (value?.Page is UpdatesPageViewModel updates)
-            updates.EnsureLoaded();
+        if (value?.Page is AppsPageViewModel apps)
+            apps.EnsureLoaded();
         else if (value?.Page is InstallPageViewModel install)
             install.EnsureLoaded();
         else if (value?.Page is DebloatPageViewModel debloat)
             debloat.EnsureLoaded();
-        else if (value?.Page is UninstallPageViewModel uninstall)
-            uninstall.EnsureLoaded();
     }
 
     private BannerViewModel? _dataBanner;

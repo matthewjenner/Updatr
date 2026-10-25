@@ -23,7 +23,7 @@ public abstract class ToolSource(IProcessRunner processes, string program) : IPa
 
     public abstract string Id { get; }
 
-    /// <summary>What the Updates screen shows in its Source column.</summary>
+    /// <summary>What the Apps screen shows in its Source column.</summary>
     protected abstract string DisplayName { get; }
 
     /// <summary>

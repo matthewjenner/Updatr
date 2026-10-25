@@ -12,17 +12,14 @@
 
     <Window.DataTemplates>
         <!-- One template per page ViewModel. -->
-        <DataTemplate DataType="vm:UpdatesPageViewModel">
-            <views:UpdatesView />
+        <DataTemplate DataType="vm:AppsPageViewModel">
+            <views:AppsView />
         </DataTemplate>
         <DataTemplate DataType="vm:InstallPageViewModel">
             <views:InstallView />
         </DataTemplate>
         <DataTemplate DataType="vm:DebloatPageViewModel">
             <views:DebloatView />
-        </DataTemplate>
-        <DataTemplate DataType="vm:UninstallPageViewModel">
-            <views:UninstallView />
         </DataTemplate>
 
         <DataTemplate DataType="vm:PlaceholderPageViewModel">

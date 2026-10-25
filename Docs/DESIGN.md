@@ -74,12 +74,15 @@ The CLI equivalent is `updatr-cli preflight` (`--only <ids>`, `--verbose`, `--js
 
 ## Screens
 
-### Updates
+### Apps
 
-Everything installed, across all sources, in one grid: name, source, id, installed version,
-available version, status. Filters: has-update, held, source, search.
+Everything installed, across all sources, in one grid: name, publisher, id, installed version,
+available version, source, kind, status. Filters: status (starts on "has an update"), kind,
+source, search. One screen for updating and removing, so an app found while updating can be
+removed without listing everything again; leftovers from uninstalls are its second tab.
 
-- Select one, many, or all; **Upgrade**, **Reinstall**, **Pin/Hold**, **Unhold**.
+- Select one, many, or all; **Upgrade**, **Reinstall**, **Pin/Hold**, **Unhold**, **Uninstall**.
+  Actions take only what is on screen - a selection hidden by a filter is never acted on.
 - **Held** packages (version-sensitive, e.g. Node, databases, CUDA, WSL, VC redists) show a
   marker and are skipped by "Upgrade all" unless explicitly included. Hold rules ship in the
   catalog (ported from `Get-WingetUpdates.ps1`) and you can add or remove your own.
@@ -93,8 +96,9 @@ available version, status. Filters: has-update, held, source, search.
   upgraded only when picked explicitly.
 - **Needs a fresh install:** when the newer version switches installer technology (exe to MSI,
   MSI to MSIX), winget cannot upgrade in place; the row says so and why instead of failing.
-- Outcomes per item: **Upgraded**, **Already current**, **Failed** (with decoded reason),
-  **Skipped**. Reboot-required is surfaced.
+- Outcomes per item: **Upgraded**, **Already current**, **Pending** (installed but not active
+  until the app restarts), **Failed** (with decoded reason), **Skipped**. Reboot-required is
+  surfaced. Pending and "in use" results name the program that has the app open.
 
 ### Install (cart)
 
@@ -133,11 +137,12 @@ Removes ads and junk, and re-runs cleanly after Windows feature updates.
   `Updatr.data\debloat\backups\`. Each item can be reverted from the history list.
 - Rules ship in the catalog, so new junk is handled by updating the repo, not the binary.
 
-### Uninstall
+### Uninstall (on the Apps screen)
 
 - **v0.1:** list installed apps across sources, uninstall one or many through each app's own
   uninstaller (winget - which runs the registered quiet uninstall command for any app it lists -
-  or the ecosystem tool). Game launchers' games and winget itself are refused.
+  or the ecosystem tool). Game launchers' games and winget itself are refused. An app whose
+  uninstaller is gone (deleted, or on a drive that changed) has its uninstall entry quarantined.
 - **v0.2 (fast follow) - leftover cleanup:** after the uninstaller runs, scan for leftovers
   (install folder, AppData/ProgramData folders, Software and Uninstall registry keys, services,
   scheduled tasks, shortcuts, firewall rules). Each is shown with a confidence level, **nothing

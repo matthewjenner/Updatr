@@ -12,11 +12,13 @@ using Updatr.Platform;
 namespace Updatr.App.ViewModels;
 
 /// <summary>
-/// The Updates screen: everything installed, what has updates, holds, and batch actions. A thin
-/// adapter over the same operations the CLI's <c>list</c>, <c>upgrade</c>, <c>reinstall</c>,
-/// <c>hold</c>, and <c>unhold</c> run.
+/// The Apps screen: everything installed, what has updates, and every action on it - upgrade,
+/// reinstall, uninstall, hold - on one selection, so an app found while updating can be removed
+/// without listing everything again elsewhere. Leftovers from uninstalls are its second tab. A thin
+/// adapter over the CLI's <c>list</c>, <c>upgrade</c>, <c>reinstall</c>, <c>uninstall</c>,
+/// <c>hold</c>, <c>unhold</c>, and <c>leftovers</c>.
 /// </summary>
-public sealed partial class UpdatesPageViewModel : PageViewModel
+public sealed partial class AppsPageViewModel : PageViewModel
 {
     private readonly UpdatrHost _host;
     private readonly IDialogService _dialogs;
@@ -24,13 +26,14 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
     private CancellationTokenSource? _run;
     private bool _loaded;
 
-    public UpdatesPageViewModel(UpdatrHost host, IDialogService dialogs)
+    public AppsPageViewModel(UpdatrHost host, IDialogService dialogs)
     {
         _host = host;
         _dialogs = dialogs;
+        Leftovers = new LeftoversViewModel(host, dialogs);
         View = new DataGridCollectionView(Rows) { Filter = Matches };
 
-        // Status starts on "something to do" - what "Updates only" used to show.
+        // Status starts on "something to do"; clear it to see every installed app.
         _status = new FilterGroupViewModel("Status",
             [("update", "Update available"), ("fresh", "Needs fresh install"), ("problem", "Could not check"), ("held", "Held / self-updating"),
              ("store", "Updates via Store"), ("launcher", "Managed by launcher"), ("current", "Up to date")],
@@ -46,11 +49,13 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
         View.SortDescriptions.Add(DataGridSortDescription.FromPath(nameof(PackageRowViewModel.Name), System.ComponentModel.ListSortDirection.Ascending));
     }
 
-    public override string Title => "Updates";
+    public override string Title => "Apps";
 
     public ObservableCollection<PackageRowViewModel> Rows { get; } = [];
 
     public DataGridCollectionView View { get; }
+
+    public LeftoversViewModel Leftovers { get; }
 
     private readonly FilterGroupViewModel _status;
     private readonly FilterGroupViewModel _kind;
@@ -59,12 +64,23 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
     /// <summary>Status, Kind, and Source chips.</summary>
     public FilterBarViewModel Filters { get; }
 
+    /// <summary>0 = installed apps, 1 = leftovers.</summary>
+    [ObservableProperty]
+    public partial int SelectedTab { get; set; }
+
     [ObservableProperty]
     public partial string SearchText { get; set; } = string.Empty;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(RefreshCommand), nameof(UpgradeCheckedCommand), nameof(UpgradeAllCommand), nameof(ReinstallCheckedCommand), nameof(HoldCheckedCommand), nameof(UnholdCheckedCommand), nameof(CancelCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RefreshCommand), nameof(UpgradeCheckedCommand), nameof(UpgradeAllCommand), nameof(ReinstallCheckedCommand),
+        nameof(UninstallCheckedCommand), nameof(HoldCheckedCommand), nameof(UnholdCheckedCommand), nameof(CancelCommand))]
     public partial bool IsBusy { get; set; }
+
+    /// <summary>Selected rows on screen - what the "selected" actions take.</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(UpgradeCheckedCommand), nameof(ReinstallCheckedCommand), nameof(UninstallCheckedCommand),
+        nameof(HoldCheckedCommand), nameof(UnholdCheckedCommand))]
+    public partial int SelectedCount { get; set; }
 
     [ObservableProperty]
     public partial string BusyText { get; set; } = string.Empty;
@@ -77,6 +93,8 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
 
     private bool Idle => !IsBusy;
 
+    private bool CanActOnSelection => !IsBusy && SelectedCount > 0;
+
     partial void OnSearchTextChanged(string value)
     {
         View.Refresh();
@@ -87,6 +105,9 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
     [ObservableProperty]
     public partial string UpgradeAllText { get; set; } = "Upgrade all shown";
 
+    [ObservableProperty]
+    public partial string UninstallText { get; set; } = "Uninstall selected";
+
     /// <summary>Loads the list the first time the page is shown.</summary>
     public void EnsureLoaded()
     {
@@ -95,6 +116,7 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
 
         _loaded = true;
         RefreshCommand.Execute(null);
+        _ = Leftovers.RefreshAsync();
     }
 
     [RelayCommand(CanExecute = nameof(Idle))]
@@ -110,7 +132,7 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
         });
     }
 
-    [RelayCommand(CanExecute = nameof(Idle))]
+    [RelayCommand(CanExecute = nameof(CanActOnSelection))]
     private Task UpgradeCheckedAsync()
         => RunBatchAsync("Upgrading", (sink, ct) => _host.Upgrade.RunAsync(new PackageSelection { Packages = Checked() }, sink, ct));
 
@@ -126,14 +148,52 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
         return RunBatchAsync("Upgrading everything shown", (sink, ct) => _host.Upgrade.RunAsync(new PackageSelection { All = true, Within = shown }, sink, ct));
     }
 
-    [RelayCommand(CanExecute = nameof(Idle))]
+    [RelayCommand(CanExecute = nameof(CanActOnSelection))]
     private Task ReinstallCheckedAsync()
         => RunBatchAsync("Reinstalling", (sink, ct) => _host.Reinstall.RunAsync(new PackageSelection { Packages = Checked() }, sink, ct));
 
-    [RelayCommand(CanExecute = nameof(Idle))]
+    /// <summary>
+    /// Runs each selected app's own uninstaller. Removed rows leave the list without a re-list (that
+    /// is the slow part); anything left behind is shown under Leftovers straight away.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanActOnSelection))]
+    private async Task UninstallCheckedAsync()
+    {
+        List<InstalledPackage> chosen = Checked();
+
+        foreach (PackageRowViewModel row in Rows)
+            row.ResetActivity();
+
+        RunSummary? summary = null;
+        await RunAsync("Uninstalling...", async (sink, ct) =>
+            summary = await Task.Run(() => _host.Uninstall.RunAsync(new PackageSelection { Packages = chosen }, sink, ct), CancellationToken.None));
+
+        if (summary is not { Items.Count: > 0 })
+            return;
+
+        await _dialogs.ShowSummaryAsync(summary);
+
+        // Removed rows go; the rest keep their outcome so failures stay visible.
+        foreach (ItemFinished done in summary.Items.Where(i => i.Outcome.Kind == OutcomeKind.Ok))
+        {
+            if (_byKey.Remove(done.ItemId, out PackageRowViewModel? row))
+                Rows.Remove(row);
+        }
+
+        UpdateCounts();
+
+        // Something was left behind: show it now, while the user is thinking about that app.
+        int before = Leftovers.Scans.Count;
+        await Leftovers.RefreshAsync();
+
+        if (Leftovers.Scans.Count > before)
+            SelectedTab = 1;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanActOnSelection))]
     private Task HoldCheckedAsync() => ChangeHoldsAsync(hold: true);
 
-    [RelayCommand(CanExecute = nameof(Idle))]
+    [RelayCommand(CanExecute = nameof(CanActOnSelection))]
     private Task UnholdCheckedAsync() => ChangeHoldsAsync(hold: false);
 
     [RelayCommand(CanExecute = nameof(IsBusy))]
@@ -219,7 +279,7 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
         }
         catch (Exception ex)
         {
-            Core.Diagnostics.DiagLog.UnhandledException("Updates page", ex);
+            Core.Diagnostics.DiagLog.UnhandledException("Apps page", ex);
             BusyText = $"Failed: {ex.Message}";
         }
         finally
@@ -260,7 +320,7 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
                 row.Activity = done.Outcome.Kind switch
                 {
                     OutcomeKind.Ok => done.Outcome.RebootRequired ? "Done - reboot needed" : "Done",
-                    OutcomeKind.AlreadyCurrent => "Already current",
+                    OutcomeKind.AlreadyCurrent => done.Outcome.Detail.Length > 0 ? done.Outcome.Detail : "Already current",
                     OutcomeKind.Skipped => "Skipped: " + done.Outcome.Detail,
                     OutcomeKind.Pending => "Pending: " + done.Outcome.Detail,
                     _ => "Failed: " + done.Outcome.Detail,
@@ -303,7 +363,8 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
 
         return SearchText.Length == 0
             || row.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase)
-            || row.Id.Contains(SearchText, StringComparison.OrdinalIgnoreCase);
+            || row.Id.Contains(SearchText, StringComparison.OrdinalIgnoreCase)
+            || row.Publisher.Contains(SearchText, StringComparison.OrdinalIgnoreCase);
     }
 
     private void UpdateCounts()
@@ -315,7 +376,9 @@ public sealed partial class UpdatesPageViewModel : PageViewModel
         int hidden = Rows.Count(r => r.IsSelected && !Matches(r));
         string selection = selected == 0 ? "" : hidden == 0 ? $" - {selected} selected" : $" - {selected - hidden} selected ({hidden} hidden by filters)";
         Counts = string.Create(CultureInfo.CurrentCulture, $"{Rows.Count} installed - {updates} with updates - {held} held - {launcher} managed by game launchers{selection}");
+        SelectedCount = selected - hidden;
         UpgradeAllText = string.Create(CultureInfo.CurrentCulture, $"Upgrade all shown ({Shown().Count(UpgradesInAll)})");
+        UninstallText = SelectedCount == 0 ? "Uninstall selected" : string.Create(CultureInfo.CurrentCulture, $"Uninstall {SelectedCount} selected");
         Filters.Recount([.. Rows]);
     }
 

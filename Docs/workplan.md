@@ -308,10 +308,11 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
       background program it hosts by its console host's start time
 - [x] Uninstalling an app whose uninstaller is gone (CrystalDiskInfo registered on F:, now a thumb
       drive; winget failed with 0x800401F5) quarantines its uninstall entry instead - restorable
-- [ ] Release 0.2.4
-- [ ] Merge the Updates and Uninstall pages: one "Installed apps" page with Upgrade and Uninstall
-      on the same selection (user request: finding an app twice, with two heavy listings, is the
-      same page twice)
+- [x] Updates and Uninstall merged into one Apps page: one listing, one set of filters, one
+      selection, every action (upgrade, reinstall, hold, uninstall); Leftovers is its second tab.
+      User request: finding an app twice, with two heavy listings, was the same page twice
+- [x] Released 0.2.4 (verify upgrades, Pending, name the blocking app, ghost uninstalls)
+- [ ] Release 0.2.5 (Apps page)
 
 ## Backlog
 
@@ -326,7 +327,7 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
   entry, e.g. "AV1 Video Extension"). Merge them into one row.
 - NVIDIA App in the catalog - not in winget and no stable "latest" download link; needs a
   direct-URL resolver for NVIDIA's versioned URLs.
-- VS Code extensions show their id as the name on the Updates screen; use the Marketplace display
+- VS Code extensions show their id as the name on the Apps screen; use the Marketplace display
   name.
 
 - Update launcher-managed games through their launcher (e.g. open Steam's update / validate for

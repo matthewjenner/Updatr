@@ -4,7 +4,7 @@ namespace Updatr.Core.Sources;
 
 /// <summary>
 /// One ecosystem Updatr can list and change packages in (winget now; npm, pipx, ... later). The
-/// operations only ever talk to this, so every source gets the same Updates screen and CLI.
+/// operations only ever talk to this, so every source gets the same Apps screen and CLI.
 /// </summary>
 public interface IPackageSource
 {
