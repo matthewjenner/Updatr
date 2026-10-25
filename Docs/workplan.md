@@ -8,11 +8,10 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Current state
 
-- **Phase:** 7 complete - uninstall (basic) and self-update. 0.1.0 ships on push after the manual
-  uninstall check. Still open (not blocking): winget repair on a clean / LTSC VM.
+- **Phase:** 7 complete - uninstall (basic) and self-update. 0.1.0 released 2026-10-25. Still open (not blocking): winget repair on a clean / LTSC VM.
 - **Last updated:** 2026-10-24
 - **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (303/303).
-  Version 0.1.0 (0.0.4 released 2026-10-24).
+  Version 0.1.0 (released 2026-10-25).
 - **Next:** Phase 8 (leftover cleanup -> 0.2.0).
 
 ## Versioning
@@ -229,8 +228,8 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 - [x] Manual: Everything uninstalled from the Uninstall screen through one UAC prompt
 - [x] Feedback: no checkboxes anywhere - rows are picked by clicking them (highlighted), filters
       are toggle switches (`Behaviors/RowSelection`); the selected count now updates live
-- [ ] **Manual:** look over the selection change on Updates, Install, Debloat, and Uninstall
-- [ ] Release 0.1.0 (version bumped; ships on push)
+- [x] Manual: selection change looked over (Uninstall count and highlight confirmed)
+- [x] Released 0.1.0 (2026-10-25)
 
 ## Phase 8 - Leftover cleanup -> 0.2.0
 
