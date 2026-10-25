@@ -45,6 +45,32 @@ public sealed class ElevationService(string exePath, string? dataRoot) : IAsyncD
 
     public void ResetDeclined() => Declined = false;
 
+    private bool? _sameUser;
+
+    /// <summary>
+    /// Whether the broker runs as this same Windows user (the usual UAC consent prompt) rather than
+    /// a different administrator account (over-the-shoulder credentials). Only then may per-user
+    /// installers run there: their files and settings must land in this user's profile.
+    /// </summary>
+    public async Task<bool> BrokerIsSameUserAsync(BrokerClient broker)
+    {
+        if (_sameUser is { } known)
+            return known;
+
+        try
+        {
+            System.Text.Json.Nodes.JsonNode? reply = await broker.SendAsync(PingHandler.TypeName, null, null, CancellationToken.None).ConfigureAwait(false);
+            string? mine = System.Security.Principal.WindowsIdentity.GetCurrent().User?.Value;
+            _sameUser = mine is not null && reply?["user"]?.GetValue<string>() == mine;
+        }
+        catch (BrokerException)
+        {
+            _sameUser = false;
+        }
+
+        return _sameUser.Value;
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (_broker is not null)

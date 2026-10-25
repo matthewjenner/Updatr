@@ -141,6 +141,15 @@ public static class DiagLog
     public static void WinGetMetadataMissing(string reason)
         => Emit(LogCategory.Source, LogLevel.Error, $"WinGet metadata is missing beside the exe and could not be restored: {reason}");
 
+    // ---- Queue --------------------------------------------------------------------------
+
+    public static void PackageRoute(string id, bool elevated, string why)
+        => Emit(LogCategory.Queue, LogLevel.Info, $"{id}: {(elevated ? "elevated helper" : "this process")} ({why})");
+
+    public static void PackageFinished(string action, string item, string outcome, string detail)
+        => Emit(LogCategory.Queue, outcome == "Failed" ? LogLevel.Warning : LogLevel.Info,
+            $"{action} {item}: {outcome}{(detail.Length > 0 ? " - " + detail : string.Empty)}");
+
     // ---- Debloat ------------------------------------------------------------------------
 
     public static void DebloatRestorePoint(string? problem)

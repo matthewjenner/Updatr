@@ -282,9 +282,26 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 - [x] winget COM load lowered after three 0x153 bugchecks (see Known edges)
 - [ ] **Manual:** look over the chips on Updates, Install, and Uninstall
 - [x] Released 0.2.1 (2026-10-25)
-- [ ] Release 0.2.2 (actions follow the view; Battlestate games)
+- [x] Released 0.2.2 (actions follow the view; Battlestate games)
+- [x] First real "upgrade all shown" (37 packages) reviewed against winget's own logs: every
+      failure was real - VS Code, Windows Terminal (0x80073D02), and OBS (0x8A150111) were open;
+      Intel XTU's download link returns HTTP 403 for everyone; CrystalDiskInfo is registered on F:,
+      a drive that no longer exists. itch succeeded (26.22 staged; its registration updates when
+      itch next starts).
+- [x] Python upgrades prompted UAC each time: registered per-user, but their parts install for all
+      users. Per-user packages whose installer elevates itself now run in the elevated helper - only
+      when it is the same Windows user, so per-user files land in the right profile
+- [x] Run log records each package's route (elevated helper or not, and why) and its result
+- [x] Plain-English text for 0x80073D02 (app open) and 0x80190193 (vendor download link 403)
+- [ ] Release 0.2.3
 
 ## Backlog
+
+- Installs registered on a drive that is not connected (CrystalDiskInfo on F:): say so on the row
+  instead of running an installer that cannot work, and offer to quarantine the stale registration.
+- Apps that stage an update and switch on next launch (itch): note "applies when itch next starts"
+  instead of leaving the row looking failed.
+- "Fresh install" action for rows that need it (uninstall + install, with a clear confirmation).
 
 - Duplicate rows for one app: winget lists a Store app twice (its MSIX entry and its msstore
   entry, e.g. "AV1 Video Extension"). Merge them into one row.

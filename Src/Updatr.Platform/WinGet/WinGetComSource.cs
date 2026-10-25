@@ -335,19 +335,31 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
         {
             BrokerClient? broker = await elevation.GetBrokerAsync(cancellationToken).ConfigureAwait(false);
 
-            if (broker is not null)
+            if (broker is null)
             {
+                DiagLog.PackageRoute(package.Id, elevated: false, "administrator access was declined");
+                sink.Report(new LogLine(LogLevel.Warning, $"{package.Name}: administrator access was declined; the installer may ask for it itself", itemId));
+            }
+            else if (package.Scope == InstallScope.User && !await elevation.BrokerIsSameUserAsync(broker).ConfigureAwait(false))
+            {
+                // A per-user app under another account's elevation would install into that account.
+                DiagLog.PackageRoute(package.Id, elevated: false, "per-user install and the elevated helper is a different user");
+            }
+            else
+            {
+                DiagLog.PackageRoute(package.Id, elevated: true, package.Scope == InstallScope.Machine ? "machine-wide install" : "its installer needs administrator access");
                 PackageOutcome elevated = await RunInBrokerAsync(broker, package, reinstall, sink, cancellationToken).ConfigureAwait(false);
 
                 if (elevated.Code?.Code != ProhibitsElevation)
                     return elevated;
 
+                DiagLog.PackageRoute(package.Id, elevated: false, "the installer refuses to run elevated");
                 sink.Report(new LogLine(LogLevel.Info, $"{package.Name}: the installer refuses to run elevated; running it normally", itemId));
             }
-            else
-            {
-                sink.Report(new LogLine(LogLevel.Warning, $"{package.Name}: administrator access was declined; the installer may ask for it itself", itemId));
-            }
+        }
+        else
+        {
+            DiagLog.PackageRoute(package.Id, elevated: false, "per-user install that does not need administrator access");
         }
 
         return await Task.Run(() => RunLocalAsync(package.Id, reinstall, package.HasUnknownVersion, itemId, sink), CancellationToken.None).ConfigureAwait(false);
@@ -728,16 +740,24 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
         if (parsed == InstallScope.Machine)
             return true;
 
-        if (parsed == InstallScope.User || offered is null)
+        if (offered is null)
             return false;
 
         try
         {
             PackageInstallerInfo? installer = offered.GetApplicableInstaller(new InstallOptions());
 
-            return installer is not null
-                && (installer.Scope == PackageInstallerScope.System
-                    || installer.ElevationRequirement is ElevationRequirement.ElevationRequired or ElevationRequirement.ElevatesSelf);
+            if (installer is null)
+                return false;
+
+            // Per-user by registration, but the installer asks for admin anyway (Python: its parts
+            // and launcher are machine-wide). Run it elevated so the session's one prompt covers it;
+            // RunAsync only does so when the elevated helper is this same user.
+            if (parsed == InstallScope.User)
+                return installer.ElevationRequirement is ElevationRequirement.ElevationRequired or ElevationRequirement.ElevatesSelf;
+
+            return installer.Scope == PackageInstallerScope.System
+                || installer.ElevationRequirement is ElevationRequirement.ElevationRequired or ElevationRequirement.ElevatesSelf;
         }
         catch (System.Runtime.InteropServices.COMException)
         {

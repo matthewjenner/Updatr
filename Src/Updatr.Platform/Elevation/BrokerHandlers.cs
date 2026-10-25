@@ -46,6 +46,7 @@ public sealed class PingHandler : IBrokerHandler
         {
             ["processId"] = Environment.ProcessId,
             ["elevated"] = WindowsInfo.IsElevated,
+            ["user"] = System.Security.Principal.WindowsIdentity.GetCurrent().User?.Value,
             ["echo"] = payload?.DeepClone(),
         });
 }

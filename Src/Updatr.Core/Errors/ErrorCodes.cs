@@ -114,6 +114,10 @@ public static class ErrorCodes
         Fail(0x8A150113, "this package is not supported on this system");                              // INSTALL_SYSTEM_NOT_SUPPORTED
         Fail(0x8A150114, "winget upgrade is not supported for this package (it likely updates itself)"); // INSTALL_UPGRADE_NOT_SUPPORTED
 
+        // Seen in a real run (2026-10-25): a Store / MSIX app that was open, and a vendor link gone dead.
+        Fail(0x80073D02, "the app is open - close it and retry", transient: true);                     // ERROR_PACKAGES_IN_USE (AppX deployment)
+        Fail(0x80190193, "the download server refused the file (HTTP 403) - the package's download link is broken at the vendor"); // BG_E_HTTP_ERROR_403 (Delivery Optimization)
+
         return map;
     }
 }

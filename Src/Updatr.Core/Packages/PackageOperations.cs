@@ -369,6 +369,7 @@ public sealed class PackageBatch(
 
     private static void Finish(IOperationSink sink, List<ItemFinished> finished, InstalledPackage package, PackageOutcome outcome)
     {
+        Diagnostics.DiagLog.PackageFinished("package", package.Key.ToString(), outcome.Kind.ToString(), outcome.Detail);
         ItemFinished item = new(package.Key.ToString(), package.Name, outcome);
         finished.Add(item);
         sink.Report(item);
