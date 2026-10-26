@@ -27,7 +27,8 @@ public sealed record PackageListed(ListedPackage Listed) : OperationEvent;
 /// <param name="UpdatesOnly">Only packages with an update available.</param>
 /// <param name="Sources">Only these sources (winget, npm, ...); sources not named are not even queried.</param>
 /// <param name="Kinds">Only these kinds (apps, games, ...).</param>
-public sealed record ListRequest(bool UpdatesOnly = false, IReadOnlyList<string>? Sources = null, IReadOnlyList<AppKind>? Kinds = null);
+/// <param name="Quietly">The least load each source can manage - for background checks; slower.</param>
+public sealed record ListRequest(bool UpdatesOnly = false, IReadOnlyList<string>? Sources = null, IReadOnlyList<AppKind>? Kinds = null, bool Quietly = false);
 
 /// <summary>Everything a run did, for the summary dialog and the CLI's last lines.</summary>
 public sealed record RunSummary(string Action, IReadOnlyList<ItemFinished> Items, TimeSpan Duration)
@@ -56,7 +57,11 @@ public sealed class ListPackages(IReadOnlyList<IPackageSource> sources, Func<Can
             {
                 sink.Report(new StepStarted($"Checking {source.Id}"));
 
-                await foreach (InstalledPackage package in source.ListInstalledAsync(sink, cancellationToken).ConfigureAwait(false))
+                IAsyncEnumerable<InstalledPackage> listing = request.Quietly
+                    ? source.ListInstalledQuietlyAsync(sink, cancellationToken)
+                    : source.ListInstalledAsync(sink, cancellationToken);
+
+                await foreach (InstalledPackage package in listing.ConfigureAwait(false))
                 {
                     if (request.UpdatesOnly && !package.HasUpdate)
                         continue;

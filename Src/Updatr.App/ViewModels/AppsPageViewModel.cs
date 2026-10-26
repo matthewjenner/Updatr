@@ -26,6 +26,9 @@ public sealed partial class AppsPageViewModel : PageViewModel
     private CancellationTokenSource? _run;
     private bool _loaded;
 
+    /// <summary>Keys listed during a quiet refresh; rows not among them have been uninstalled since.</summary>
+    private HashSet<string>? _seen;
+
     public AppsPageViewModel(UpdatrHost host, IDialogService dialogs)
     {
         _host = host;
@@ -50,6 +53,16 @@ public sealed partial class AppsPageViewModel : PageViewModel
     }
 
     public override string Title => "Apps";
+
+    /// <summary>"Apps (5)": what "upgrade all" would take with no filters, so updates show from any page.</summary>
+    public override string NavTitle => _available == 0 ? Title : string.Create(CultureInfo.CurrentCulture, $"{Title} ({_available})");
+
+    private int _available;
+
+    /// <summary>When the list was last complete (a refresh, the one after a run, or a quiet check). Null before the first.</summary>
+    public DateTime? LastListed { get; private set; }
+
+    public bool IsLoaded => _loaded;
 
     public ObservableCollection<PackageRowViewModel> Rows { get; } = [];
 
@@ -128,9 +141,55 @@ public sealed partial class AppsPageViewModel : PageViewModel
             Rows.Clear();
             _byKey.Clear();
             await Task.Run(() => _host.List.RunAsync(new ListRequest(), sink, ct), ct);
+            LastListed = DateTime.UtcNow;
             return null;
         });
     }
+
+    /// <summary>
+    /// The background check: lists again with the least winget load, updating rows in place so the
+    /// selection, filters, and scroll position survive. Returns how many updates are new since the
+    /// last list, or null when it did not run (busy) or did not finish.
+    /// </summary>
+    public async Task<int?> QuietRefreshAsync()
+    {
+        if (IsBusy)
+            return null;
+
+        HashSet<string> before = [.. Rows.Where(UpgradesInAll).Select(UpdateKey)];
+        bool finished = false;
+        _seen = new(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            await RunAsync("Checking for updates in the background...", async (sink, ct) =>
+            {
+                await Task.Run(() => _host.List.RunAsync(new ListRequest(Quietly: true), sink, ct), ct);
+                finished = true;
+                return null;
+            });
+        }
+        finally
+        {
+            if (finished)
+            {
+                foreach (PackageRowViewModel gone in Rows.Where(r => !_seen.Contains(r.Listed.Package.Key.ToString())).ToList())
+                {
+                    _byKey.Remove(gone.Listed.Package.Key.ToString());
+                    Rows.Remove(gone);
+                }
+
+                LastListed = DateTime.UtcNow;
+                UpdateCounts();
+            }
+
+            _seen = null;
+        }
+
+        return finished ? Rows.Where(UpgradesInAll).Count(r => !before.Contains(UpdateKey(r))) : null;
+    }
+
+    private static string UpdateKey(PackageRowViewModel row) => $"{row.Listed.Package.Key}|{row.Listed.Package.AvailableVersion}";
 
     [RelayCommand(CanExecute = nameof(CanActOnSelection))]
     private Task UpgradeCheckedAsync()
@@ -301,6 +360,7 @@ public sealed partial class AppsPageViewModel : PageViewModel
         {
             case PackageListed listed:
                 AddOrUpdate(listed.Listed);
+                _seen?.Add(listed.Listed.Package.Key.ToString());
                 break;
             case StepStarted step:
                 BusyText = step.Step;
@@ -380,6 +440,14 @@ public sealed partial class AppsPageViewModel : PageViewModel
         UpgradeAllText = string.Create(CultureInfo.CurrentCulture, $"Upgrade all shown ({Shown().Count(UpgradesInAll)})");
         UninstallText = SelectedCount == 0 ? "Uninstall selected" : string.Create(CultureInfo.CurrentCulture, $"Uninstall {SelectedCount} selected");
         Filters.Recount([.. Rows]);
+
+        int available = Rows.Count(UpgradesInAll);
+
+        if (available != _available)
+        {
+            _available = available;
+            OnPropertyChanged(nameof(NavTitle));
+        }
     }
 
     private static string Describe(ProgressReported p)

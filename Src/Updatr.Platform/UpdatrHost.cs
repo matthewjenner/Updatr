@@ -9,6 +9,7 @@ using Updatr.Core.Packages;
 using Updatr.Core.Sources;
 using Updatr.Core.Diagnostics;
 using Updatr.Core.Preflight;
+using Updatr.Core.Settings;
 using Updatr.Platform.Catalog;
 using Updatr.Platform.Data;
 using Updatr.Platform.Debloat;
@@ -56,6 +57,9 @@ public sealed class UpdatrHost : IAsyncDisposable
         TestElevation = new TestElevation(Elevation);
 
         Holds = new HoldStore(Data);
+        SettingsStore settings = new(Data);
+        SettingsShow = new ShowSettings(settings);
+        SettingsSet = new ChangeSettings(settings);
         WinGet = new WinGetSource(Elevation, Processes);
         NpmSource npm = new(Processes);
         PipxSource pipx = new(Processes, Http);
@@ -217,6 +221,10 @@ public sealed class UpdatrHost : IAsyncDisposable
 
     public HoldPackages Hold { get; }
 
+    public ShowSettings SettingsShow { get; }
+
+    public ChangeSettings SettingsSet { get; }
+
     public UnholdPackages Unhold { get; }
 
     public RepairWinGet RepairWinGet { get; }
@@ -234,10 +242,25 @@ public sealed class UpdatrHost : IAsyncDisposable
 
     /// <summary>The catalog: the one preflight loaded, else loaded now (GitHub, then the drive, then built in).</summary>
     public async Task<CatalogLoadResult> GetCatalogAsync(CancellationToken cancellationToken)
-    {
-        if (_catalog is not null)
-            return _catalog;
+        => _catalog ??= await LoadCatalogAsync(cancellationToken).ConfigureAwait(false);
 
+    /// <summary>
+    /// Fetches the catalog again - the GUI's periodic check, so catalog fixes reach a long-running
+    /// session. The current one stays in use until the new one has loaded.
+    /// </summary>
+    public async Task<CatalogLoadResult> ReloadCatalogAsync(CancellationToken cancellationToken)
+        => _catalog = await LoadCatalogAsync(cancellationToken).ConfigureAwait(false);
+
+    /// <summary>The newer Updatr version published on GitHub, or null (current, offline, or GitHub unreachable).</summary>
+    public async Task<string?> FindNewerVersionAsync(CancellationToken cancellationToken)
+    {
+        PreflightContext context = new() { IsOnline = true };
+        await new SelfUpdateCheck(Http).RunAsync(context, cancellationToken).ConfigureAwait(false);
+        return context.NewerVersion;
+    }
+
+    private Task<CatalogLoadResult> LoadCatalogAsync(CancellationToken cancellationToken)
+    {
         List<ICatalogOrigin> origins = [new RemoteCatalogOrigin(Http), CatalogCache, new EmbeddedCatalogOrigin()];
 
         if (FolderCatalogOrigin.FromEnvironment() is { } folder)
@@ -246,8 +269,7 @@ public sealed class UpdatrHost : IAsyncDisposable
             origins.Insert(0, folder);
         }
 
-        CatalogLoader loader = new(origins, CatalogCache);
-        return _catalog = await loader.LoadAsync(cancellationToken).ConfigureAwait(false);
+        return new CatalogLoader(origins, CatalogCache).LoadAsync(cancellationToken);
     }
 
     /// <summary>Catalog holds plus the user's own, read fresh so a hold made a moment ago applies.</summary>

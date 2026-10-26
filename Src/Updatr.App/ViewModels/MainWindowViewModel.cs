@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Updatr.Core;
 using Updatr.Core.Preflight;
 using Updatr.Platform;
@@ -16,7 +18,8 @@ public enum BannerSeverity
 }
 
 /// <summary>An app-level message in the strip above the content (offline, reboot pending, ...).</summary>
-public sealed record BannerViewModel(BannerSeverity Severity, string Text);
+/// <param name="CanDismiss">Shows a close button - for news (a new version, new updates), not for problems.</param>
+public sealed record BannerViewModel(BannerSeverity Severity, string Text, bool CanDismiss = false);
 
 /// <summary>A navigation entry and the page it shows.</summary>
 public sealed record NavItem(string Title, PageViewModel Page);
@@ -25,6 +28,9 @@ public sealed record NavItem(string Title, PageViewModel Page);
 public abstract class PageViewModel : ObservableObject
 {
     public abstract string Title { get; }
+
+    /// <summary>The navigation entry's text; a page may add a count.</summary>
+    public virtual string NavTitle => Title;
 }
 
 /// <summary>A screen that arrives in a later phase - says which, so the shell can be explored now.</summary>
@@ -51,6 +57,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
         Settings = new SettingsPageViewModel(host, preflight, dialogs);
         Settings.ChecksRerun += ApplyReport;
 
+        _checker = new BackgroundChecker(host, Apps);
+        _checker.NewerVersionFound += ShowNewerVersion;
+        _checker.NewUpdatesFound += ShowNewUpdates;
+        Settings.SettingsChanged += settings => _checker.Settings = settings;
+
         Navigation =
         [
             new NavItem("Apps", Apps),
@@ -64,6 +75,15 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
         host.Data.Failed += message => Dispatcher.UIThread.Post(() => SetDataBanner(message));
         ApplyReport(report);
+        _ = StartCheckerAsync();
+    }
+
+    private readonly BackgroundChecker _checker;
+
+    private async Task StartCheckerAsync()
+    {
+        _checker.Settings = await Settings.LoadSettingsAsync();
+        _checker.Start();
     }
 
     public UpdatrHost Host { get; }
@@ -99,11 +119,56 @@ public sealed partial class MainWindowViewModel : ObservableObject
     }
 
     private BannerViewModel? _dataBanner;
+    private BannerViewModel? _versionBanner;
+    private BannerViewModel? _updatesBanner;
+    private string? _dismissedVersion;
+
+    /// <summary>Hides a news banner. A dismissed new version stays hidden; a later one shows again.</summary>
+    [RelayCommand]
+    private void DismissBanner(BannerViewModel banner)
+    {
+        Banners.Remove(banner);
+
+        if (banner == _versionBanner)
+        {
+            _dismissedVersion = banner.Text;
+            _versionBanner = null;
+        }
+        else if (banner == _updatesBanner)
+        {
+            _updatesBanner = null;
+        }
+    }
+
+    private void ShowNewerVersion(string version)
+    {
+        BannerViewModel banner = new(BannerSeverity.Info, $"Updatr v{version} is available - update it from Settings.", CanDismiss: true);
+
+        if (banner.Text == _dismissedVersion || banner.Text == _versionBanner?.Text)
+            return;
+
+        if (_versionBanner is not null)
+            Banners.Remove(_versionBanner);
+
+        _versionBanner = banner;
+        Banners.Add(banner);
+    }
+
+    private void ShowNewUpdates(int count)
+    {
+        if (_updatesBanner is not null)
+            Banners.Remove(_updatesBanner);
+
+        _updatesBanner = new BannerViewModel(BannerSeverity.Info,
+            string.Create(CultureInfo.CurrentCulture, $"{count} new update{(count == 1 ? "" : "s")} found at {DateTime.Now:t} - see Apps."), CanDismiss: true);
+        Banners.Add(_updatesBanner);
+    }
 
     /// <summary>Turns preflight problems into banners. Replaces the previous set on a re-run.</summary>
     private void ApplyReport(PreflightReport report)
     {
         Banners.Clear();
+        _versionBanner = null;
 
         foreach (CheckFinished check in report.Results.Where(r => r.Result.Status is PreflightStatus.Fail or PreflightStatus.Warn))
         {
@@ -113,7 +178,10 @@ public sealed partial class MainWindowViewModel : ObservableObject
         }
 
         if (report.Context.NewerVersion is { } newer)
-            Banners.Add(new BannerViewModel(BannerSeverity.Info, $"Updatr v{newer} is available - update it from Settings."));
+            ShowNewerVersion(newer);
+
+        if (_updatesBanner is not null)
+            Banners.Add(_updatesBanner);
 
         if (_dataBanner is not null)
             Banners.Add(_dataBanner);

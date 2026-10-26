@@ -37,6 +37,12 @@ public sealed class WinGetSource(ElevationService? elevation, IProcessRunner pro
             yield return package;
     }
 
+    public async IAsyncEnumerable<InstalledPackage> ListInstalledQuietlyAsync(IOperationSink sink, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        await foreach (InstalledPackage package in Chosen().ListInstalledQuietlyAsync(sink, cancellationToken).ConfigureAwait(false))
+            yield return package;
+    }
+
     public Task<InstalledPackage?> FindInstalledAsync(string id, CancellationToken cancellationToken)
         => Chosen().FindInstalledAsync(id, cancellationToken);
 

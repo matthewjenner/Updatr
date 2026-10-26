@@ -312,7 +312,13 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
       selection, every action (upgrade, reinstall, hold, uninstall); Leftovers is its second tab.
       User request: finding an app twice, with two heavy listings, was the same page twice
 - [x] Released 0.2.4 (verify upgrades, Pending, name the blocking app, ghost uninstalls)
-- [ ] Release 0.2.5 (Apps page)
+- [x] Released 0.2.5 (Apps page)
+- [x] Checks while the window is open: a newer Updatr and the catalog every hour (one small GitHub
+      request each), installed apps every 2 hours - listed quietly (one winget worker, about 3 min
+      here vs 50 s), only when the Apps page is idle and nothing has listed for that long, rows
+      updated in place. News is a dismissable banner and a count beside Apps; nothing installs.
+      Intervals in Settings and `updatr-cli settings show|set`, stored in `Updatr.data\settings.json`
+- [ ] Release 0.2.6
 
 ## Backlog
 
@@ -406,6 +412,9 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
   connection per worker for the whole listing (was one per query), lookups serialized through one
   cached connection. A full listing takes about 50 s here with these settings; the load preceded three 0x153
   bugchecks (Known edges). Do not raise it back without a reason and a kernel dump in hand.
+- **2026-10-25** - Background checks run only while Updatr is open - no scheduled task or tray
+  process, which would leave state on the machine. The app check is a quiet listing (one winget
+  worker) because winget offers no cheap "anything new?" query; see Known edges for why load matters.
 - **2026-10-25** - "In use" names the program, found with Restart Manager (what installers ask),
   never by guessing from window titles. It only reads; closing a program stays a user decision.
 - **2026-10-25** - An app whose registered uninstaller no longer exists is "uninstalled" by moving

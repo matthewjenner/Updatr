@@ -79,6 +79,20 @@
                         </StackPanel>
                     </StackPanel>
 
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Checking while Updatr is open" FontWeight="SemiBold" />
+                        <Grid ColumnDefinitions="260,Auto" RowDefinitions="Auto,Auto" RowSpacing="6">
+                            <TextBlock Text="New Updatr version and catalog" VerticalAlignment="Center" />
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding UpdatrIntervals}" SelectedItem="{Binding UpdatrInterval}" MinWidth="220" />
+                            <TextBlock Grid.Row="1" Text="Updates for installed apps" VerticalAlignment="Center" />
+                            <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding AppIntervals}" SelectedItem="{Binding AppInterval}" MinWidth="220" />
+                        </Grid>
+                        <TextBlock Text="Nothing is installed by a check; news shows as a banner and as a count beside Apps. The app check lists quietly, one winget query at a time, and waits while you are working on the Apps page - any refresh or run resets its clock."
+                                   FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding SettingsResult}" Foreground="{DynamicResource SystemControlErrorTextForegroundBrush}"
+                                   IsVisible="{Binding SettingsResult, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                    </StackPanel>
+
                     <StackPanel Spacing="4">
                         <TextBlock Text="App catalog" FontWeight="SemiBold" />
                         <TextBlock Text="{Binding CatalogDescription}" TextWrapping="Wrap" Opacity="0.85" />
@@ -136,6 +150,9 @@
                             <Ellipse Width="10" Height="10" VerticalAlignment="Center"
                                      Fill="{Binding Severity, Converter={x:Static conv:CheckStateBrushConverter.Instance}}" />
                             <TextBlock Text="{Binding Text}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                            <Button Content="Dismiss" Padding="8,1" FontSize="12" VerticalAlignment="Center" IsVisible="{Binding CanDismiss}"
+                                    Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).DismissBannerCommand}"
+                                    CommandParameter="{Binding}" />
                         </StackPanel>
                     </Border>
                 </DataTemplate>
@@ -153,7 +170,7 @@
                 <ListBox ItemsSource="{Binding Navigation}" SelectedItem="{Binding SelectedNav}" Background="Transparent">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:NavItem">
-                            <TextBlock Text="{Binding Title}" Margin="4,2" />
+                            <TextBlock Text="{Binding Page.NavTitle}" Margin="4,2" />
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>

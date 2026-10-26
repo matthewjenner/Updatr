@@ -47,10 +47,17 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
 
     public string Id => SourceId;
 
-    public async IAsyncEnumerable<InstalledPackage> ListInstalledAsync(IOperationSink sink, [EnumeratorCancellation] CancellationToken cancellationToken)
+    public IAsyncEnumerable<InstalledPackage> ListInstalledAsync(IOperationSink sink, CancellationToken cancellationToken)
+        => ListAsync(parallelism, sink, cancellationToken);
+
+    /// <summary>One worker, one catalog connection: the background check's listing (see Known edges in the workplan).</summary>
+    public IAsyncEnumerable<InstalledPackage> ListInstalledQuietlyAsync(IOperationSink sink, CancellationToken cancellationToken)
+        => ListAsync(1, sink, cancellationToken);
+
+    private async IAsyncEnumerable<InstalledPackage> ListAsync(int workers, IOperationSink sink, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         Channel<InstalledPackage> found = Channel.CreateUnbounded<InstalledPackage>();
-        Task producer = Task.Run(() => ProduceAsync(found.Writer, sink, cancellationToken), cancellationToken);
+        Task producer = Task.Run(() => ProduceAsync(found.Writer, workers, sink, cancellationToken), cancellationToken);
 
         await foreach (InstalledPackage package in found.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             yield return package;
@@ -572,7 +579,7 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
         return note.Length > 0 && outcome.Kind == OutcomeKind.Ok ? outcome with { Detail = outcome.Detail + note } : outcome;
     }
 
-    private async Task ProduceAsync(ChannelWriter<InstalledPackage> output, IOperationSink sink, CancellationToken cancellationToken)
+    private async Task ProduceAsync(ChannelWriter<InstalledPackage> output, int workers, IOperationSink sink, CancellationToken cancellationToken)
     {
         try
         {
@@ -628,7 +635,7 @@ public sealed class WinGetComSource(ElevationService? elevation, int parallelism
                 }
             }
 
-            await Task.WhenAll(Enumerable.Range(0, Math.Clamp(parallelism, 1, Math.Max(1, groups.Count))).Select(_ => Task.Run(WorkAsync, CancellationToken.None))).ConfigureAwait(false);
+            await Task.WhenAll(Enumerable.Range(0, Math.Clamp(workers, 1, Math.Max(1, groups.Count))).Select(_ => Task.Run(WorkAsync, CancellationToken.None))).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
 
             output.Complete();

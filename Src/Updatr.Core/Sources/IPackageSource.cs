@@ -18,6 +18,13 @@ public interface IPackageSource
     /// </summary>
     IAsyncEnumerable<InstalledPackage> ListInstalledAsync(IOperationSink sink, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// The same list with the least load the source can manage - for background checks nobody is
+    /// waiting on. Slower is fine. Sources with nothing to tune list as usual.
+    /// </summary>
+    IAsyncEnumerable<InstalledPackage> ListInstalledQuietlyAsync(IOperationSink sink, CancellationToken cancellationToken)
+        => ListInstalledAsync(sink, cancellationToken);
+
     /// <summary>Finds one installed package by id without listing everything. Null if not installed.</summary>
     Task<InstalledPackage?> FindInstalledAsync(string id, CancellationToken cancellationToken);
 

@@ -156,6 +156,10 @@ Removes ads and junk, and re-runs cleanly after Windows feature updates.
 Data folder location, catalog source and refresh, hold rules, debloat keep list, log viewer
 (DiagLog-style categories), run reports, about / version / check for updates.
 
+- **Checking while open:** a newer Updatr and the catalog every hour; installed apps every 2
+  hours, listed quietly and only when the Apps page is idle. Both intervals are settings (0 =
+  off). Results are a banner and a count beside Apps - nothing is installed by a check.
+
 ## Alerting
 
 In-app only:

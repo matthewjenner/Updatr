@@ -6,7 +6,7 @@
     but never releases it.
   -->
   <PropertyGroup>
-    <VersionPrefix>0.2.5</VersionPrefix>
+    <VersionPrefix>0.2.6</VersionPrefix>
     <!--
       Stops the .NET SDK appending "+<git-commit-hash>" to AssemblyInformationalVersion, so
       the splash screen, About box, and self-update comparison see a clean "1.2.3".

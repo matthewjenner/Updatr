@@ -69,6 +69,7 @@ public static class CliApp
 
         root.Subcommands.Add(AdminCommand());
         root.Subcommands.Add(SelfUpdateCommand());
+        root.Subcommands.Add(SettingsCommands.Command());
         return root;
     }
 

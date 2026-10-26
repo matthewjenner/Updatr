@@ -161,6 +161,14 @@ public static class DiagLog
     public static void SelfUpdated(string from, string to)
         => Emit(LogCategory.Update, LogLevel.Info, $"Self-update: replaced v{from} with v{to} on the drive");
 
+    public static void BackgroundUpdatrCheck(string? newer, string catalog)
+        => Emit(LogCategory.Update, LogLevel.Info, $"Background check: {(newer is null ? "Updatr is current" : $"Updatr v{newer} is available")}; catalog {catalog}");
+
+    public static void BackgroundAppCheck(int? newUpdates, TimeSpan elapsed)
+        => Emit(LogCategory.Update, LogLevel.Info, newUpdates is { } n
+            ? string.Create(CultureInfo.InvariantCulture, $"Background check: installed apps re-listed in {elapsed.TotalSeconds:0} s, {n} new update(s)")
+            : "Background check: installed apps not re-listed (busy or canceled)");
+
     // ---- Plumbing -----------------------------------------------------------------------
 
     private static string YesNo(bool value) => value ? "yes" : "no";

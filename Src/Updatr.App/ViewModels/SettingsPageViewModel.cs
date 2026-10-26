@@ -1,13 +1,29 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Updatr.App.Services;
 using Updatr.Core;
+using Updatr.Core.Abstractions;
 using Updatr.Core.Catalog;
 using Updatr.Core.Operations;
 using Updatr.Core.Preflight;
+using Updatr.Core.Settings;
 using Updatr.Platform;
 
 namespace Updatr.App.ViewModels;
+
+/// <summary>One entry in an interval picker: "Every 2 hours" = 2; 0 = off.</summary>
+public sealed record IntervalChoice(string Label, int Hours)
+{
+    public override string ToString() => Label;
+
+    public static IntervalChoice For(int hours, string whenZero) => new(hours switch
+    {
+        0 => whenZero,
+        1 => "Every hour",
+        _ => $"Every {hours} hours",
+    }, hours);
+}
 
 /// <summary>Where things live, which catalog is loaded, and the machine checks with a re-run button.</summary>
 public sealed partial class SettingsPageViewModel : PageViewModel
@@ -34,6 +50,75 @@ public sealed partial class SettingsPageViewModel : PageViewModel
 
     /// <summary>Raised on the UI thread after "Run checks again" completes.</summary>
     public event Action<PreflightReport>? ChecksRerun;
+
+    /// <summary>Raised after a setting is saved, with all of them.</summary>
+    public event Action<UserSettings>? SettingsChanged;
+
+    private const string UpdatrOff = "Only when Updatr starts";
+    private const string AppsOff = "Never (only when I refresh)";
+
+    public ObservableCollection<IntervalChoice> UpdatrIntervals { get; } = [.. new[] { 1, 2, 4, 12 }.Select(h => IntervalChoice.For(h, UpdatrOff)), IntervalChoice.For(0, UpdatrOff)];
+
+    public ObservableCollection<IntervalChoice> AppIntervals { get; } = [.. new[] { 1, 2, 4, 8 }.Select(h => IntervalChoice.For(h, AppsOff)), IntervalChoice.For(0, AppsOff)];
+
+    [ObservableProperty]
+    public partial IntervalChoice? UpdatrInterval { get; set; }
+
+    [ObservableProperty]
+    public partial IntervalChoice? AppInterval { get; set; }
+
+    [ObservableProperty]
+    public partial string SettingsResult { get; set; } = string.Empty;
+
+    private bool _showingSettings;
+
+    /// <summary>Reads the saved settings into the pickers. Returns them for the background checker.</summary>
+    public async Task<UserSettings> LoadSettingsAsync()
+    {
+        UserSettings settings = await _host.SettingsShow.RunAsync(true, new Services.GuiSink(_ => { }), CancellationToken.None);
+        _showingSettings = true;
+        UpdatrInterval = Pick(UpdatrIntervals, settings.UpdatrCheckEvery, UpdatrOff);
+        AppInterval = Pick(AppIntervals, settings.AppCheckEvery, AppsOff);
+        _showingSettings = false;
+        return settings;
+    }
+
+    /// <summary>The matching entry; a value set from the CLI that is not on the list is added to it.</summary>
+    private static IntervalChoice Pick(ObservableCollection<IntervalChoice> choices, int hours, string whenZero)
+    {
+        if (choices.FirstOrDefault(c => c.Hours == hours) is { } found)
+            return found;
+
+        IntervalChoice added = IntervalChoice.For(hours, whenZero);
+        choices.Insert(choices.Count - 1, added);
+        return added;
+    }
+
+    partial void OnUpdatrIntervalChanged(IntervalChoice? value)
+    {
+        if (value is not null && !_showingSettings)
+            _ = SaveSettingsAsync(new SettingsChange(UpdatrCheckHours: value.Hours));
+    }
+
+    partial void OnAppIntervalChanged(IntervalChoice? value)
+    {
+        if (value is not null && !_showingSettings)
+            _ = SaveSettingsAsync(new SettingsChange(AppCheckHours: value.Hours));
+    }
+
+    private async Task SaveSettingsAsync(SettingsChange change)
+    {
+        try
+        {
+            UserSettings saved = await _host.SettingsSet.RunAsync(change, new Services.GuiSink(_ => { }), CancellationToken.None);
+            SettingsResult = string.Empty;
+            SettingsChanged?.Invoke(saved);
+        }
+        catch (DataStoreException ex)
+        {
+            SettingsResult = $"Not saved: {ex.Message}";
+        }
+    }
 
     public override string Title => "Settings";
 

@@ -137,7 +137,8 @@ dotnet test                         # MTP runner (global.json)
 - **Late-bound COM throws mapped .NET exceptions,** not `COMException` (0x80070002 arrives as
   `FileNotFoundException`). Match `Exception.HResult` (see `ScheduledTaskTarget`).
 - **A `= true` default on a JSON model bool is lost** when the field is omitted (the deserializer
-  assigns false). Name such flags negatively, default false (`AppxAction.KeepProvisioned`).
+  assigns false). Name such flags negatively, default false (`AppxAction.KeepProvisioned`). Other
+  defaults the same way: `UserSettings` keeps `int?` fields (null = default) for that reason.
 - **winget's installed scope says "System" for per-machine installs,** not "Machine". Parse it
   with `WinGetComSource.ParseScope`, never a string compare.
 - **Index WinRT lists, never enumerate them.** `foreach` / LINQ over a CsWinRT `IReadOnlyList`
@@ -159,7 +160,8 @@ dotnet test                         # MTP runner (global.json)
   to look must also pass `LeftoverRules.IsOfferableFolder` / `LeftoverSafety.Problem` and get tests
   in `LeftoverTests`.
 - **Keep winget COM load low.** Two listing workers, one connection each; lookups serialized
-  (`WinGetComSource.DefaultParallelism`). Heavier load preceded three 0x153 bugchecks on the dev
+  (`WinGetComSource.DefaultParallelism`). Anything nobody is waiting on (the GUI's background
+  check) lists with `ListRequest(Quietly: true)` - one worker. Heavier load preceded three 0x153 bugchecks on the dev
   machine (a driver bug, triggered by it). And never kill an Updatr process mid-listing in
   testing (`| head`): write output to a file instead.
 - **Do not trim.** WinRT.Runtime and the Windows SDK projection are not trim-safe (IL2104). Publish
