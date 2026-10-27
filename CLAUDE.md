@@ -207,8 +207,11 @@ dotnet test                         # MTP runner (global.json)
   `FilterBarViewModel`, a `<views:FilterBarView>` bound to it, and the same filter on the Core
   request so the CLI has it too.
 - **Add an app or template to the catalog:** edit `catalog/apps.json` / `templates.json`, verify
-  ids (`winget show --id <id> --exact`, `npm view`, Marketplace), set `provides` on apps that put a
-  tool on PATH, run `dotnet test`, and try it with `UPDATR_CATALOG_DIR` before pushing.
+  ids (`winget show --id <id> --exact` - ids are case-sensitive; `npm view`, Marketplace), use a
+  category from `CatalogSections.Known` (a new one goes there too, or `CatalogSectionsTests`
+  fails), set `provides` on apps that put a tool on PATH, run `dotnet test`, and try it with
+  `UPDATR_CATALOG_DIR` before pushing. No ad-supported or bundleware apps - see the workplan's
+  decisions log for what was left out and why.
 - **Install a new kind of source:** implement `IAppInstaller` (Handles / IsInstalled / Install) and
   add it to `UpdatrHost`'s installer list; `InstallApps` picks it up.
 - **Add a debloat item:** add it to `catalog/debloat.json` (machine registry keys must be under

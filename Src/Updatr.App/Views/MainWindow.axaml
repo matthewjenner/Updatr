@@ -8,7 +8,7 @@
         Title="{Binding Title}"
         Icon="avares://Updatr/Assets/icon.ico"
         Width="1320" Height="800" MinWidth="900" MinHeight="520"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen" WindowState="Maximized">
 
     <Window.DataTemplates>
         <!-- One template per page ViewModel. -->

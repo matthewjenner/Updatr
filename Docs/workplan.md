@@ -320,7 +320,15 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
       here vs 50 s), only when the Apps page is idle and nothing has listed for that long, rows
       updated in place. News is a dismissable banner and a count beside Apps; nothing installs.
       Intervals in Settings and `updatr-cli settings show|set`, stored in `Updatr.data\settings.json`
-- [ ] Release 0.2.6
+- [x] Released 0.2.6 (background checks)
+- [x] Catalog 46 -> 218 apps: Ninite Pro's current list (minus dead and adware-bundling entries) plus
+      mainstream picks per section (12 browsers, 10 messaging apps, ...), nvm for Windows, RustDesk
+      from its GitHub releases (signer PURSLANE). Every winget id checked with `winget show --exact`
+- [x] Install screen is a store: an aisle per section with counts, cards in sections, search across
+      all of them; VS Code extensions in their own aisle below a line, left out of "All apps".
+      Installed marks come from the Apps screen's listing (no per-app lookups). The window opens
+      maximized
+- [ ] Release 0.2.7
 
 ## Backlog
 
@@ -414,6 +422,15 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
   connection per worker for the whole listing (was one per query), lookups serialized through one
   cached connection. A full listing takes about 50 s here with these settings; the load preceded three 0x153
   bugchecks (Known edges). Do not raise it back without a reason and a kernel dump in hand.
+- **2026-10-27** - Catalog from Ninite Pro's list, minus what does not belong on a 2026 machine:
+  dead runtimes and plugins (Flash, Silverlight, Shockwave, Air, Java 6/7, .NET Framework below
+  4.8, old Firefox / Thunderbird ESR and Reader lines, old TeamViewer majors), dead services (AIM,
+  Messenger, Yahoo, Google Talk, Digsby, TweetDeck, Picasa, SkyDrive, Google Backup and Sync,
+  Songbird, QuickTime, Safari, Mozy, BitTorrent Sync, Hulu), adware or upsell bundles (uTorrent,
+  Ad-Aware, Avast, AVG, Avira, CCleaner, Glary, Auslogics, Spybot, SUPERAntiSpyware, PDFCreator),
+  enterprise-only clients (Citrix, Omnissa, Okta, Intune Company Portal, Global Secure Access, SQL
+  drivers, VSTO), and not in winget (FileZilla, DaVinci Resolve). Debloat removes ad-supported apps;
+  the store must not install them.
 - **2026-10-25** - Background checks run only while Updatr is open - no scheduled task or tray
   process, which would leave state on the machine. The app check is a quiet listing (one winget
   worker) because winget offers no cheap "anything new?" query; see Known edges for why load matters.

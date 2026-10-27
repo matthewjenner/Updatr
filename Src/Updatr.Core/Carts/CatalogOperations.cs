@@ -16,12 +16,15 @@ public sealed class ListCatalog(Func<CancellationToken, Task<AppCatalog>> catalo
         AppCatalog apps = await catalog(cancellationToken).ConfigureAwait(false);
 
         return [.. apps.Apps
-            .Where(a => request.Category is null || string.Equals(a.Category, request.Category, StringComparison.OrdinalIgnoreCase))
+            .Where(a => request.Category is null
+                || string.Equals(a.Category, request.Category, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(CatalogSections.SectionOf(a), request.Category, StringComparison.OrdinalIgnoreCase))
             .Where(a => request.Search is null
                 || a.Name.Contains(request.Search, StringComparison.OrdinalIgnoreCase)
                 || a.Id.Contains(request.Search, StringComparison.OrdinalIgnoreCase)
                 || (a.Description?.Contains(request.Search, StringComparison.OrdinalIgnoreCase) ?? false))
-            .OrderBy(a => a.Category, StringComparer.Ordinal).ThenBy(a => a.Name, StringComparer.OrdinalIgnoreCase)];
+            .OrderBy(a => CatalogSections.Order(CatalogSections.SectionOf(a))).ThenBy(a => CatalogSections.SectionOf(a), StringComparer.Ordinal)
+            .ThenBy(a => a.Name, StringComparer.OrdinalIgnoreCase)];
     }
 }
 

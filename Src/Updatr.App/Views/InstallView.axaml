@@ -6,31 +6,80 @@
              xmlns:views="using:Updatr.App.Views"
              x:Class="Updatr.App.Views.InstallView"
              x:DataType="vm:InstallPageViewModel">
-    <Grid ColumnDefinitions="*,350" Margin="20,16">
-        <!-- The catalog: click apps into the cart. -->
-        <DockPanel Grid.Column="0" Margin="0,0,16,0">
+    <Grid ColumnDefinitions="230,*,350" Margin="20,16">
+        <!-- Aisles: every section with its count; VS Code extensions below a line, out of "All apps". -->
+        <DockPanel Grid.Column="0" Margin="0,0,12,0">
             <TextBlock DockPanel.Dock="Top" Text="Install" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,10" />
-            <views:FilterBarView DockPanel.Dock="Top" DataContext="{Binding Filters}" Margin="0,0,0,4" />
-            <TextBox DockPanel.Dock="Top" PlaceholderText="Search apps" Text="{Binding SearchText}" Margin="0,0,0,4" />
-            <TextBlock DockPanel.Dock="Top" Text="Click an app to add it to the cart; click again to remove it." FontSize="12" Opacity="0.6" Margin="0,0,0,8" />
-            <DataGrid ItemsSource="{Binding AppsView}" b:RowSelection.Enabled="True" IsReadOnly="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" CanUserSortColumns="True">
-                <DataGrid.Columns>
-                    <DataGridTextColumn x:DataType="vm:CatalogRowViewModel" Header="App" Binding="{Binding Name}" Width="1.5*" MinWidth="140" IsReadOnly="True" />
-                    <DataGridTemplateColumn Header="What it is" Width="2*" SortMemberPath="Description">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate x:DataType="vm:CatalogRowViewModel">
-                                <TextBlock Text="{Binding Description}" ToolTip.Tip="{Binding Description}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="8,0" Opacity="0.8" />
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTextColumn x:DataType="vm:CatalogRowViewModel" Header="Source" Binding="{Binding Sources}" Width="80" IsReadOnly="True" />
-                    <DataGridTextColumn x:DataType="vm:CatalogRowViewModel" Header="Status" Binding="{Binding Installed}" Width="90" IsReadOnly="True" />
-                </DataGrid.Columns>
-            </DataGrid>
+            <ListBox ItemsSource="{Binding Aisles}" SelectedItem="{Binding SelectedAisle}" Background="Transparent">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:CatalogSectionViewModel">
+                        <StackPanel>
+                            <Border Height="1" Margin="0,6,0,8" Background="{DynamicResource SystemControlForegroundBaseLowBrush}" IsVisible="{Binding Apart}" />
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding Count}" Opacity="0.5" FontSize="12" VerticalAlignment="Center" Margin="6,0,0,0" />
+                                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                            </DockPanel>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </DockPanel>
+
+        <!-- The store: search, then cards grouped by section. Click a card into the cart. -->
+        <DockPanel Grid.Column="1" Margin="0,0,16,0">
+            <DockPanel DockPanel.Dock="Top" Margin="0,4,0,6">
+                <TextBox PlaceholderText="Search every section" Text="{Binding SearchText}" />
+            </DockPanel>
+            <views:FilterBarView DockPanel.Dock="Top" DataContext="{Binding Filters}" Margin="0,0,0,2" />
+            <TextBlock DockPanel.Dock="Top" Text="Click an app to add it to the cart; click again to take it out." FontSize="12" Opacity="0.6" Margin="0,0,0,10" />
+            <TextBlock DockPanel.Dock="Top" Text="{Binding EmptyText}" IsVisible="{Binding EmptyText, Converter={x:Static ObjectConverters.IsNotNull}}" Opacity="0.7" Margin="0,8" />
+
+            <ScrollViewer>
+                <ItemsControl ItemsSource="{Binding VisibleSections}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:CatalogSectionViewModel">
+                            <StackPanel Margin="0,0,0,14">
+                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+                                    <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding Count}" Opacity="0.5" VerticalAlignment="Bottom" Margin="0,0,0,2" />
+                                </StackPanel>
+                                <ItemsControl ItemsSource="{Binding Shown}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:CatalogRowViewModel">
+                                            <Border Classes="card" Classes.selected="{Binding IsSelected}" b:RowSelection.ToggleOnClick="True"
+                                                    ToolTip.Tip="{Binding App.Homepage}">
+                                                <DockPanel>
+                                                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="150" VerticalAlignment="Center" />
+                                                        <Border Classes="badge installed" IsVisible="{Binding IsInstalled}">
+                                                            <TextBlock Text="Installed" />
+                                                        </Border>
+                                                        <Border Classes="badge" IsVisible="{Binding HasSourceTag}">
+                                                            <TextBlock Text="{Binding SourceTag}" />
+                                                        </Border>
+                                                        <TextBlock Text="checking..." FontSize="10" Opacity="0.45" Margin="6,0,0,0" VerticalAlignment="Center" IsVisible="{Binding IsChecking}" />
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding Description}" FontSize="12" Opacity="0.75" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
+                                                               MaxLines="3" Margin="0,4,0,0" />
+                                                </DockPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
         </DockPanel>
 
         <!-- Templates and the cart. -->
-        <Border Grid.Column="1" BorderThickness="1,0,0,0" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" Padding="16,0,0,0">
+        <Border Grid.Column="2" BorderThickness="1,0,0,0" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" Padding="16,0,0,0">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top" Spacing="8">
                     <Border IsVisible="{Binding IsEditingTemplate}" Padding="10" CornerRadius="6" Background="#33D49A1A">

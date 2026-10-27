@@ -51,7 +51,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         Host = host;
         host.UseCatalog(report.Context.Catalog);
         Apps = new AppsPageViewModel(host, dialogs);
-        Install = new InstallPageViewModel(host, dialogs);
+        Install = new InstallPageViewModel(host, dialogs, Apps);
         Debloat = new DebloatPageViewModel(host, dialogs);
 
         Settings = new SettingsPageViewModel(host, preflight, dialogs);

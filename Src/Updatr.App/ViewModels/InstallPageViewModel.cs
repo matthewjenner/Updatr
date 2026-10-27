@@ -1,5 +1,5 @@
 using System.Collections.ObjectModel;
-using Avalonia.Collections;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Updatr.App.Services;
@@ -12,7 +12,7 @@ using Updatr.Platform;
 
 namespace Updatr.App.ViewModels;
 
-/// <summary>A catalog app in the picker.</summary>
+/// <summary>A catalog app's card in the store.</summary>
 public sealed partial class CatalogRowViewModel(CatalogApp app, Action<CatalogRowViewModel, bool> toggled) : ObservableObject, Behaviors.ISelectableRow
 {
     public CatalogApp App { get; } = app;
@@ -21,14 +21,36 @@ public sealed partial class CatalogRowViewModel(CatalogApp app, Action<CatalogRo
 
     public string Description => App.Description ?? string.Empty;
 
-    public string Sources => string.Join(", ", App.Sources.Select(s => s.SourceId));
+    public string Section { get; } = CatalogSections.SectionOf(app);
 
-    /// <summary>In the cart. Selecting the row adds it; deselecting removes it.</summary>
+    /// <summary>Where it comes from, when that is not plain winget ("Store", "npm", "GitHub", ...).</summary>
+    public string SourceTag { get; } = app.Sources.Count == 0 ? string.Empty : app.Sources[0] switch
+    {
+        WingetSourceRef { Source: "msstore" } => "Store",
+        WingetSourceRef or VsCodeExtensionSourceRef => string.Empty,
+        NpmSourceRef => "npm",
+        PipxSourceRef => "pipx",
+        DotnetToolSourceRef => ".NET tool",
+        PsGallerySourceRef => "PowerShell",
+        DirectUrlSourceRef { GithubRelease: not null } => "GitHub",
+        _ => "Direct",
+    };
+
+    public bool HasSourceTag => SourceTag.Length > 0;
+
+    /// <summary>In the cart. Selecting the card adds it; deselecting removes it.</summary>
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
 
     [ObservableProperty]
-    public partial string Installed { get; set; } = string.Empty;
+    public partial bool IsInstalled { get; set; }
+
+    /// <summary>Not known yet: the installed list is still being read.</summary>
+    [ObservableProperty]
+    public partial bool IsChecking { get; set; } = true;
+
+    /// <summary>Status filter key; null while checking, so neither chip hides it.</summary>
+    public string? StatusKey => IsChecking ? null : IsInstalled ? "installed" : "missing";
 
     private bool _syncing;
 
@@ -44,6 +66,39 @@ public sealed partial class CatalogRowViewModel(CatalogApp app, Action<CatalogRo
     {
         if (!_syncing)
             toggled(this, value);
+    }
+}
+
+/// <summary>
+/// One aisle: a catalog section with its cards, or "All apps" (empty key). <see cref="Shown"/> is
+/// what passes the search and filters.
+/// </summary>
+public sealed partial class CatalogSectionViewModel(string key, string title, bool apart) : ObservableObject
+{
+    public string Key { get; } = key;
+
+    public string Title { get; } = title;
+
+    /// <summary>Kept out of "All apps" (VS Code extensions); listed below a line in the aisles.</summary>
+    public bool Apart { get; } = apart;
+
+    public bool IsAll => Key.Length == 0;
+
+    public List<CatalogRowViewModel> Rows { get; } = [];
+
+    public ObservableCollection<CatalogRowViewModel> Shown { get; } = [];
+
+    [ObservableProperty]
+    public partial int Count { get; set; }
+
+    public void Show(IEnumerable<CatalogRowViewModel> rows)
+    {
+        Shown.Clear();
+
+        foreach (CatalogRowViewModel row in rows)
+            Shown.Add(row);
+
+        Count = Shown.Count;
     }
 }
 
@@ -114,28 +169,46 @@ public sealed partial class InstallPageViewModel : PageViewModel
 {
     private readonly UpdatrHost _host;
     private readonly IDialogService _dialogs;
+    private readonly AppsPageViewModel _installedApps;
     private AppCatalog? _catalog;
     private IReadOnlySet<string> _tools = new HashSet<string>();
     private Cart _cart = Cart.Empty();
     private CancellationTokenSource? _run;
     private bool _loaded;
 
-    public InstallPageViewModel(UpdatrHost host, IDialogService dialogs)
+    public InstallPageViewModel(UpdatrHost host, IDialogService dialogs, AppsPageViewModel installedApps)
     {
         _host = host;
         _dialogs = dialogs;
-        AppsView = new DataGridCollectionView(Apps) { Filter = Matches };
+        _installedApps = installedApps;
+        _installedApps.ListCompleted += MarkInstalled;
+        Filters = new FilterBarViewModel(_status);
+        Filters.Changed += Refresh;
     }
 
     public override string Title => "Install";
 
     public ObservableCollection<CatalogRowViewModel> Apps { get; } = [];
 
-    public DataGridCollectionView AppsView { get; }
+    /// <summary>The aisle list: "All apps", then each section; apart sections (VS Code extensions) last.</summary>
+    public ObservableCollection<CatalogSectionViewModel> Aisles { get; } = [];
 
-    /// <summary>Category and Installed chips; built when the catalog loads (categories come from it).</summary>
+    /// <summary>The sections on screen: all of them under "All apps" (minus apart ones unless searching), else the chosen one.</summary>
+    public ObservableCollection<CatalogSectionViewModel> VisibleSections { get; } = [];
+
     [ObservableProperty]
-    public partial FilterBarViewModel? Filters { get; set; }
+    public partial CatalogSectionViewModel? SelectedAisle { get; set; }
+
+    partial void OnSelectedAisleChanged(CatalogSectionViewModel? value) => Refresh();
+
+    [ObservableProperty]
+    public partial string? EmptyText { get; set; }
+
+    private readonly FilterGroupViewModel _status = new("Status", [("missing", "Not installed"), ("installed", "Installed")],
+        r => ((CatalogRowViewModel)r).StatusKey);
+
+    /// <summary>The Installed / Not installed chips.</summary>
+    public FilterBarViewModel Filters { get; }
 
     public ObservableCollection<TemplateRowViewModel> Templates { get; } = [];
 
@@ -173,7 +246,7 @@ public sealed partial class InstallPageViewModel : PageViewModel
 
     private bool CanInstall => !IsBusy;
 
-    partial void OnSearchTextChanged(string value) => AppsView.Refresh();
+    partial void OnSearchTextChanged(string value) => Refresh();
 
     public void EnsureLoaded()
     {
@@ -204,43 +277,76 @@ public sealed partial class InstallPageViewModel : PageViewModel
         _tools = await Task.Run(_host.Tools.ToolsPresent);
 
         Apps.Clear();
+        Aisles.Clear();
 
-        foreach (CatalogApp app in _catalog.Apps.OrderBy(a => a.Category, StringComparer.Ordinal).ThenBy(a => a.Name, StringComparer.OrdinalIgnoreCase))
+        foreach (CatalogApp app in _catalog.Apps.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase))
             Apps.Add(new CatalogRowViewModel(app, OnToggled));
 
-        Filters = new FilterBarViewModel(
-            new FilterGroupViewModel("Category",
-                _catalog.Apps.Select(a => a.Category).Distinct().Order(StringComparer.Ordinal).Select(c => (c, char.ToUpperInvariant(c[0]) + c[1..])),
-                r => ((CatalogRowViewModel)r).App.Category),
-            new FilterGroupViewModel("Status", [("installed", "Installed"), ("missing", "Not installed")],
-                r => ((CatalogRowViewModel)r).Installed switch { "Installed" => "installed", "" => "missing", _ => null }));
-        Filters.Changed += AppsView.Refresh;
-        Filters.Recount([.. Apps]);
+        CatalogSectionViewModel all = new(string.Empty, "All apps", apart: false);
+        Aisles.Add(all);
+
+        foreach (IGrouping<string, CatalogRowViewModel> group in Apps.GroupBy(r => r.Section).OrderBy(g => CatalogSections.Order(g.Key)).ThenBy(g => g.Key, StringComparer.Ordinal))
+        {
+            CatalogSections.Section info = CatalogSections.Describe(group.Key);
+            CatalogSectionViewModel section = new(info.Key, info.Title, info.Apart);
+            section.Rows.AddRange(group);
+            Aisles.Add(section);
+        }
+
+        SelectedAisle = all;
+        MarkInstalled();
 
         await RefreshTemplatesAsync();
         await RefreshSavedCartsAsync();
         Resolve();
-        _ = CheckInstalledAsync();
     }
 
-    /// <summary>Marks installed apps in the background - the list is usable immediately.</summary>
-    private async Task CheckInstalledAsync()
+    /// <summary>
+    /// Marks what is installed from the Apps screen's list - one listing for the whole store, not a
+    /// lookup per app. Until that list is complete the cards say "checking"; this runs again each
+    /// time it completes.
+    /// </summary>
+    private void MarkInstalled()
     {
+        IReadOnlyList<InstalledPackage>? installed = _installedApps.Installed;
+        InstalledIndex? index = installed is null ? null : new InstalledIndex(installed);
+
         foreach (CatalogRowViewModel row in Apps)
-            row.Installed = "checking...";
-
-        await Parallel.ForEachAsync(Apps.ToList(), new ParallelOptions { MaxDegreeOfParallelism = Platform.WinGet.WinGetComSource.DefaultParallelism }, async (row, ct) =>
         {
-            bool installed = await _host.IsInstalledAsync(row.App, ct);
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => row.Installed = installed ? "Installed" : string.Empty);
-        });
+            row.IsChecking = index is null;
+            row.IsInstalled = index is not null && CatalogMatch.IsInstalled(row.App, index);
+        }
 
-        // The Installed chips count what the checks found.
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-        {
-            Filters?.Recount([.. Apps]);
-            AppsView.Refresh();
-        });
+        Refresh();
+    }
+
+    /// <summary>Re-applies search, filters, and the chosen aisle.</summary>
+    private void Refresh()
+    {
+        if (Aisles.Count == 0)
+            return;
+
+        Filters.Recount([.. Apps]);
+        List<CatalogSectionViewModel> sections = [.. Aisles.Where(a => !a.IsAll)];
+
+        foreach (CatalogSectionViewModel section in sections)
+            section.Show(section.Rows.Where(Matches));
+
+        Aisles[0].Count = sections.Where(s => !s.Apart).Sum(s => s.Count);
+
+        bool searching = SearchText.Length > 0;
+        IEnumerable<CatalogSectionViewModel> chosen = SelectedAisle is null or { IsAll: true }
+            ? sections.Where(s => !s.Apart || searching)
+            : [SelectedAisle];
+
+        VisibleSections.Clear();
+
+        foreach (CatalogSectionViewModel section in chosen.Where(s => s.Count > 0))
+            VisibleSections.Add(section);
+
+        EmptyText = VisibleSections.Count > 0 ? null
+            : searching ? string.Create(CultureInfo.CurrentCulture, $"Nothing here matches \"{SearchText}\".")
+            : "Nothing here matches the filters.";
     }
 
     private async Task RefreshTemplatesAsync()
@@ -465,7 +571,18 @@ public sealed partial class InstallPageViewModel : PageViewModel
             await _dialogs.ShowSummaryAsync(summary);
 
         _tools = await Task.Run(_host.Tools.ToolsPresent);
-        _ = CheckInstalledAsync();
+
+        // What this run installed is installed now; the rest keeps its mark until the next listing.
+        foreach (ItemFinished done in summary?.Items.Where(i => i.Outcome.Kind is OutcomeKind.Ok or OutcomeKind.AlreadyCurrent) ?? [])
+        {
+            if (Apps.FirstOrDefault(r => r.App.Id == done.ItemId) is { } row)
+            {
+                row.IsChecking = false;
+                row.IsInstalled = true;
+            }
+        }
+
+        Refresh();
     }
 
     [RelayCommand(CanExecute = nameof(IsBusy))]
@@ -501,9 +618,8 @@ public sealed partial class InstallPageViewModel : PageViewModel
         }
     }
 
-    private bool Matches(object item)
-        => item is CatalogRowViewModel row
-            && (Filters?.Matches(row) ?? true)
+    private bool Matches(CatalogRowViewModel row)
+        => Filters.Matches(row)
             && (SearchText.Length == 0
                 || row.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase)
                 || row.Description.Contains(SearchText, StringComparison.OrdinalIgnoreCase));

@@ -62,6 +62,18 @@ public sealed partial class AppsPageViewModel : PageViewModel
     /// <summary>When the list was last complete (a refresh, the one after a run, or a quiet check). Null before the first.</summary>
     public DateTime? LastListed { get; private set; }
 
+    /// <summary>Raised on the UI thread each time the list is complete - the Install screen marks what is installed from it.</summary>
+    public event Action? ListCompleted;
+
+    /// <summary>Everything installed, from the last complete list; null before the first.</summary>
+    public IReadOnlyList<InstalledPackage>? Installed => LastListed is null ? null : [.. Rows.Select(r => r.Listed.Package)];
+
+    private void Completed()
+    {
+        LastListed = DateTime.UtcNow;
+        ListCompleted?.Invoke();
+    }
+
     public bool IsLoaded => _loaded;
 
     public ObservableCollection<PackageRowViewModel> Rows { get; } = [];
@@ -141,7 +153,7 @@ public sealed partial class AppsPageViewModel : PageViewModel
             Rows.Clear();
             _byKey.Clear();
             await Task.Run(() => _host.List.RunAsync(new ListRequest(), sink, ct), ct);
-            LastListed = DateTime.UtcNow;
+            Completed();
             return null;
         });
     }
@@ -179,7 +191,7 @@ public sealed partial class AppsPageViewModel : PageViewModel
                     Rows.Remove(gone);
                 }
 
-                LastListed = DateTime.UtcNow;
+                Completed();
                 UpdateCounts();
             }
 

@@ -29,6 +29,46 @@
             <Setter Property="Opacity" Value="0.6" />
         </Style>
 
+        <!-- Store cards on the Install screen: click to put in the cart; the highlight is the cart. -->
+        <Style Selector="Border.card">
+            <Setter Property="Width" Value="250" />
+            <Setter Property="Height" Value="86" />
+            <Setter Property="Margin" Value="0,0,10,10" />
+            <Setter Property="Padding" Value="12,9" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseLowBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Border.card:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListLowBrush}" />
+        </Style>
+        <Style Selector="Border.card.selected">
+            <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListAccentLowBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SystemControlHighlightAccentBrush}" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+
+        <!-- Small labels on cards ("Installed", "Store", "npm"). -->
+        <Style Selector="Border.badge">
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="6,0" />
+            <Setter Property="Margin" Value="4,0,0,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundBaseLowBrush}" />
+        </Style>
+        <Style Selector="Border.badge > TextBlock">
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Border.badge.installed">
+            <Setter Property="Background" Value="{DynamicResource SystemControlHighlightAccentBrush}" />
+        </Style>
+        <Style Selector="Border.badge.installed > TextBlock">
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
         <!-- Filter chips: rounded toggles; on = accent. -->
         <Style Selector="ToggleButton.chip">
             <Setter Property="Padding" Value="10,3" />

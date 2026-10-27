@@ -14,7 +14,7 @@ internal static class CartCommands
 
     private static Command CatalogCommand()
     {
-        Option<string?> category = new("--category") { Description = "Only this category (utilities, browsers, dev, gaming, media, productivity)." };
+        Option<string?> category = new("--category") { Description = $"Only this section ({string.Join(", ", CatalogSections.Known.Select(s => s.Key))})." };
         Option<string?> search = new("--search", "-s") { Description = "Match name, id, or description." };
         Command list = new("list", "List the apps Updatr can install.") { category, search };
 
@@ -23,9 +23,9 @@ internal static class CartCommands
             IReadOnlyList<CatalogApp> apps = await host.CatalogList.RunAsync(new CatalogQuery(parse.GetValue(category), parse.GetValue(search)), sink, ct).ConfigureAwait(false);
             StringBuilder text = new();
 
-            foreach (IGrouping<string, CatalogApp> group in apps.GroupBy(a => a.Category))
+            foreach (IGrouping<string, CatalogApp> group in apps.GroupBy(CatalogSections.SectionOf))
             {
-                text.AppendLine(group.Key);
+                text.AppendLine($"{CatalogSections.Describe(group.Key).Title} ({group.Key})");
 
                 foreach (CatalogApp app in group)
                     text.AppendLine($"  {app.Id,-24} {app.Name,-28} {string.Join(", ", app.Sources.Select(s => s.SourceId))}");
@@ -36,6 +36,7 @@ internal static class CartCommands
                 ["id"] = a.Id,
                 ["name"] = a.Name,
                 ["category"] = a.Category,
+                ["section"] = CatalogSections.SectionOf(a),
                 ["description"] = a.Description,
                 ["sources"] = new JsonArray([.. a.Sources.Select(s => (JsonNode)JsonValue.Create(s.SourceId)!)]),
             })]));

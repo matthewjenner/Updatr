@@ -102,8 +102,10 @@ removed without listing everything again; leftovers from uninstalls are its seco
 
 ### Install (cart)
 
-Ninite-style picker over the catalog: categories, search, checkboxes. Already-installed items
-are marked (and can be selected for reinstall).
+A store over the catalog: an aisle per section (browsers, messaging, media, ... runtimes) with
+counts, the chosen aisle's apps as cards, and one search across every section. Click a card into
+the cart. Installed apps carry a badge (from the Apps screen's listing). VS Code extensions have
+their own aisle, kept out of "All apps" so they do not crowd the regular apps.
 
 - **Templates** are named sets (Base, Dev, Gaming, Media, ...). Applying one or several adds
   their items to the cart; duplicates merge.
