@@ -134,6 +134,20 @@ public sealed class ReinstallPackages(PackageBatch batch) : IOperation<PackageSe
             : batch.RunAsync(PackageBatch.Action.Reinstall, request, sink, cancellationToken);
 }
 
+/// <summary>
+/// Uninstalls each package, then installs its newest version - for updates winget cannot apply in
+/// place (the installer technology changed) and for installs too broken to repair. One step for the
+/// user instead of uninstall, find the app again, install.
+/// </summary>
+[Operation("fresh-install")]
+public sealed class FreshInstallPackages(PackageBatch batch) : IOperation<PackageSelection, RunSummary>
+{
+    public Task<RunSummary> RunAsync(PackageSelection request, IOperationSink sink, CancellationToken cancellationToken)
+        => request.All
+            ? throw new ArgumentException("Fresh install needs specific packages, not --all.")
+            : batch.RunAsync(PackageBatch.Action.FreshInstall, request, sink, cancellationToken);
+}
+
 /// <summary>Removes packages through their own uninstallers, one at a time.</summary>
 [Operation("uninstall")]
 public sealed class UninstallPackages(PackageBatch batch) : IOperation<PackageSelection, RunSummary>
@@ -163,6 +177,7 @@ public sealed class PackageBatch(
         Upgrade,
         Reinstall,
         Uninstall,
+        FreshInstall,
     }
 
     /// <summary>
@@ -194,8 +209,12 @@ public sealed class PackageBatch(
 
         if (action == Action.Uninstall)
             names += "\n\nEach app's own uninstaller runs. Leftover files and settings are not touched.";
+        else if (action == Action.FreshInstall)
+            names += "\n\nEach app is uninstalled, then its newest version installed. Its settings usually survive (they are not touched); the app is missing for the minutes in between.";
 
-        if (!await sink.ConfirmAsync(new Confirmation($"{verb} {targets.Count} package(s)?", names), cancellationToken).ConfigureAwait(false))
+        string title = action == Action.FreshInstall ? $"Fresh install {targets.Count} package(s)?" : $"{verb} {targets.Count} package(s)?";
+
+        if (!await sink.ConfirmAsync(new Confirmation(title, names), cancellationToken).ConfigureAwait(false))
         {
             foreach (InstalledPackage p in targets)
                 Finish(sink, finished, p, PackageOutcome.Skipped("Not confirmed"));
@@ -214,9 +233,12 @@ public sealed class PackageBatch(
             }
 
             sink.Report(new StepStarted($"[{i + 1}/{targets.Count}] {verb} {package.Name}"));
-            PackageOutcome outcome = action == Action.Uninstall && leftovers is not null
-                ? await UninstallWithScanAsync(package, !selection.SkipLeftovers, sink, cancellationToken).ConfigureAwait(false)
-                : await RunOneAsync(action, package, sink, cancellationToken).ConfigureAwait(false);
+            PackageOutcome outcome = action switch
+            {
+                Action.Uninstall when leftovers is not null => await UninstallWithScanAsync(package, !selection.SkipLeftovers, sink, cancellationToken).ConfigureAwait(false),
+                Action.FreshInstall => await FreshInstallAsync(package, sink, cancellationToken).ConfigureAwait(false),
+                _ => await RunOneAsync(action, package, sink, cancellationToken).ConfigureAwait(false),
+            };
 
             if (action == Action.Upgrade)
                 outcome = await VerifyUpgradeAsync(package, outcome, sink).ConfigureAwait(false);
@@ -298,6 +320,70 @@ public sealed class PackageBatch(
         }
 
         return found.Count == 0 ? outcome : outcome with { Detail = $"{outcome.Detail}; in use by {BlockingProcess.Describe(found)}" };
+    }
+
+    /// <summary>
+    /// Uninstall, then install the newest version. Stops after a failed uninstall (nothing else has
+    /// changed). Waits for the old registration to go first - many uninstallers return before they
+    /// finish, and installing over a half-removed app fails or "upgrades" it. A failed install after
+    /// a good uninstall says so plainly: the app is gone and needs installing.
+    /// </summary>
+    private async Task<PackageOutcome> FreshInstallAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
+    {
+        IPackageSource? source = sources.FirstOrDefault(s => s.Id == package.Source);
+
+        if (source is not { CanFreshInstall: true })
+            return PackageOutcome.Skipped("Fresh install is only available for winget packages");
+
+        string itemId = package.Key.ToString();
+        sink.Report(new ProgressReported(itemId, Message: "Uninstalling the current version"));
+        PackageOutcome removed = await RunOneAsync(Action.Uninstall, package, sink, cancellationToken).ConfigureAwait(false);
+
+        if (removed.Kind is not (OutcomeKind.Ok or OutcomeKind.AlreadyCurrent))
+            return removed with { Detail = $"uninstall did not finish, so nothing was installed: {removed.Detail}" };
+
+        sink.Report(new ProgressReported(itemId, Message: "Waiting for the uninstaller to finish"));
+
+        for (int i = 0; i < 30 && await StillInstalledAsync(source, package.Id).ConfigureAwait(false); i++)
+            await Task.Delay(verifyDelay ?? TimeSpan.FromSeconds(2), CancellationToken.None).ConfigureAwait(false);
+
+        sink.Report(new ProgressReported(itemId, Message: "Installing the newest version"));
+        await gate.WaitUntilIdleAsync(sink, itemId, CancellationToken.None).ConfigureAwait(false);
+        PackageOutcome installed = await source.InstallLatestAsync(package, sink, CancellationToken.None).ConfigureAwait(false);
+
+        if (installed.Kind != OutcomeKind.Ok)
+        {
+            return installed with
+            {
+                Kind = OutcomeKind.Failed,
+                Detail = $"{package.Name} was uninstalled, but installing the new version failed: {installed.Detail}. Install it from the Install page or with updatr-cli install",
+            };
+        }
+
+        InstalledPackage? after = null;
+
+        try
+        {
+            after = await source.FindInstalledAsync(package.Id, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // The install said OK; the version is a nicety.
+        }
+
+        return installed with { Detail = after is null ? "Uninstalled and installed fresh" : $"Installed fresh: {package.InstalledVersion} -> {after.InstalledVersion}" };
+    }
+
+    private static async Task<bool> StillInstalledAsync(IPackageSource source, string id)
+    {
+        try
+        {
+            return await source.FindInstalledAsync(id, CancellationToken.None).ConfigureAwait(false) is not null;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return false; // Cannot tell; go ahead - winget reports "already installed" if so.
+        }
     }
 
     /// <summary>
@@ -451,8 +537,10 @@ public sealed class PackageBatch(
                 Finish(sink, finished, p, PackageOutcome.Skipped("Updates through the Microsoft Store, not winget"));
             else if (!p.IsManaged)
                 Finish(sink, finished, p, PackageOutcome.Skipped("No catalog knows this app, so it cannot be changed from here"));
+            else if (action == Action.FreshInstall && Protected.Contains(p.Id))
+                Finish(sink, finished, p, PackageOutcome.Skipped("Updatr needs winget (App Installer); it is not removed"));
             else if (action == Action.Upgrade && !p.HasUpdate && p.NewerVersionNeedsFreshInstall is { } newer)
-                Finish(sink, finished, p, PackageOutcome.Skipped($"{newer} exists but {p.FreshInstallReason ?? "cannot be applied in place"}; uninstall and install it fresh"));
+                Finish(sink, finished, p, PackageOutcome.Skipped($"{newer} exists but {p.FreshInstallReason ?? "cannot be applied in place"}; use Fresh install"));
             else if (action == Action.Upgrade && !p.HasUpdate)
                 Finish(sink, finished, p, new PackageOutcome(OutcomeKind.AlreadyCurrent, "No update available"));
             else

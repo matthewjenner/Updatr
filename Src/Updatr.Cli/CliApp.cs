@@ -55,6 +55,7 @@ public static class CliApp
         root.Subcommands.Add(UpgradeCommand());
         root.Subcommands.Add(ReinstallCommand());
         root.Subcommands.Add(UninstallCommand());
+        root.Subcommands.Add(FreshInstallCommand());
         root.Subcommands.Add(HoldCommand("hold", "Hold packages: upgrade --all leaves them alone."));
         root.Subcommands.Add(HoldCommand("unhold", "Release holds - yours, and the catalog's on the named packages."));
         root.Subcommands.Add(WinGetCommand());
@@ -159,6 +160,22 @@ public static class CliApp
         command.SetAction((parse, cancellationToken) => RunAsync(parse, cancellationToken, async (host, sink) =>
         {
             RunSummary summary = await host.Reinstall.RunAsync(new PackageSelection { Ids = parse.GetValue(ids) }, sink, cancellationToken).ConfigureAwait(false);
+            sink.Summary(summary);
+            return summary.HasFailures ? ExitCodes.Failed : ExitCodes.Ok;
+        }));
+
+        return command;
+    }
+
+    private static Command FreshInstallCommand()
+    {
+        Argument<string[]> ids = new("ids") { Description = "Package ids to install fresh.", Arity = ArgumentArity.OneOrMore };
+        Command command = new("fresh-install", "Uninstall packages, then install their newest version - for updates that cannot be applied in place.");
+        command.Arguments.Add(ids);
+
+        command.SetAction((parse, cancellationToken) => RunAsync(parse, cancellationToken, async (host, sink) =>
+        {
+            RunSummary summary = await host.FreshInstall.RunAsync(new PackageSelection { Ids = parse.GetValue(ids) }, sink, cancellationToken).ConfigureAwait(false);
             sink.Summary(summary);
             return summary.HasFailures ? ExitCodes.Failed : ExitCodes.Ok;
         }));

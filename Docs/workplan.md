@@ -328,7 +328,11 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
       all of them; VS Code extensions in their own aisle below a line, left out of "All apps".
       Installed marks come from the Apps screen's listing (no per-app lookups). The window opens
       maximized
-- [ ] Release 0.2.7
+- [x] Released 0.2.7 (catalog store)
+- [x] Fresh install: one action (GUI "Fresh install selected", `updatr-cli fresh-install`) that
+      uninstalls, waits for the old registration to go, and installs the newest version from the
+      same catalog. "Upgrade selected" is now the primary button; "Upgrade all shown" is secondary
+- [ ] Release 0.2.8
 
 ## Backlog
 
@@ -337,7 +341,6 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
   instead of leaving the row looking failed.
 - Pending / in-use items: offer "Close it and finish" for the named program, with a confirmation -
   never kill silently.
-- "Fresh install" action for rows that need it (uninstall + install, with a clear confirmation).
 
 - Duplicate rows for one app: winget lists a Store app twice (its MSIX entry and its msstore
   entry, e.g. "AV1 Video Extension"). Merge them into one row.

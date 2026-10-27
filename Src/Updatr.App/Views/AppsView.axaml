@@ -25,10 +25,13 @@
                     <!-- Actions: updates, then the selection, then removal kept apart. -->
                     <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,10">
                         <Button Content="Refresh" Command="{Binding RefreshCommand}" Margin="0,0,8,6" />
-                        <Button Content="{Binding UpgradeAllText}" Command="{Binding UpgradeAllCommand}" Classes="accent" Margin="0,0,8,6"
+                        <Button Content="Upgrade selected" Command="{Binding UpgradeCheckedCommand}" Classes="accent" Margin="0,0,8,6" />
+                        <Button Content="{Binding UpgradeAllText}" Command="{Binding UpgradeAllCommand}" Margin="0,0,8,6"
                                 ToolTip.Tip="Every update on screen (filters and search apply), except held, self-updating, Store-managed, and launcher-managed apps." />
-                        <Button Content="Upgrade selected" Command="{Binding UpgradeCheckedCommand}" Margin="0,0,8,6" />
-                        <Button Content="Reinstall selected" Command="{Binding ReinstallCheckedCommand}" Margin="0,0,8,6" />
+                        <Button Content="Fresh install selected" Command="{Binding FreshInstallCheckedCommand}" Margin="0,0,8,6"
+                                ToolTip.Tip="Uninstalls, then installs the newest version - for &quot;Needs fresh install&quot; rows, or an install too broken to repair. Settings usually survive." />
+                        <Button Content="Reinstall selected" Command="{Binding ReinstallCheckedCommand}" Margin="0,0,8,6"
+                                ToolTip.Tip="Runs the installer again for the version you already have - repairs a broken install. Does not upgrade." />
                         <Button Content="Hold selected" Command="{Binding HoldCheckedCommand}" Margin="0,0,8,6" />
                         <Button Content="Release selected" Command="{Binding UnholdCheckedCommand}" Margin="0,0,8,6" />
                         <Button Content="{Binding UninstallText}" Command="{Binding UninstallCheckedCommand}" Margin="16,0,8,6"

@@ -87,6 +87,7 @@ public sealed class UpdatrHost : IAsyncDisposable
         Upgrade = new UpgradePackages(batch);
         Reinstall = new ReinstallPackages(batch);
         Uninstall = new UninstallPackages(batch);
+        FreshInstall = new FreshInstallPackages(batch);
         Hold = new HoldPackages(Holds);
         Unhold = new UnholdPackages(Holds, async ct => (await GetCatalogAsync(ct).ConfigureAwait(false)).Catalog.Holds);
         RepairWinGet = new RepairWinGet(Http, WinGet);
@@ -220,6 +221,8 @@ public sealed class UpdatrHost : IAsyncDisposable
     public UninstallPackages Uninstall { get; }
 
     public HoldPackages Hold { get; }
+
+    public FreshInstallPackages FreshInstall { get; }
 
     public ShowSettings SettingsShow { get; }
 

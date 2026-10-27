@@ -81,7 +81,9 @@ available version, source, kind, status. Filters: status (starts on "has an upda
 source, search. One screen for updating and removing, so an app found while updating can be
 removed without listing everything again; leftovers from uninstalls are its second tab.
 
-- Select one, many, or all; **Upgrade**, **Reinstall**, **Pin/Hold**, **Unhold**, **Uninstall**.
+- Select one, many, or all; **Upgrade**, **Fresh install**, **Reinstall**, **Pin/Hold**, **Unhold**,
+  **Uninstall**. Reinstall repairs the version that is there; Fresh install uninstalls and installs
+  the newest version (for updates winget cannot apply in place).
   Actions take only what is on screen - a selection hidden by a filter is never acted on.
 - **Held** packages (version-sensitive, e.g. Node, databases, CUDA, WSL, VC redists) show a
   marker and are skipped by "Upgrade all" unless explicitly included. Hold rules ship in the
@@ -95,7 +97,8 @@ removed without listing everything again; leftovers from uninstalls are its seco
 - **Self-updating apps** (the launchers themselves, Discord) are skipped by "Upgrade all" and
   upgraded only when picked explicitly.
 - **Needs a fresh install:** when the newer version switches installer technology (exe to MSI,
-  MSI to MSIX), winget cannot upgrade in place; the row says so and why instead of failing.
+  MSI to MSIX), winget cannot upgrade in place; the row says so and why, and **Fresh install** does
+  the uninstall and install in one step.
 - Outcomes per item: **Upgraded**, **Already current**, **Pending** (installed but not active
   until the app restarts), **Failed** (with decoded reason), **Skipped**. Reboot-required is
   surfaced. Pending and "in use" results name the program that has the app open.

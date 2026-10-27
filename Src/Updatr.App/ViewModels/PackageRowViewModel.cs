@@ -99,7 +99,7 @@ public sealed partial class PackageRowViewModel(ListedPackage listed) : Observab
     public string? StatusDetail => P.ManagedBy is { } launcher
         ? $"{launcher} installs and updates this. Updatr leaves it alone so the launcher's copy is never broken."
         : P.CheckProblem
-          ?? (P.NewerVersionNeedsFreshInstall is { } v ? $"{v} exists, but {P.FreshInstallReason}. Uninstall and install it fresh." : null)
+          ?? (P.NewerVersionNeedsFreshInstall is { } v ? $"{v} exists, but {P.FreshInstallReason}. Select it and use Fresh install selected." : null)
           ?? Listed.Hold?.Rule.Reason;
 
     public RowStatus Kind => Outcome switch

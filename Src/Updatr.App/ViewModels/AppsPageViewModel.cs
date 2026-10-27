@@ -98,12 +98,12 @@ public sealed partial class AppsPageViewModel : PageViewModel
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RefreshCommand), nameof(UpgradeCheckedCommand), nameof(UpgradeAllCommand), nameof(ReinstallCheckedCommand),
-        nameof(UninstallCheckedCommand), nameof(HoldCheckedCommand), nameof(UnholdCheckedCommand), nameof(CancelCommand))]
+        nameof(FreshInstallCheckedCommand), nameof(UninstallCheckedCommand), nameof(HoldCheckedCommand), nameof(UnholdCheckedCommand), nameof(CancelCommand))]
     public partial bool IsBusy { get; set; }
 
     /// <summary>Selected rows on screen - what the "selected" actions take.</summary>
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(UpgradeCheckedCommand), nameof(ReinstallCheckedCommand), nameof(UninstallCheckedCommand),
+    [NotifyCanExecuteChangedFor(nameof(UpgradeCheckedCommand), nameof(ReinstallCheckedCommand), nameof(FreshInstallCheckedCommand), nameof(UninstallCheckedCommand),
         nameof(HoldCheckedCommand), nameof(UnholdCheckedCommand))]
     public partial int SelectedCount { get; set; }
 
@@ -222,6 +222,11 @@ public sealed partial class AppsPageViewModel : PageViewModel
     [RelayCommand(CanExecute = nameof(CanActOnSelection))]
     private Task ReinstallCheckedAsync()
         => RunBatchAsync("Reinstalling", (sink, ct) => _host.Reinstall.RunAsync(new PackageSelection { Packages = Checked() }, sink, ct));
+
+    /// <summary>Uninstall, then install the newest version - the row stays, with its new version, after the re-list.</summary>
+    [RelayCommand(CanExecute = nameof(CanActOnSelection))]
+    private Task FreshInstallCheckedAsync()
+        => RunBatchAsync("Installing fresh", (sink, ct) => _host.FreshInstall.RunAsync(new PackageSelection { Packages = Checked() }, sink, ct));
 
     /// <summary>
     /// Runs each selected app's own uninstaller. Removed rows leave the list without a re-list (that

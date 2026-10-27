@@ -37,6 +37,16 @@ public interface IPackageSource
     /// <summary>Installs the same package again over itself (repair a broken install).</summary>
     Task<PackageOutcome> ReinstallAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken);
 
+    /// <summary>Whether <see cref="InstallLatestAsync"/> works here - the "fresh install" action's second half.</summary>
+    bool CanFreshInstall => false;
+
+    /// <summary>
+    /// Installs the newest version of a package that was just uninstalled (a fresh install). Only
+    /// called when <see cref="CanFreshInstall"/> is true.
+    /// </summary>
+    Task<PackageOutcome> InstallLatestAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
+        => Task.FromResult(PackageOutcome.Skipped("Fresh install is not available for this source"));
+
     /// <summary>
     /// Removes the package through its own uninstaller (winget, the registered uninstall command,
     /// or the ecosystem's tool). Leftovers are not touched here.

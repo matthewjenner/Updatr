@@ -108,7 +108,7 @@ public sealed class PackageBatchTests
         RunSummary summary = await batch.RunAsync(PackageBatch.Action.Upgrade, new PackageSelection { Ids = ["Audacity.Audacity"] }, new RecordingSink(), Ct);
 
         source.Upgraded.Should().BeEmpty();
-        summary.Items.Single().Outcome.Detail.Should().Contain("4.0.1").And.Contain("fresh");
+        summary.Items.Single().Outcome.Detail.Should().Contain("4.0.1").And.Contain("Fresh install");
     }
 
     [Fact]
@@ -187,6 +187,53 @@ public sealed class PackageBatchTests
         summary.Items.Single(i => i.ItemId == "fake:Microsoft.WindowsTerminal").Outcome.Detail.Should().Contain("in use by ollama.exe");
         summary.Items.Single(i => i.ItemId == "fake:Zed.Zed").Outcome.Detail.Should().BeEmpty();
         inUse.Asked.Should().BeEquivalentTo("OBSProject.OBSStudio", "Microsoft.WindowsTerminal");
+    }
+
+    [Fact]
+    public async Task FreshInstallUninstallsThenInstallsTheNewestVersion()
+    {
+        (PackageBatch batch, FakeSource source) = Build(Pkg("CoreyButler.NVMforWindows", available: null, installed: "1.1.12", fresh: "1.2.2"));
+
+        RunSummary summary = await new FreshInstallPackages(batch).RunAsync(new PackageSelection { Ids = ["CoreyButler.NVMforWindows"] }, new RecordingSink(), Ct);
+
+        source.Uninstalled.Should().Equal("CoreyButler.NVMforWindows");
+        source.InstalledFresh.Should().Equal("CoreyButler.NVMforWindows");
+        summary.Items.Single().Outcome.Kind.Should().Be(OutcomeKind.Ok);
+        summary.Items.Single().Outcome.Detail.Should().Be("Installed fresh: 1.1.12 -> 1.2.2");
+    }
+
+    [Fact]
+    public async Task AFailedUninstallInstallsNothing()
+    {
+        (PackageBatch batch, FakeSource source) = Build(Pkg("Some.App"));
+        source.UninstallResult = PackageOutcome.Failed("uninstaller exit 1603");
+
+        RunSummary summary = await new FreshInstallPackages(batch).RunAsync(new PackageSelection { Ids = ["Some.App"] }, new RecordingSink(), Ct);
+
+        source.InstalledFresh.Should().BeEmpty();
+        summary.Items.Single().Outcome.Detail.Should().StartWith("uninstall did not finish, so nothing was installed");
+    }
+
+    [Fact]
+    public async Task AFailedInstallAfterTheUninstallSaysTheAppIsGone()
+    {
+        (PackageBatch batch, FakeSource source) = Build(Pkg("Some.App"));
+        source.InstallResult = PackageOutcome.Failed("download failed");
+
+        RunSummary summary = await new FreshInstallPackages(batch).RunAsync(new PackageSelection { Ids = ["Some.App"] }, new RecordingSink(), Ct);
+
+        summary.Items.Single().Outcome.Kind.Should().Be(OutcomeKind.Failed);
+        summary.Items.Single().Outcome.Detail.Should().Contain("was uninstalled, but installing the new version failed");
+    }
+
+    [Fact]
+    public async Task FreshInstallNeverTouchesLauncherGamesOrWingetItself()
+    {
+        (PackageBatch batch, FakeSource source) = Build(Pkg("Steam App 730", managedBy: "Steam"), Pkg("Microsoft.AppInstaller"), Pkg("Unknown.App", managed: false));
+
+        await new FreshInstallPackages(batch).RunAsync(new PackageSelection { Ids = ["Steam App 730", "Microsoft.AppInstaller", "Unknown.App"] }, new RecordingSink(), Ct);
+
+        source.Uninstalled.Should().BeEmpty();
     }
 
     [Fact]
@@ -285,8 +332,11 @@ public sealed class PackageBatchTests
 
         private readonly Dictionary<string, string> _versions = installed.ToDictionary(p => p.Id, p => p.InstalledVersion);
 
+        /// <summary>Uninstalled and not installed again.</summary>
+        private readonly HashSet<string> _gone = [];
+
         public Task<InstalledPackage?> FindInstalledAsync(string id, CancellationToken cancellationToken)
-            => Task.FromResult(installed.FirstOrDefault(p => p.Id == id) is { } p ? p with { InstalledVersion = _versions[id] } : null);
+            => Task.FromResult(!_gone.Contains(id) && installed.FirstOrDefault(p => p.Id == id) is { } p ? p with { InstalledVersion = _versions[id] } : null);
 
         public Task<PackageOutcome> UpgradeAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
         {
@@ -307,10 +357,35 @@ public sealed class PackageBatchTests
 
         public List<string> Uninstalled { get; } = [];
 
+        public PackageOutcome UninstallResult { get; set; } = PackageOutcome.Ok();
+
         public Task<PackageOutcome> UninstallAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
         {
             Uninstalled.Add(package.Id);
-            return Task.FromResult(PackageOutcome.Ok());
+
+            if (UninstallResult.Kind == OutcomeKind.Ok)
+                _gone.Add(package.Id);
+
+            return Task.FromResult(UninstallResult);
+        }
+
+        public bool CanFreshInstall => true;
+
+        public List<string> InstalledFresh { get; } = [];
+
+        public PackageOutcome InstallResult { get; set; } = PackageOutcome.Ok();
+
+        public Task<PackageOutcome> InstallLatestAsync(InstalledPackage package, IOperationSink sink, CancellationToken cancellationToken)
+        {
+            InstalledFresh.Add(package.Id);
+
+            if (InstallResult.Kind == OutcomeKind.Ok)
+            {
+                _gone.Remove(package.Id);
+                _versions[package.Id] = package.NewerVersionNeedsFreshInstall ?? package.AvailableVersion ?? package.InstalledVersion;
+            }
+
+            return Task.FromResult(InstallResult);
         }
     }
 
