@@ -3,7 +3,7 @@
         x:Class="Updatr.App.Views.ConfirmDialog"
         Title="Updatr"
         Icon="avares://Updatr/Assets/icon.ico"
-        Width="560" Height="420" MinWidth="420" MinHeight="240"
+        Width="860" Height="560" MinWidth="420" MinHeight="240"
         WindowStartupLocation="CenterOwner">
     <DockPanel Margin="20">
         <TextBlock x:Name="TitleText" DockPanel.Dock="Top" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,12" />
@@ -11,7 +11,17 @@
             <Button Content="No" Click="OnNo" />
             <Button Content="Yes" Click="OnYes" Classes="accent" IsDefault="True" />
         </StackPanel>
-        <ScrollViewer>
+        <SelectableTextBlock x:Name="NoteText" DockPanel.Dock="Bottom" TextWrapping="Wrap" Opacity="0.8" Margin="0,12,0,0" IsVisible="False" />
+        <Border x:Name="ItemsBox" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1" CornerRadius="4" IsVisible="False">
+            <DockPanel Grid.IsSharedSizeScope="True">
+                <Border x:Name="HeaderRow" DockPanel.Dock="Top" Padding="10,6"
+                        Background="{DynamicResource SystemControlBackgroundBaseLowBrush}" />
+                <ScrollViewer>
+                    <ItemsControl x:Name="Rows" />
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+        <ScrollViewer x:Name="DetailScroll">
             <SelectableTextBlock x:Name="DetailText" FontFamily="Consolas,Courier New,monospace" FontSize="12" TextWrapping="Wrap" />
         </ScrollViewer>
     </DockPanel>

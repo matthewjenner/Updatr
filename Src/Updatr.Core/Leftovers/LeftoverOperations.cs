@@ -206,10 +206,14 @@ public sealed class QuarantineLeftovers(LeftoverStore store, IQuarantine quarant
             throw new ArgumentException("Pick leftovers to quarantine (--item <n>, or --high).");
 
         long bytes = picked.Sum(p => p.SizeBytes ?? 0);
-        string detail = string.Join("\n", picked.Select(p => $"  [{p.Confidence}] {p.Kind}: {p.Location}"))
-            + string.Create(CultureInfo.InvariantCulture, $"\n\nThey move to Updatr's quarantine on the drive ({bytes / 1048576.0:0.#} MB) and can be restored until you purge them.");
+        string detail = string.Create(CultureInfo.InvariantCulture, $"They move to Updatr's quarantine on the drive ({bytes / 1048576.0:0.#} MB) and can be restored until you purge them.");
+        Confirmation confirmation = new($"Quarantine {picked.Count} leftover(s) of {scan.Target.Name}?", detail)
+        {
+            Items = [.. picked.Select(p => new ConfirmationItem(p.Location, p.Kind.ToString(), Note: p.Confidence.ToString()))],
+            Columns = new ConfirmationColumns(Name: "Location", Id: "Kind", Note: "Confidence"),
+        };
 
-        if (!await sink.ConfirmAsync(new Confirmation($"Quarantine {picked.Count} leftover(s) of {scan.Target.Name}?", detail), cancellationToken).ConfigureAwait(false))
+        if (!await sink.ConfirmAsync(confirmation, cancellationToken).ConfigureAwait(false))
             return null;
 
         QuarantineEntry entry = await quarantine.MoveAsync(scan.Target.Name, picked, sink, cancellationToken).ConfigureAwait(false);

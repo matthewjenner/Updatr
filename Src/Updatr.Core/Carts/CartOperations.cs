@@ -76,10 +76,14 @@ public sealed class InstallApps(
         if (plan.Items.Count == 0)
             return new RunSummary("Install", finished, timer.Elapsed);
 
-        string list = string.Join("\n", plan.Items.Select(p => $"  {p.App.Name} ({p.Source.SourceId})"
-            + (p.Item.RequiredBy.Count > 0 ? $" - required by {string.Join(", ", p.Item.RequiredBy.Select(id => apps.FindApp(id)?.Name ?? id))}" : "")));
+        Confirmation confirmation = new($"Install {plan.Items.Count} app(s)?", "Each app installs its newest version, one at a time.")
+        {
+            Items = [.. plan.Items.Select(p => new ConfirmationItem(p.App.Name, p.Source.SourceId,
+                Note: p.Item.RequiredBy.Count > 0 ? $"Required by {string.Join(", ", p.Item.RequiredBy.Select(id => apps.FindApp(id)?.Name ?? id))}" : null))],
+            Columns = new ConfirmationColumns(Name: "App", Id: "From"),
+        };
 
-        if (!await sink.ConfirmAsync(new Confirmation($"Install {plan.Items.Count} app(s)?", list), cancellationToken).ConfigureAwait(false))
+        if (!await sink.ConfirmAsync(confirmation, cancellationToken).ConfigureAwait(false))
         {
             foreach (PlannedItem item in plan.Items)
                 Finish(sink, finished, item, PackageOutcome.Skipped("Not confirmed"));

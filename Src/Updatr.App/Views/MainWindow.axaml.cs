@@ -13,7 +13,7 @@ public partial class MainWindow : Window, IDialogService
     }
 
     public async Task<bool> ConfirmAsync(Confirmation confirmation)
-        => await new ConfirmDialog(confirmation.Title, confirmation.Detail).ShowDialog<bool?>(this) == true;
+        => await new ConfirmDialog(confirmation).ShowDialog<bool?>(this) == true;
 
     public Task ShowSummaryAsync(RunSummary summary) => new RunSummaryWindow(summary).ShowDialog(this);
 

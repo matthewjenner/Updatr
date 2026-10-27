@@ -77,10 +77,13 @@ public sealed class DebloatEngine(
         if (work.Count == 0)
             return new RunSummary("Debloat", finished, timer.Elapsed);
 
-        string detail = string.Join("\n", work.Select(s => $"  {s.Item.Title}" + (s.Item.Warning is { } w ? $"\n    Note: {w}" : "")))
-            + "\n\nUpdatr backs up every change first; each item can be reverted.";
+        Confirmation confirmation = new($"Apply {work.Count} debloat item(s)?", "Updatr backs up every change first; each item can be reverted.")
+        {
+            Items = [.. work.Select(s => new ConfirmationItem(s.Item.Title, Note: s.Item.Warning))],
+            Columns = new ConfirmationColumns(Name: "Item"),
+        };
 
-        if (!await sink.ConfirmAsync(new Confirmation($"Apply {work.Count} debloat item(s)?", detail), cancellationToken).ConfigureAwait(false))
+        if (!await sink.ConfirmAsync(confirmation, cancellationToken).ConfigureAwait(false))
         {
             foreach (DebloatItemStatus status in work)
                 Finish(sink, finished, status.Item, PackageOutcome.Skipped("Not confirmed"));
@@ -200,7 +203,13 @@ public sealed class DebloatEngine(
         if (work.Count == 0)
             return new RunSummary("Revert", finished, timer.Elapsed);
 
-        if (!await sink.ConfirmAsync(new Confirmation($"Revert {work.Count} debloat item(s)?", string.Join("\n", work.Select(w => "  " + w.Title))), cancellationToken).ConfigureAwait(false))
+        Confirmation confirmation = new($"Revert {work.Count} debloat item(s)?", "Each item goes back to how it was before Updatr changed it.")
+        {
+            Items = [.. work.Select(w => new ConfirmationItem(w.Title))],
+            Columns = new ConfirmationColumns(Name: "Item"),
+        };
+
+        if (!await sink.ConfirmAsync(confirmation, cancellationToken).ConfigureAwait(false))
         {
             foreach ((string id, string title, _) in work)
                 Finish(sink, finished, id, title, PackageOutcome.Skipped("Not confirmed"));

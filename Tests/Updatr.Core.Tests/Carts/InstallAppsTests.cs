@@ -74,7 +74,7 @@ public sealed class InstallAppsTests
 
         await op.RunAsync(new InstallRequest { AppIds = ["typescript"] }, sink, Ct);
 
-        sink.Confirmations.Single().Detail.Should().Contain("Node (winget) - required by TypeScript");
+        sink.Confirmations.Single().Items.Should().ContainEquivalentOf(new ConfirmationItem("Node", "winget", Note: "Required by TypeScript"));
     }
 
     private sealed class FakeInstaller : IAppInstaller

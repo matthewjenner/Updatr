@@ -205,16 +205,28 @@ public sealed class PackageBatch(
         if (targets.Count == 0)
             return new RunSummary(verb, finished, timer.Elapsed);
 
-        string names = string.Join("\n", targets.Select(p => $"  {p.Name} ({p.Id}) {p.InstalledVersion}{(action == Action.Upgrade && p.AvailableVersion is not null ? " -> " + p.AvailableVersion : "")}"));
-
-        if (action == Action.Uninstall)
-            names += "\n\nEach app's own uninstaller runs. Leftover files and settings are not touched.";
-        else if (action == Action.FreshInstall)
-            names += "\n\nEach app is uninstalled, then its newest version installed. Its settings usually survive (they are not touched); the app is missing for the minutes in between.";
+        string note = action switch
+        {
+            Action.Upgrade => "Each app is upgraded in place, one at a time.",
+            Action.Reinstall => "Each app's installer runs again for the version it already has, to repair it. Nothing is upgraded.",
+            Action.Uninstall => "Each app's own uninstaller runs. Leftover files and settings are not touched.",
+            _ => "Each app is uninstalled, then its newest version installed. Its settings usually survive (they are not touched); the app is missing for the minutes in between.",
+        };
 
         string title = action == Action.FreshInstall ? $"Fresh install {targets.Count} package(s)?" : $"{verb} {targets.Count} package(s)?";
+        Confirmation confirmation = new(title, note)
+        {
+            Items = [.. targets.Select(p => new ConfirmationItem(p.Name, p.Id, p.InstalledVersion, action switch
+            {
+                Action.Upgrade => p.AvailableVersion,
+                Action.Reinstall => p.InstalledVersion,
+                Action.Uninstall => "Removed",
+                _ => p.NewerVersionNeedsFreshInstall ?? p.AvailableVersion ?? "Newest",
+            }))],
+            Columns = new ConfirmationColumns(Next: action == Action.Uninstall ? "After" : "New version"),
+        };
 
-        if (!await sink.ConfirmAsync(new Confirmation(title, names), cancellationToken).ConfigureAwait(false))
+        if (!await sink.ConfirmAsync(confirmation, cancellationToken).ConfigureAwait(false))
         {
             foreach (InstalledPackage p in targets)
                 Finish(sink, finished, p, PackageOutcome.Skipped("Not confirmed"));

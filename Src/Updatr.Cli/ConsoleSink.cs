@@ -57,6 +57,13 @@ public class ConsoleSink(bool assumeYes) : IOperationSink
             return confirmation.DefaultAnswer;
 
         Line(ConsoleColor.White, confirmation.Title);
+
+        if (confirmation.Items.Count > 0)
+        {
+            Line(ConsoleColor.Gray, ConfirmationColumns.Table(confirmation));
+            Console.WriteLine();
+        }
+
         Line(ConsoleColor.Gray, confirmation.Detail);
         Console.Write(confirmation.DefaultAnswer ? "[Y/n] " : "[y/N] ");
         string? answer = await Task.Run(Console.ReadLine, cancellationToken).ConfigureAwait(false);
@@ -323,7 +330,12 @@ public sealed class JsonLinesSink(bool assumeYes) : ConsoleSink(assumeYes)
     {
         // A script cannot answer a prompt; it says --yes up front or gets the safe default.
         bool answer = AssumeYes || confirmation.DefaultAnswer;
-        Emit(new JsonObject { ["event"] = "confirmation", ["title"] = confirmation.Title, ["detail"] = confirmation.Detail, ["answer"] = answer });
+        JsonArray items = [];
+
+        foreach (ConfirmationItem item in confirmation.Items)
+            items.Add(new JsonObject { ["name"] = item.Name, ["id"] = item.Id, ["current"] = item.Current, ["next"] = item.Next, ["note"] = item.Note });
+
+        Emit(new JsonObject { ["event"] = "confirmation", ["title"] = confirmation.Title, ["detail"] = confirmation.Detail, ["items"] = items, ["answer"] = answer });
         return Task.FromResult(answer);
     }
 

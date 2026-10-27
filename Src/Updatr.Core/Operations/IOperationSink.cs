@@ -57,6 +57,43 @@ public sealed record ItemFinished(string ItemId, string DisplayName, PackageOutc
 
 /// <summary>A yes/no question for the user.</summary>
 /// <param name="Title">Short question.</param>
-/// <param name="Detail">What happens on yes, and on no.</param>
+/// <param name="Detail">What happens on yes, and on no. With <see cref="Items"/>, the note under them.</param>
 /// <param name="DefaultAnswer">What a non-interactive run (<c>--yes</c> not given, no console) assumes.</param>
-public sealed record Confirmation(string Title, string Detail, bool DefaultAnswer = false);
+public sealed record Confirmation(string Title, string Detail, bool DefaultAnswer = false)
+{
+    /// <summary>What the question is about, one row each - the GUI shows a grid, the CLI a table.</summary>
+    public IReadOnlyList<ConfirmationItem> Items { get; init; } = [];
+
+    /// <summary>Column titles for <see cref="Items"/>. A column no item fills is left out.</summary>
+    public ConfirmationColumns Columns { get; init; } = new();
+}
+
+/// <summary>One row of a <see cref="Confirmation"/>. Every field but the name is optional.</summary>
+/// <param name="Current">The version (or state) now.</param>
+/// <param name="Next">The version (or state) after.</param>
+public sealed record ConfirmationItem(string Name, string? Id = null, string? Current = null, string? Next = null, string? Note = null);
+
+/// <summary>Titles for the <see cref="ConfirmationItem"/> columns.</summary>
+public sealed record ConfirmationColumns(
+    string Name = "Name",
+    string Id = "Id",
+    string Current = "Installed",
+    string Next = "After",
+    string Note = "Note")
+{
+    /// <summary>The rows as aligned plain text, for a console or a log.</summary>
+    public static string Table(Confirmation confirmation)
+    {
+        ConfirmationColumns c = confirmation.Columns;
+        List<(string Title, Func<ConfirmationItem, string?> Get)> columns =
+        [
+            (c.Name, i => i.Name), (c.Id, i => i.Id), (c.Current, i => i.Current), (c.Next, i => i.Next), (c.Note, i => i.Note),
+        ];
+        columns.RemoveAll(col => col.Title != c.Name && confirmation.Items.All(i => string.IsNullOrEmpty(col.Get(i))));
+
+        int[] widths = [.. columns.Select(col => Math.Max(col.Title.Length, confirmation.Items.Max(i => col.Get(i)?.Length ?? 0)))];
+        string Row(Func<int, string> cell) => "  " + string.Join("  ", columns.Select((_, n) => n == columns.Count - 1 ? cell(n) : cell(n).PadRight(widths[n]))).TrimEnd();
+
+        return string.Join("\n", [Row(n => columns[n].Title), Row(n => new string('-', widths[n])), .. confirmation.Items.Select(i => Row(n => columns[n].Get(i) ?? ""))]);
+    }
+}

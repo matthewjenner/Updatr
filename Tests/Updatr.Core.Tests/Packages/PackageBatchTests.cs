@@ -133,6 +133,35 @@ public sealed class PackageBatchTests
     }
 
     [Fact]
+    public async Task TheConfirmationListsEachPackageWithItsVersionNowAndAfter()
+    {
+        (PackageBatch batch, _) = Build(Pkg("CoreyButler.NVMforWindows", available: null, installed: "1.1.12", fresh: "1.2.2"));
+        RecordingSink sink = new(answer: false);
+
+        await new FreshInstallPackages(batch).RunAsync(new PackageSelection { Ids = ["CoreyButler.NVMforWindows"] }, sink, Ct);
+
+        ConfirmationItem item = sink.Confirmations.Single().Items.Single();
+        item.Id.Should().Be("CoreyButler.NVMforWindows");
+        item.Current.Should().Be("1.1.12");
+        item.Next.Should().Be("1.2.2");
+    }
+
+    [Fact]
+    public void TheConsoleTableLeavesOutEmptyColumnsAndAlignsTheRest()
+    {
+        Confirmation confirmation = new("Upgrade 2 package(s)?", "")
+        {
+            Items = [new("Git", "Git.Git", "2.40", "2.51"), new("Visual Studio Code", "Microsoft.VisualStudioCode", "1.90", "1.105")],
+        };
+
+        string[] lines = ConfirmationColumns.Table(confirmation).Split('\n');
+
+        lines[0].Should().Be("  Name                Id                          Installed  After");
+        lines[2].Should().Be("  Git                 Git.Git                     2.40       2.51");
+        lines.Should().HaveCount(4);
+    }
+
+    [Fact]
     public async Task ABusyInstallerIsRetriedOnce()
     {
         (PackageBatch batch, FakeSource source) = Build(Pkg("Git.Git"));
