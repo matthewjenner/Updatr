@@ -8,11 +8,13 @@ Living build plan. Update **Current state** and check boxes as work proceeds; ap
 
 ## Current state
 
-- **Phase:** 8 code complete - leftover cleanup with quarantine. 0.2.0 after a manual look. Still open (not blocking): winget repair on a clean / LTSC VM.
-- **Last updated:** 2026-10-24
-- **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (303/303).
-  Version 0.2.0 (0.1.0 released 2026-10-25).
-- **Next:** polish pass (Uninstall / Updates list kinds and filters, see Backlog).
+- **Phase:** polish after 0.2.0, driven by real runs on the dev PC and from a FAT32 thumb drive.
+  Phases 0-8 are done. Still open (not blocking): winget repair on a clean / LTSC VM.
+- **Last updated:** 2026-10-25
+- **Build status:** `dotnet build` green (0 warnings); `dotnet test` green (403/403).
+  Version 0.2.6.
+- **Next:** see Backlog - "Close it and finish" for blocked updates, "Fresh install", then list
+  polish (duplicate Store rows, VS Code extension names, ghost installs flagged when listed).
 
 ## Versioning
 
