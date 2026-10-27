@@ -12,17 +12,20 @@
             <Button Content="Yes" Click="OnYes" Classes="accent" IsDefault="True" />
         </StackPanel>
         <SelectableTextBlock x:Name="NoteText" DockPanel.Dock="Bottom" TextWrapping="Wrap" Opacity="0.8" Margin="0,12,0,0" IsVisible="False" />
-        <Border x:Name="ItemsBox" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1" CornerRadius="4" IsVisible="False">
-            <DockPanel Grid.IsSharedSizeScope="True">
-                <Border x:Name="HeaderRow" DockPanel.Dock="Top" Padding="10,6"
-                        Background="{DynamicResource SystemControlBackgroundBaseLowBrush}" />
-                <ScrollViewer>
-                    <ItemsControl x:Name="Rows" />
-                </ScrollViewer>
-            </DockPanel>
-        </Border>
-        <ScrollViewer x:Name="DetailScroll">
-            <SelectableTextBlock x:Name="DetailText" FontFamily="Consolas,Courier New,monospace" FontSize="12" TextWrapping="Wrap" />
-        </ScrollViewer>
+        <!-- One fill child: a DockPanel docks every child but the last, which would size the grid to its content. -->
+        <Panel>
+            <Border x:Name="ItemsBox" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1" CornerRadius="4" IsVisible="False">
+                <DockPanel Grid.IsSharedSizeScope="True">
+                    <Border x:Name="HeaderRow" DockPanel.Dock="Top" Padding="10,6"
+                            Background="{DynamicResource SystemControlBackgroundBaseLowBrush}" />
+                    <ScrollViewer>
+                        <ItemsControl x:Name="Rows" />
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+            <ScrollViewer x:Name="DetailScroll">
+                <SelectableTextBlock x:Name="DetailText" FontFamily="Consolas,Courier New,monospace" FontSize="12" TextWrapping="Wrap" />
+            </ScrollViewer>
+        </Panel>
     </DockPanel>
 </Window>
