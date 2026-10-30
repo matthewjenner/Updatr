@@ -61,10 +61,17 @@ public sealed partial class SplashViewModel : ObservableObject
                 {
                     NeedsDecision = false;
                     Status = $"{row.Fix!.Label} - this can take a few minutes. Quit stops it.";
-                    Status = await FixRunner.RunAsync(Host, row, _cancel.Token);
+                    string outcome = await FixRunner.RunAsync(Host, row, _cancel.Token);
+                    Status = outcome;
 
-                    if (!_cancel.IsCancellationRequested)
-                        await RunChecksAsync();
+                    if (_cancel.IsCancellationRequested)
+                        return;
+
+                    await RunChecksAsync();
+
+                    // The rerun's "Some checks failed" would hide why the fix did not work.
+                    if (NeedsDecision)
+                        Status = outcome;
                 },
             };
             Runner.PropertyChanged += (_, e) =>

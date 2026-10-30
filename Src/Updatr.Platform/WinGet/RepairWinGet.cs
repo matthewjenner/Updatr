@@ -31,10 +31,21 @@ public sealed class RepairWinGet(HttpClient http, WinGetSource source) : IOperat
 {
     public const string FixId = "winget-repair";
     public const string FamilyName = "Microsoft.DesktopAppInstaller_8wekyb3d8bbwe";
+    /// <summary>The way out when Windows refuses a sideloaded App Installer (often a managed PC's policy).</summary>
+    private const string StoreHint = ". Update App Installer from the Microsoft Store instead, then run the checks again.";
+
     private const string LatestRelease = "https://api.github.com/repos/microsoft/winget-cli/releases/latest";
 
     /// <param name="request">Ignored.</param>
     public async Task<WinGetRepairResult> RunAsync(bool request, IOperationSink sink, CancellationToken cancellationToken)
+    {
+        DiagLog.WinGetRepairStep($"starting (App Installer {WinGetRuntime.AppInstallerVersion() ?? "not found"})");
+        WinGetRepairResult result = await RepairAsync(sink, cancellationToken).ConfigureAwait(false);
+        DiagLog.WinGetRepairStep($"{(result.Succeeded ? "done" : "FAILED")}: {result.Summary} (App Installer now {WinGetRuntime.AppInstallerVersion() ?? "not found"})");
+        return result;
+    }
+
+    private async Task<WinGetRepairResult> RepairAsync(IOperationSink sink, CancellationToken cancellationToken)
     {
         if (WinGetRuntime.EnsureReady() is { } metadataProblem)
             return new WinGetRepairResult(false, metadataProblem);
@@ -115,11 +126,25 @@ public sealed class RepairWinGet(HttpClient http, WinGetSource source) : IOperat
             DiagLog.WinGetRepairStep($"installing {Path.GetFileName(bundle)} with {dependencies.Length} {arch} dependencies");
 
             Progress<DeploymentProgress> installing = new(p => sink.Report(new ProgressReported(null, p.percentage / 100.0, Message: "Installing App Installer")));
-            DeploymentResult result = await packages.AddPackageAsync(new Uri(bundle), dependencies, DeploymentOptions.ForceTargetApplicationShutdown)
-                .AsTask(cancellationToken, installing).ConfigureAwait(false);
+            var deployment = packages.AddPackageAsync(new Uri(bundle), dependencies, DeploymentOptions.ForceTargetApplicationShutdown);
+            DeploymentResult? result;
+
+            try
+            {
+                result = await deployment.AsTask(cancellationToken, installing).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is COMException or InvalidOperationException or UnauthorizedAccessException)
+            {
+                // A refused deployment throws from AsTask; Windows' own explanation (ErrorText) is
+                // only on the operation's result.
+                result = TryGetResults(deployment);
+                string why = string.IsNullOrWhiteSpace(result?.ErrorText) ? ex.Message.Trim() : result.ErrorText.Trim();
+                return new WinGetRepairResult(false, $"Windows refused the App Installer {tag} install: {why} (0x{ex.HResult:X8}"
+                    + (result is null ? ")" : $", activity {result.ActivityId})") + StoreHint);
+            }
 
             if (result.ExtendedErrorCode is { } error && error.HResult != 0)
-                return new WinGetRepairResult(false, $"Windows refused the install: {result.ErrorText} (0x{error.HResult:X8})");
+                return new WinGetRepairResult(false, $"Windows refused the App Installer {tag} install: {result.ErrorText} (0x{error.HResult:X8}, activity {result.ActivityId})" + StoreHint);
 
             return Recheck(out string? version)
                 ? new WinGetRepairResult(true, $"Installed winget {version} from {tag}.")
@@ -170,6 +195,18 @@ public sealed class RepairWinGet(HttpClient http, WinGetSource source) : IOperat
         }
 
         return path;
+    }
+
+    private static DeploymentResult? TryGetResults(global::Windows.Foundation.IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> deployment)
+    {
+        try
+        {
+            return deployment.GetResults();
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return null;
+        }
     }
 
     private bool Recheck(out string? version)
