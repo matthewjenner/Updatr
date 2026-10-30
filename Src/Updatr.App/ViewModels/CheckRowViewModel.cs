@@ -37,13 +37,25 @@ public sealed partial class CheckRowViewModel(string id, string title, Func<Chec
     [NotifyPropertyChangedFor(nameof(HasFix))]
     public partial PreflightFix? Fix { get; set; }
 
-    public bool HasFix => Fix is not null && State is not CheckRowState.Running;
+    public bool HasFix => Fix is not null && State is not CheckRowState.Running && !IsFixing;
+
+    /// <summary>A fix is running: the row shows its step and a progress bar instead of the button.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasFix), nameof(HasDetail))]
+    public partial bool IsFixing { get; set; }
+
+    /// <summary>0..100 while a fix reports how far it is; null shows a moving bar.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FixProgressKnown))]
+    public partial double? FixProgress { get; set; }
+
+    public bool FixProgressKnown => FixProgress is not null;
 
     [RelayCommand]
     private Task RunFixAsync() => runFix(this);
 
     /// <summary>Detail is shown inline for problems only; it is in the tooltip for the rest.</summary>
-    public bool HasDetail => Detail is not null && State is CheckRowState.Warn or CheckRowState.Fail;
+    public bool HasDetail => Detail is not null && State is CheckRowState.Warn or CheckRowState.Fail && !IsFixing;
 
     public void Start()
     {

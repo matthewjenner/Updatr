@@ -108,9 +108,9 @@ public sealed class WinGetSource(ElevationService? elevation, IProcessRunner pro
                     Mode = "COM API";
                     return _chosen = new WinGetComSource(elevation);
                 }
-                catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or InvalidOperationException or DllNotFoundException)
+                catch (Exception ex) when (WinGetRuntime.IsUnavailable(ex))
                 {
-                    problem = ex.Message;
+                    problem = WinGetRuntime.Describe(ex);
                 }
             }
 

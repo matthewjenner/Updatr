@@ -38,8 +38,7 @@ public sealed partial class SettingsPageViewModel : PageViewModel
         Preflight = preflight;
         Preflight.FixHandler = async row =>
         {
-            row.Summary = $"{row.Fix!.Label}...";
-            AdminTestResult = await FixRunner.RunAsync(host, row.Fix);
+            AdminTestResult = await FixRunner.RunAsync(host, row);
             await RerunChecksAsync();
         };
         Describe(preflight.Report);

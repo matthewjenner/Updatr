@@ -60,6 +60,48 @@ public static partial class WinGetRuntime
         return new PackageManager();
     }
 
+    /// <summary>
+    /// Whether an exception from the WinGet COM API means "winget is not usable here" rather than a
+    /// bug. <see cref="InvalidCastException"/> is an App Installer older than the API this build
+    /// targets: the server is there but lacks a newer interface (e.g. <c>PackageManager.Version</c>),
+    /// which is common on a fresh image before the Store has updated it.
+    /// </summary>
+    public static bool IsUnavailable(Exception ex)
+        => ex is COMException or InvalidOperationException or DllNotFoundException or EntryPointNotFoundException or InvalidCastException;
+
+    /// <summary>A short reason for the user, naming the installed App Installer when it is too old.</summary>
+    public static string Describe(Exception ex)
+    {
+        string? installed = AppInstallerVersion();
+        DiagLog.WinGetApiUnavailable(installed, ex);
+
+        return ex is InvalidCastException
+            ? $"winget on this PC is too old (App Installer package {installed ?? "version unknown"}); Updatr is built for winget {TargetVersion}"
+            : ex.Message;
+    }
+
+    /// <summary>The winget API version this build is compiled against (the interop package).</summary>
+    public const string TargetVersion = "1.29";
+
+    /// <summary>The installed App Installer package version for this user, or null if none or unknown.</summary>
+    public static string? AppInstallerVersion()
+    {
+        try
+        {
+            foreach (global::Windows.ApplicationModel.Package package in new global::Windows.Management.Deployment.PackageManager().FindPackagesForUser(string.Empty, RepairWinGet.FamilyName))
+            {
+                global::Windows.ApplicationModel.PackageVersion v = package.Id.Version;
+                return $"{v.Major}.{v.Minor}.{v.Build}.{v.Revision}";
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // Diagnostic only - it runs inside other catch blocks, so it must never throw.
+        }
+
+        return null;
+    }
+
     private static string? EnsureMetadataBesideExe()
     {
         string path = Path.Combine(AppLocations.ExeDirectory, MetadataFileName);

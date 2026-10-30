@@ -141,6 +141,9 @@ dotnet test                         # MTP runner (global.json)
   defaults the same way: `UserSettings` keeps `int?` fields (null = default) for that reason.
 - **winget's installed scope says "System" for per-machine installs,** not "Machine". Parse it
   with `WinGetComSource.ParseScope`, never a string compare.
+- **An old App Installer throws `InvalidCastException`, not `COMException`.** The server lacks a
+  newer interface the projection asks for (fresh images, before the Store updates it). Catch WinGet
+  API failures with `WinGetRuntime.IsUnavailable(ex)`, never a hand-written exception list.
 - **Index WinRT lists, never enumerate them.** `foreach` / LINQ over a CsWinRT `IReadOnlyList`
   from the WinGet API throws `InvalidCastException` ("No such interface supported"); use
   `for (int i = 0; i < list.Count; i++)`.

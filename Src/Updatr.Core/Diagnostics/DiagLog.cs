@@ -99,7 +99,7 @@ public static class DiagLog
             string.Create(CultureInfo.InvariantCulture, $"{checkId}: {status} - {summary} ({elapsed.TotalMilliseconds:0} ms)"));
 
     public static void PreflightCheckCrashed(string checkId, Exception ex)
-        => Emit(LogCategory.Preflight, LogLevel.Error, $"{checkId}: check threw {ex.GetType().Name}: {ex.Message}");
+        => Emit(LogCategory.Preflight, LogLevel.Error, $"{checkId}: check threw {ex}");
 
     public static void PreflightFinished(int pass, int warn, int fail, TimeSpan elapsed)
         => Emit(LogCategory.Preflight, fail > 0 ? LogLevel.Warning : LogLevel.Info,
@@ -137,6 +137,9 @@ public static class DiagLog
 
     public static void WinGetRepairStep(string step)
         => Emit(LogCategory.Source, LogLevel.Info, $"winget repair: {step}");
+
+    public static void WinGetApiUnavailable(string? appInstallerVersion, Exception ex)
+        => Emit(LogCategory.Source, LogLevel.Warning, $"winget COM API unavailable (App Installer {appInstallerVersion ?? "not found"}): {ex}");
 
     public static void WinGetMetadataMissing(string reason)
         => Emit(LogCategory.Source, LogLevel.Error, $"WinGet metadata is missing beside the exe and could not be restored: {reason}");

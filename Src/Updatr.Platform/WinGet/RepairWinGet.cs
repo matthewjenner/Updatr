@@ -114,8 +114,9 @@ public sealed class RepairWinGet(HttpClient http, WinGetSource source) : IOperat
             sink.Report(new StepStarted($"Installing App Installer {tag} and {dependencies.Length} dependencies"));
             DiagLog.WinGetRepairStep($"installing {Path.GetFileName(bundle)} with {dependencies.Length} {arch} dependencies");
 
+            Progress<DeploymentProgress> installing = new(p => sink.Report(new ProgressReported(null, p.percentage / 100.0, Message: "Installing App Installer")));
             DeploymentResult result = await packages.AddPackageAsync(new Uri(bundle), dependencies, DeploymentOptions.ForceTargetApplicationShutdown)
-                .AsTask(cancellationToken).ConfigureAwait(false);
+                .AsTask(cancellationToken, installing).ConfigureAwait(false);
 
             if (result.ExtendedErrorCode is { } error && error.HResult != 0)
                 return new WinGetRepairResult(false, $"Windows refused the install: {result.ErrorText} (0x{error.HResult:X8})");
@@ -150,13 +151,22 @@ public sealed class RepairWinGet(HttpClient http, WinGetSource source) : IOperat
         await using FileStream output = File.Create(path);
         byte[] buffer = new byte[81920];
         long done = 0;
+        long lastPercent = -1;
         int read;
 
         while ((read = await input.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
         {
             await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
             done += read;
-            sink.Report(new ProgressReported(null, total is > 0 ? (double)done / total.Value : null, done, total, $"Downloading {what}"));
+
+            // Once per whole percent: a few hundred MB in 80 KB reads would flood the UI thread.
+            long percent = total is > 0 ? done * 100 / total.Value : done / 10485760;
+
+            if (percent != lastPercent)
+            {
+                lastPercent = percent;
+                sink.Report(new ProgressReported(null, total is > 0 ? (double)done / total.Value : null, done, total, $"Downloading {what}"));
+            }
         }
 
         return path;
@@ -175,7 +185,7 @@ public sealed class RepairWinGet(HttpClient http, WinGetSource source) : IOperat
             version = WinGetRuntime.CreatePackageManager().Version;
             return true;
         }
-        catch (Exception ex) when (ex is COMException or InvalidOperationException or DllNotFoundException)
+        catch (Exception ex) when (WinGetRuntime.IsUnavailable(ex))
         {
             version = null;
             return false;

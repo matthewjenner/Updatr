@@ -60,9 +60,11 @@ public sealed partial class SplashViewModel : ObservableObject
                 FixHandler = async row =>
                 {
                     NeedsDecision = false;
-                    row.Summary = $"{row.Fix!.Label}...";
-                    Status = await FixRunner.RunAsync(Host, row.Fix);
-                    await RunChecksAsync();
+                    Status = $"{row.Fix!.Label} - this can take a few minutes. Quit stops it.";
+                    Status = await FixRunner.RunAsync(Host, row, _cancel.Token);
+
+                    if (!_cancel.IsCancellationRequested)
+                        await RunChecksAsync();
                 },
             };
             Runner.PropertyChanged += (_, e) =>
